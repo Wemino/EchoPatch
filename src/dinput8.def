@@ -1,0 +1,8 @@
+LIBRARY "DINPUT8"
+EXPORTS
+	DirectInput8Create = Hook_DirectInput8Create
+	DllCanUnloadNow = Hook_DllCanUnloadNow PRIVATE
+	DllGetClassObject = Hook_DllGetClassObject PRIVATE
+	DllRegisterServer = Hook_DllRegisterServer PRIVATE
+	DllUnregisterServer = Hook_DllUnregisterServer PRIVATE
+	GetdfDIJoystick = Hook_GetdfDIJoystick
