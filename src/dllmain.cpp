@@ -29,7 +29,7 @@ int(__stdcall* LayoutDBGetRecord)(int, char*) = nullptr;
 int(__stdcall* LayoutDBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
 const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
-HANDLE(WINAPI* ori_CreateMutexA)(LPSECURITY_ATTRIBUTES, BOOL, LPCSTR);
+HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_Present)(IDirect3DDevice9*, CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*);
 
 // =============================
@@ -657,15 +657,17 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		fValue = 0.0f;
 	}
 
-	if (HUDScaling && strcmp(pszVarName, "CrosshairSize") == 0)
+	if (HUDScaling)
 	{
-		gState.crosshairSize = fValue; // Keep a backup of the value as it can be adjusted in the settings
-		fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
-	}
-
-	if (HUDScaling && strcmp(pszVarName, "PerturbScale") == 0)
-	{
-		fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
+		if (strcmp(pszVarName, "CrosshairSize") == 0)
+		{
+			gState.crosshairSize = fValue; // Keep a backup of the value as it can be adjusted in the settings
+			fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
+		}
+		else if (strcmp(pszVarName, "PerturbScale") == 0)
+		{
+			fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
+		}
 	}
 
 	return SetConsoleVariableFloat(pszVarName, fValue);
@@ -844,18 +846,15 @@ static void Init()
 	ApplyDirect3D9Hook();
 }
 
-// Hook of the first function executed
-static HANDLE WINAPI CreateMutexA_Hook(LPSECURITY_ATTRIBUTES lpMutexAttributes, BOOL bInitialOwner, LPCSTR lpName)
+static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	// Identify calls of interest, filter out the SecuROM ones (FEAR + FEARXP2 || FEARXP)
-	if (strcmp(lpName, "{CB7DD3FC-417D-4c29-9BFD-CA781BF1B207}") == 0 || strcmp(lpName, "{4227F87E-A775-48e0-831A-210F7F7EE351}") == 0)
+	if (lpClassName && strstr(lpClassName, "FEAR") && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && dwStyle == 0xC10000 && nWidth == 320 && nHeight == 200)
 	{
-		// Once Steam DRM and SecuROM did their thing, disable this hook and do the patching
 		MH_DisableHook(MH_ALL_HOOKS);
 		Init();
 	}
 
-	return ori_CreateMutexA(lpMutexAttributes, bInitialOwner, lpName);
+	return ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
@@ -890,7 +889,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 			}
 
 			SystemHelper::LoadProxyLibrary();
-			HookHelper::ApplyHookAPI(L"kernel32", "CreateMutexA", &CreateMutexA_Hook, (LPVOID*)&ori_CreateMutexA);
+			HookHelper::ApplyHookAPI(L"user32.dll", "CreateWindowExA", &CreateWindowExA_Hook, (LPVOID*)&ori_CreateWindowExA);
 			break;
 		}
 		case DLL_PROCESS_DETACH:
