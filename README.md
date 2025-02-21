@@ -17,12 +17,19 @@ Modernizes F.E.A.R. and its expansions with HUD scaling and a variety of enhance
 
 The `HUDCustomScalingFactor` setting in `EchoPatch.ini` can be adjusted to customize the overall scaling of HUD elements.
 
+The `SmallTextCustomScalingFactor` setting allows for independent scaling of smaller text elements, such as subtitles.
+
 <div align="center">
-
-| <img width="475" src="assets/4K_HUD_Normal.png"> | <img width="475" src="assets/4K_HUD_Scaled.png"> |
-|:--:|:--:|
-| 4K Vanilla | 4K EchoPatch |
-
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/4K_HUD_Normal.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/4K_HUD_Scaled.png"></td>
+    </tr>
+    <tr>
+      <td align="center">4K Vanilla</td>
+      <td align="center">4K EchoPatch</td>
+    </tr>
+  </table>
 </div>
 
 - **Framerate Limiter** - The game engine struggles with very low delta times at high framerates. Since it lacks a framerate cap, this can cause the game to run too fast. This feature lets you set a maximum framerate to prevent that. To adjust the limit, edit `MaxFPS` in `EchoPatch.ini`. A maximum value of 120 is recommended.
@@ -33,28 +40,39 @@ The `HUDCustomScalingFactor` setting in `EchoPatch.ini` can be adjusted to custo
 
 - **No Mipmap Bias** - Forces the highest quality textures to be rendered at all distances.
 <div align="center">
-
-| <img width="1480" src="assets/MipMapBias.png"> |
-|:--:|
-| MipMapBias settings: On vs. Off at 1920x1080 |
-
+  <table>
+    <tr>
+      <td width="100%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/MipMapBias.png"></td>
+    </tr>
+    <tr>
+      <td align="center">MipMapBias settings: On vs. Off at 1920x1080</td>
+    </tr>
+  </table>
 </div>
 
 - **Disable Letterboxing** - Disable the letterbox during cutscenes when `DisableLetterbox` is set to 1 in `EchoPatch.ini`.
-
 <div align="center">
-
-| <img width="500" src="assets/Letterbox_On.png"> | <img width="500" src="assets/Letterbox_Off.png"> |
-|:--:|:--:|
-| Vanilla | EchoPatch (Letterbox Disabled) |
-
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_On.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_Off.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">EchoPatch (Letterbox Disabled)</td>
+    </tr>
+  </table>
 </div>
 
 - **Widescreen Resolution Support for Extraction Point** – In the Extraction Point expansion, only 4:3 aspect ratio resolutions are shown in the resolution list. This restriction has been removed.
 
+- **Auto Resolution** - Automatically sets the game window size to match the screen resolution on the first launch.
+
 - **Skip Splashscreen** - Bypasses developer splash screen immediately on launch when `SkipSplashScreen` is set to 1 in `EchoPatch.ini`.
 
 - **Skip Movies** - Skips all corporate intro videos while keeping the sound for the menu when `SkipAllIntro` is set to 1 in `EchoPatch.ini`. Additionally, individual videos can be skipped instead of all; refer to the `SkipIntro` section in `EchoPatch.ini`.
+
+- **Infinite Flashlight** - Removes the flashlight battery limit and hides the HUD indicator. Disabled by default, can be enabled by setting `InfiniteFlashlight = 1` in `EchoPatch.ini`.
 
 ## Credits
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
