@@ -29,6 +29,7 @@ int(__stdcall* LayoutDBGetRecord)(int, char*) = nullptr;
 int(__stdcall* LayoutDBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
 const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
+int(__thiscall* UpdateSlider)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_Present)(IDirect3DDevice9*, CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*);
 
@@ -65,8 +66,13 @@ struct GlobalState
 	int currentWidth = 0;
 	int currentHeight = 0;
 	float scalingFactor = 0;
+	float scalingFactorText = 0;
+	float scalingFactorCrosshair = 0;
 	float crosshairSize = 0;
 	int CHUDMgr = 0;
+
+	int screenWidth = 0;
+	int screenHeight = 0;
 
 	bool isClientLoaded = false;
 	bool skipClientPatching = false;
@@ -80,6 +86,7 @@ struct GlobalState
 	int healthAdditionalIntIndex = 0;
 	int int32ToUpdate = 0;
 	float floatToUpdate = 0;
+	bool crosshairSliderUpdated = false;
 
 	struct DataEntry
 	{
@@ -114,6 +121,8 @@ bool NoMipMapBias = false;
 // Display
 bool HUDScaling = false;
 float HUDCustomScalingFactor = 0;
+float SmallTextCustomScalingFactor = 0;
+bool AutoResolution = false;
 bool DisableLetterbox = false;
 
 // SkipIntro
@@ -125,6 +134,9 @@ bool SkipWBGamesIntro = false;
 bool SkipNvidiaIntro = false;
 bool SkipTimegateIntro = false;
 bool SkipDellIntro = false;
+
+// Extra
+bool InfiniteFlashlight = false;
 
 static void ReadConfig()
 {
@@ -142,6 +154,8 @@ static void ReadConfig()
 	// Display
 	HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
 	HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
+	SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
+	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1) == 1;
 	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
 
 	// SkipIntro
@@ -153,6 +167,16 @@ static void ReadConfig()
 	SkipNvidiaIntro = IniHelper::ReadInteger("SkipIntro", "SkipNvidiaIntro", 1) == 1;
 	SkipTimegateIntro = IniHelper::ReadInteger("SkipIntro", "SkipTimegateIntro", 1) == 1;
 	SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
+
+	// Extra
+	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 1) == 1;
+
+	if (AutoResolution)
+	{
+		auto [screenWidth, screenHeight] = SystemHelper::GetScreenResolution();
+		gState.screenWidth = screenWidth;
+		gState.screenHeight = screenHeight;
+	}
 }
 
 #pragma region Client Hooks
@@ -219,9 +243,14 @@ static int __stdcall LayoutDBGetRecord_Hook(int Record, char* Attribute)
 			int scalingMode = textDt->second.ScaleType;
 			float scaledSize = textDt->second.TextSize * gState.scalingFactor;
 
-			if (scalingMode == 1) // Fit the text in the HUD
+			switch (scalingMode)
 			{
-				scaledSize = std::round(scaledSize * 0.95f);
+				case 1: // Fit the text in the HUD
+					scaledSize = std::round(scaledSize * 0.95f);
+					break;
+				case 2: // Small texts
+					scaledSize = textDt->second.TextSize * gState.scalingFactorText;
+					break;
 			}
 
 			gState.int32ToUpdate = static_cast<int32_t>(scaledSize);
@@ -279,12 +308,6 @@ static int __stdcall LayoutDBGetInt32_Hook(int a1, unsigned int a2, int a3)
 }
 
 // Executed right after 'LayoutDBGetRecord'
-static const char* __stdcall LayoutDBGetString_Hook(int a1, unsigned int a2, int a3)
-{
-	return LayoutDBGetString(a1, a2, a3);
-}
-
-// Executed right after 'LayoutDBGetRecord'
 static float __stdcall LayoutDBGetFloat_Hook(int a1, unsigned int a2, float a3)
 {
 	if (gState.updateLayoutReturnValue)
@@ -293,6 +316,44 @@ static float __stdcall LayoutDBGetFloat_Hook(int a1, unsigned int a2, float a3)
 		return gState.floatToUpdate;
 	}
 	return LayoutDBGetFloat(a1, a2, a3);
+}
+
+// Executed right after 'LayoutDBGetRecord'
+static const char* __stdcall LayoutDBGetString_Hook(int a1, unsigned int a2, int a3)
+{
+	return LayoutDBGetString(a1, a2, a3);
+}
+
+static int __fastcall UpdateSlider_Hook(int thisPtr, int _ECX, int index)
+{
+	if (thisPtr)
+	{
+		char* sliderName = MemoryHelper::ReadMemory<char*>(thisPtr + 0x8, false);
+
+		// If 'ScreenCrosshair_Size_Help' is next
+		if (strcmp(sliderName, "ScreenCrosshair_Alpha_Help") == 0)
+		{
+			gState.crosshairSliderUpdated = false;
+		}
+
+		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
+		if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !gState.crosshairSliderUpdated && gState.scalingFactorCrosshair > 1.0f)
+		{
+			float unscaledIndex = index / gState.scalingFactorCrosshair;
+
+			// scs.nIncrement = 2
+			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
+
+			// Clamp to the range [4, 16].
+			newIndex = std::clamp(newIndex, 4, 16);
+
+			index = newIndex;
+
+			// Only needed on the first time
+			gState.crosshairSliderUpdated = true;
+		}
+	}
+	return UpdateSlider(thisPtr, index);
 }
 
 static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
@@ -312,6 +373,12 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 	// Don't downscale the HUD
 	if (gState.scalingFactor < 1.0f) gState.scalingFactor = 1.0f;
 
+	// Do not change the scaling of the crosshair
+	gState.scalingFactorCrosshair = gState.scalingFactor;
+
+	// Apply custom scaling for the text
+	gState.scalingFactorText = gState.scalingFactor * SmallTextCustomScalingFactor;
+
 	// Apply custom scaling to calculated scaling
 	gState.scalingFactor *= HUDCustomScalingFactor;
 
@@ -327,8 +394,8 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 		HUDInit(gState.CHUDMgr);
 
 		// Update the size of the crosshair
-		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * (gState.scalingFactor / HUDCustomScalingFactor));
-		SetConsoleVariableFloat("PerturbScale", 0.5f * (gState.scalingFactor / HUDCustomScalingFactor));
+		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * gState.scalingFactorCrosshair);
+		SetConsoleVariableFloat("PerturbScale", 0.5f * gState.scalingFactorCrosshair);
 	}
 }
 
@@ -422,6 +489,25 @@ static void ApplyClientPatch()
 		}
 	}
 
+	if (InfiniteFlashlight)
+	{
+		switch (gState.CurrentFEARGame)
+		{
+			case FEAR:
+				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x698D0, 0xC3, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xBBD03, 6, true);
+				break;
+			case FEARXP:
+				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x86780, 0xC3, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xEE1C3, 6, true);
+				break;
+			case FEARXP2:
+				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x887D0, 0xC3, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xF4B73, 6, true);
+				break;
+			}
+	}
+
 	if (HUDScaling)
 	{
 		if (gState.CurrentFEARGame == FEAR)
@@ -434,6 +520,7 @@ static void ApplyClientPatch()
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x85E50), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x88330), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x88FE0), &GetRectF_Hook, (LPVOID*)&GetRectF);
+			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x164BF0), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
@@ -449,6 +536,7 @@ static void ApplyClientPatch()
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAB150), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xADDB0), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAEA60), &GetRectF_Hook, (LPVOID*)&GetRectF);
+			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x184500), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
@@ -464,6 +552,7 @@ static void ApplyClientPatch()
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAE5A0), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xB1270), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
 			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xB1F20), &GetRectF_Hook, (LPVOID*)&GetRectF);
+			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x19EFE0), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
 			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
@@ -490,12 +579,12 @@ static void ApplyClientPatch()
 		gState.textDataMap["HUDAmmo"] = { 16, 0 };
 		gState.textDataMap["HUDArmor"] = { 25, 0 };
 		gState.textDataMap["HUDBuildVersion"] = { 12, 0 };
-		gState.textDataMap["HUDChatInput"] = { 16, 0 };
-		gState.textDataMap["HUDChatMessage"] = { 14, 0 };
+		gState.textDataMap["HUDChatInput"] = { 16, 2 };
+		gState.textDataMap["HUDChatMessage"] = { 14, 2 };
 		gState.textDataMap["HUDControlPoint"] = { 24, 0 };
 		gState.textDataMap["HUDControlPointBar"] = { 24, 0 };
 		gState.textDataMap["HUDControlPointList"] = { 24, 0 };
-		gState.textDataMap["HUDCrosshair"] = { 12, 0 };
+		gState.textDataMap["HUDCrosshair"] = { 12, 2 };
 		gState.textDataMap["HUDCTFBaseEnemy"] = { 14, 0 };
 		gState.textDataMap["HUDCTFBaseFriendly"] = { 14, 0 };
 		gState.textDataMap["HUDCTFFlag"] = { 14, 0 };
@@ -507,7 +596,7 @@ static void ApplyClientPatch()
 		gState.textDataMap["HUDEditorPosition"] = { 12, 0 };
 		gState.textDataMap["HudEndRoundMessage"] = { 32, 0 };
 		gState.textDataMap["HUDFocus"] = { 16, 0 };
-		gState.textDataMap["HUDGameMessage"] = { 14, 0 };
+		gState.textDataMap["HUDGameMessage"] = { 14, 2 };
 		gState.textDataMap["HUDGear"] = { 14, 0 };
 		gState.textDataMap["HUDGrenade"] = { 14, 0 };
 		gState.textDataMap["HUDGrenadeList"] = { 14, 0 };
@@ -521,8 +610,8 @@ static void ApplyClientPatch()
 		gState.textDataMap["HUDScoreDiff"] = { 16, 0 };
 		gState.textDataMap["HUDScores"] = { 14, 0 };
 		gState.textDataMap["HUDSpectator"] = { 12, 0 };
-		gState.textDataMap["HUDSubtitle"] = { 14, 0 };
-		gState.textDataMap["HUDSwap"] = { 12, 0 };
+		gState.textDataMap["HUDSubtitle"] = { 14, 2 };
+		gState.textDataMap["HUDSwap"] = { 12, 2 };
 		gState.textDataMap["HUDTeamScoreControl"] = { 24, 0 };
 		gState.textDataMap["HUDTeamScoreCTF"] = { 14, 0 };
 		gState.textDataMap["HUDTeamScoreTDM"] = { 14, 0 };
@@ -657,16 +746,26 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		fValue = 0.0f;
 	}
 
+	if (AutoResolution && strcmp(pszVarName, "Performance_ScreenWidth") == 0)
+	{
+		fValue = static_cast<float>(gState.screenWidth);
+	}
+
+	if (AutoResolution && strcmp(pszVarName, "Performance_ScreenHeight") == 0)
+	{
+		fValue = static_cast<float>(gState.screenHeight);
+	}
+
 	if (HUDScaling)
 	{
 		if (strcmp(pszVarName, "CrosshairSize") == 0)
 		{
 			gState.crosshairSize = fValue; // Keep a backup of the value as it can be adjusted in the settings
-			fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
+			fValue = fValue * gState.scalingFactorCrosshair;
 		}
 		else if (strcmp(pszVarName, "PerturbScale") == 0)
 		{
-			fValue = fValue * (gState.scalingFactor / HUDCustomScalingFactor);
+			fValue = fValue * gState.scalingFactorCrosshair;
 		}
 	}
 
@@ -787,6 +886,27 @@ static void ApplyConsoleVariableHook()
 	}
 }
 
+static void ApplyAutoResolution()
+{
+	if (!AutoResolution) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			MemoryHelper::WriteMemory<int>(0x56ABF4, gState.screenWidth, true);
+			MemoryHelper::WriteMemory<int>(0x56ABF8, gState.screenHeight, true);
+			break;
+		case FEARXP:
+			MemoryHelper::WriteMemory<int>(0x60EC2C, gState.screenWidth, true);
+			MemoryHelper::WriteMemory<int>(0x60EC30, gState.screenHeight, true);
+			break;
+		case FEARXP2:
+			MemoryHelper::WriteMemory<int>(0x610C2C, gState.screenWidth, true);
+			MemoryHelper::WriteMemory<int>(0x610C30, gState.screenHeight, true);
+			break;
+	}
+}
+
 // For FPS limiter
 static void ApplyDirect3D9Hook()
 {
@@ -835,6 +955,9 @@ static void Init()
 
 	// Fixes
 	ApplyFixDirectInputFps();
+
+	// Display
+	ApplyAutoResolution();
 
 	// Graphics
 	ApplyNoMipMapBias();
