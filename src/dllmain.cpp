@@ -31,7 +31,9 @@ float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
 const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
-HRESULT(WINAPI* ori_Present)(IDirect3DDevice9*, CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*);
+IDirect3D9* (WINAPI* ori_Direct3DCreate9)(UINT);
+HRESULT(STDMETHODCALLTYPE* ori_CreateDevice)(IDirect3D9*, UINT, D3DDEVTYPE, HWND, DWORD, D3DPRESENT_PARAMETERS*, IDirect3DDevice9**);
+HRESULT(STDMETHODCALLTYPE* ori_Present)(IDirect3DDevice9*, CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*);
 
 // =============================
 // Constants 
@@ -101,6 +103,10 @@ struct GlobalState
 // Initialize static members
 std::unordered_map<std::string, GlobalState::DataEntry> GlobalState::textDataMap;
 std::unordered_map<std::string, std::unordered_set<std::string>> GlobalState::hudScalingRules;
+
+// Atomic flags to track whether the CreateDevice and Present hooks are active
+static std::atomic<bool> CreateDeviceHooked = false;
+static std::atomic<bool> PresentHooked = false;
 
 // Global instance
 GlobalState gState;
@@ -772,13 +778,6 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 	return SetConsoleVariableFloat(pszVarName, fValue);
 }
 
-// Hook of IDirect3DDevice9::Present
-static HRESULT WINAPI PresentHook(IDirect3DDevice9* device, CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
-{
-	gState.fpsLimiter.Limit();
-	return ori_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-}
-
 #pragma endregion
 
 #pragma region Patches
@@ -907,39 +906,49 @@ static void ApplyAutoResolution()
 	}
 }
 
-// For FPS limiter
+// Hook of IDirect3DDevice9::Present
+static HRESULT WINAPI Present_Hook(IDirect3DDevice9* device, CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
+{
+	gState.fpsLimiter.Limit();
+	return ori_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
+}
+
+static HRESULT STDMETHODCALLTYPE CreateDevice_Hook(IDirect3D9* pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface)
+{
+	HRESULT hr = ori_CreateDevice(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
+
+	if (SUCCEEDED(hr) && !PresentHooked.exchange(true)) 
+	{
+		void*** pVTable = reinterpret_cast<void***>(*ppReturnedDeviceInterface);
+		void* pPresentAddr = pVTable[0][17];
+
+		// Only leave Present
+		MH_RemoveHook(MH_ALL_HOOKS);
+		HookHelper::ApplyHook(pPresentAddr, Present_Hook, reinterpret_cast<LPVOID*>(&ori_Present));
+	}
+	return hr;
+}
+
+static IDirect3D9* WINAPI Direct3DCreate9_Hook(UINT SDKVersion)
+{
+	IDirect3D9* pD3D = ori_Direct3DCreate9(SDKVersion);
+
+	if (pD3D && !CreateDeviceHooked.exchange(true)) 
+	{
+		void*** pVTable = reinterpret_cast<void***>(pD3D); 
+		void* pCreateDeviceAddr = pVTable[0][16];
+
+		HookHelper::ApplyHook(pCreateDeviceAddr, CreateDevice_Hook, reinterpret_cast<LPVOID*>(&ori_CreateDevice));
+	}
+	return pD3D;
+}
+
 static void ApplyDirect3D9Hook()
 {
 	if (MaxFPS == 0) return;
 
-	IDirect3D9* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-	if (!pD3D)
-	{
-		MessageBoxA(nullptr, "Failed to create IDirect3D9 object!", "Error", MB_ICONERROR);
-		return;
-	}
-
-	IDirect3DDevice9* pDummyDevice = nullptr;
-	D3DPRESENT_PARAMETERS d3dpp = {};
-	d3dpp.Windowed = TRUE;
-	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-	d3dpp.hDeviceWindow = GetDesktopWindow();
-
-	if (FAILED(pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3dpp.hDeviceWindow, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &pDummyDevice)))
-	{
-		pD3D->Release();
-		MessageBoxA(nullptr, "Failed to create dummy D3D9 device!", "Error", MB_ICONERROR);
-		return;
-	}
-
-	void** pVTable = *reinterpret_cast<void***>(pDummyDevice);
-	void* pPresent = pVTable[17]; // Index 17 = IDirect3DDevice9::Present
-
-	HookHelper::ApplyHook(pPresent, PresentHook, (LPVOID*)&ori_Present);
 	gState.fpsLimiter.SetTargetFps(MaxFPS);
-
-	pDummyDevice->Release();
-	pD3D->Release();
+	HookHelper::ApplyHookAPI(L"d3d9.dll", "Direct3DCreate9", Direct3DCreate9_Hook, reinterpret_cast<LPVOID*>(&ori_Direct3DCreate9));
 }
 
 #pragma endregion
@@ -949,6 +958,11 @@ static void ApplyDirect3D9Hook()
 static void Init()
 {
 	ReadConfig();
+
+	// Misc
+	ApplyDirect3D9Hook();
+	ApplySkipIntroHook();
+	ApplyConsoleVariableHook();
 
 	// Get the handle of the client as soon as it is loaded
 	ApplyClientHook();
@@ -962,18 +976,13 @@ static void Init()
 	// Graphics
 	ApplyNoMipMapBias();
 	ApplyNoLODBias();
-
-	// Misc
-	ApplySkipIntroHook();
-	ApplyConsoleVariableHook();
-	ApplyDirect3D9Hook();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
 	if (lpClassName && strstr(lpClassName, "FEAR") && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && dwStyle == 0xC10000 && nWidth == 320 && nHeight == 200)
 	{
-		MH_DisableHook(MH_ALL_HOOKS);
+		MH_RemoveHook(MH_ALL_HOOKS);
 		Init();
 	}
 
