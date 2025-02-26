@@ -1,12 +1,22 @@
+#include <windows.h>
+#include <mmsystem.h>
+
 class FpsLimiter
 {
 public:
     FpsLimiter(float targetFps = 120.0f) : initialized(false)
     {
+        timeBeginPeriod(1);
+
         SetTargetFps(targetFps);
         QueryPerformanceFrequency(&frequency);
         ticksToMillis = 1000.0 / static_cast<double>(frequency.QuadPart);
         lastTime.QuadPart = 0;
+    }
+
+    ~FpsLimiter()
+    {
+        timeEndPeriod(1);
     }
 
     void SetTargetFps(float targetFps)
@@ -23,7 +33,7 @@ public:
         {
             lastTime = currentTime;
             initialized = true;
-            return; // Skip limiting on the first call
+            return;
         }
 
         // Calculate elapsed time in ticks and milliseconds
@@ -32,19 +42,20 @@ public:
 
         if (elapsedTimeMillis < targetFrameTimeMillis)
         {
-            // Calculate remaining time and handle sleep
+            // Calculate remaining time in milliseconds
             double remainingTimeMillis = targetFrameTimeMillis - elapsedTimeMillis;
-            DWORD sleepMillis = static_cast<DWORD>(remainingTimeMillis - 1.0);
 
-            if (sleepMillis > 1)
+            // Sleep for almost all of the remaining time (if >1ms)
+            DWORD sleepMillis = (remainingTimeMillis > 1.0) ? static_cast<DWORD>(remainingTimeMillis - 1.0) : 0;
+            if (sleepMillis > 0)
             {
                 Sleep(sleepMillis);
             }
 
-            // Calculate target tick count for spin-yield
+            // Determine target tick count corresponding to the frame time
             LONGLONG targetTicks = lastTime.QuadPart + static_cast<LONGLONG>((targetFrameTimeMillis / 1000.0) * frequency.QuadPart);
 
-            // Spin-yield until target time is reached
+            // Spin-yield until we reach the target time.
             do
             {
                 Sleep(0);
@@ -53,6 +64,7 @@ public:
             while (currentTime.QuadPart < targetTicks);
         }
 
+        // Update lastTime for the next frame.
         lastTime = currentTime;
     }
 

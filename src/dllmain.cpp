@@ -2,7 +2,6 @@
 #define NOMINMAX
 
 #include <Windows.h>
-#include <d3d9.h>
 #include <unordered_set>
 #include <chrono>
 
@@ -30,10 +29,8 @@ int(__stdcall* LayoutDBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
 const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
+int(__thiscall* IsFrameComplete)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
-IDirect3D9* (WINAPI* ori_Direct3DCreate9)(UINT);
-HRESULT(STDMETHODCALLTYPE* ori_CreateDevice)(IDirect3D9*, UINT, D3DDEVTYPE, HWND, DWORD, D3DPRESENT_PARAMETERS*, IDirect3DDevice9**);
-HRESULT(STDMETHODCALLTYPE* ori_Present)(IDirect3DDevice9*, CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*);
 
 // =============================
 // Constants 
@@ -123,6 +120,7 @@ bool DisableXPWidescreenFiltering = false;
 float MaxFPS = 0;
 bool NoLODBias = false;
 bool NoMipMapBias = false;
+bool EnablePersistentWorldState = false;
 
 // Display
 bool HUDScaling = false;
@@ -156,6 +154,7 @@ static void ReadConfig()
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
 	NoMipMapBias = IniHelper::ReadInteger("Graphics", "NoMipMapBias", 1) == 1;
+	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
 
 	// Display
 	HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
@@ -495,6 +494,25 @@ static void ApplyClientPatch()
 		}
 	}
 
+	/*
+	if (EnablePersistentWorldState)
+	{
+		switch (gState.CurrentFEARGame)
+		{
+			case FEAR:
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
+				//MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x97590, 0xC3, true); // Decals 100971F0 & 10096EC0
+				break;
+			case FEARXP:
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xEE1C3, 6, true);
+				break;
+			case FEARXP2:
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0xF4B73, 6, true);
+				break;
+			}
+	}
+	*/
+
 	if (InfiniteFlashlight)
 	{
 		switch (gState.CurrentFEARGame)
@@ -778,6 +796,12 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 	return SetConsoleVariableFloat(pszVarName, fValue);
 }
 
+static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
+{
+	gState.fpsLimiter.Limit();
+	return IsFrameComplete(thisPtr);
+}
+
 #pragma endregion
 
 #pragma region Patches
@@ -906,49 +930,24 @@ static void ApplyAutoResolution()
 	}
 }
 
-// Hook of IDirect3DDevice9::Present
-static HRESULT WINAPI Present_Hook(IDirect3DDevice9* device, CONST RECT* pSourceRect, CONST RECT* pDestRect, HWND hDestWindowOverride, CONST RGNDATA* pDirtyRegion)
-{
-	gState.fpsLimiter.Limit();
-	return ori_Present(device, pSourceRect, pDestRect, hDestWindowOverride, pDirtyRegion);
-}
-
-static HRESULT STDMETHODCALLTYPE CreateDevice_Hook(IDirect3D9* pD3D, UINT Adapter, D3DDEVTYPE DeviceType, HWND hFocusWindow, DWORD BehaviorFlags, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice9** ppReturnedDeviceInterface)
-{
-	HRESULT hr = ori_CreateDevice(pD3D, Adapter, DeviceType, hFocusWindow, BehaviorFlags, pPresentationParameters, ppReturnedDeviceInterface);
-
-	if (SUCCEEDED(hr) && !PresentHooked.exchange(true)) 
-	{
-		void*** pVTable = reinterpret_cast<void***>(*ppReturnedDeviceInterface);
-		void* pPresentAddr = pVTable[0][17];
-
-		// Only leave Present
-		MH_RemoveHook(MH_ALL_HOOKS);
-		HookHelper::ApplyHook(pPresentAddr, Present_Hook, reinterpret_cast<LPVOID*>(&ori_Present));
-	}
-	return hr;
-}
-
-static IDirect3D9* WINAPI Direct3DCreate9_Hook(UINT SDKVersion)
-{
-	IDirect3D9* pD3D = ori_Direct3DCreate9(SDKVersion);
-
-	if (pD3D && !CreateDeviceHooked.exchange(true)) 
-	{
-		void*** pVTable = reinterpret_cast<void***>(pD3D); 
-		void* pCreateDeviceAddr = pVTable[0][16];
-
-		HookHelper::ApplyHook(pCreateDeviceAddr, CreateDevice_Hook, reinterpret_cast<LPVOID*>(&ori_CreateDevice));
-	}
-	return pD3D;
-}
-
-static void ApplyDirect3D9Hook()
+static void ApplyFPSLimiterHook()
 {
 	if (MaxFPS == 0) return;
 
 	gState.fpsLimiter.SetTargetFps(MaxFPS);
-	HookHelper::ApplyHookAPI(L"d3d9.dll", "Direct3DCreate9", Direct3DCreate9_Hook, reinterpret_cast<LPVOID*>(&ori_Direct3DCreate9));
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x419100, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x4192B0, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
+			break;
+	}
 }
 
 #pragma endregion
@@ -958,11 +957,6 @@ static void ApplyDirect3D9Hook()
 static void Init()
 {
 	ReadConfig();
-
-	// Misc
-	ApplyDirect3D9Hook();
-	ApplySkipIntroHook();
-	ApplyConsoleVariableHook();
 
 	// Get the handle of the client as soon as it is loaded
 	ApplyClientHook();
@@ -976,6 +970,11 @@ static void Init()
 	// Graphics
 	ApplyNoMipMapBias();
 	ApplyNoLODBias();
+
+	// Misc
+	ApplyFPSLimiterHook();
+	ApplySkipIntroHook();
+	ApplyConsoleVariableHook();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
