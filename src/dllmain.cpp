@@ -494,24 +494,21 @@ static void ApplyClientPatch()
 		}
 	}
 
-	/*
 	if (EnablePersistentWorldState)
 	{
 		switch (gState.CurrentFEARGame)
 		{
 			case FEAR:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
-				//MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x97590, 0xC3, true); // Decals 100971F0 & 10096EC0
 				break;
 			case FEARXP:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xEE1C3, 6, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
 				break;
 			case FEARXP2:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xF4B73, 6, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
 				break;
 			}
 	}
-	*/
 
 	if (InfiniteFlashlight)
 	{
