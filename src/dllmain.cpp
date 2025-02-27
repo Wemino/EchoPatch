@@ -498,13 +498,13 @@ static void ApplyClientPatch()
 		{
 			case FEAR:
 			case FEARMP:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x81E10, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x81E10, 0xC3, true);
 				break;
 			case FEARXP:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0xA7AE0, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xA7AE0, 0xC3, true);
 				break;
 			case FEARXP2:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0xA9BF0, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xA9BF0, 0xC3, true);
 				break;
 		}
 	}
@@ -516,12 +516,15 @@ static void ApplyClientPatch()
 			case FEAR:
 			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals
 				break;
 			case FEARXP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
 				break;
 			case FEARXP2:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
 				break;
 			}
 	}
@@ -532,15 +535,15 @@ static void ApplyClientPatch()
 		{
 			case FEAR:
 			case FEARMP:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x698D0, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x698D0, 0xC3, true);
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xBBD03, 6, true);
 				break;
 			case FEARXP:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x86780, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x86780, 0xC3, true);
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xEE1C3, 6, true);
 				break;
 			case FEARXP2:
-				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x887D0, 0xC3, true);
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x887D0, 0xC3, true);
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xF4B73, 6, true);
 				break;
 			}
