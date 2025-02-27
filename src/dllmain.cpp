@@ -51,6 +51,7 @@ constexpr float BASE_HEIGHT = 720.0f;
 enum FEARGAME
 {
 	FEAR,
+	FEARMP,
 	FEARXP,
 	FEARXP2
 };
@@ -176,11 +177,22 @@ static void ReadConfig()
 	// Extra
 	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 1) == 1;
 
+	// Get screen resolution
 	if (AutoResolution)
 	{
 		auto [screenWidth, screenHeight] = SystemHelper::GetScreenResolution();
 		gState.screenWidth = screenWidth;
 		gState.screenHeight = screenHeight;
+	}
+
+	// Check if we should skip everything directly
+	if (!SkipAllIntro && gState.CurrentFEARGame == FEAR || gState.CurrentFEARGame == FEARMP)
+	{
+		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipWBGamesIntro && SkipNvidiaIntro;
+	}
+	else if (!SkipAllIntro && gState.CurrentFEARGame == FEARXP || gState.CurrentFEARGame == FEARXP2)
+	{
+		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
 	}
 }
 
@@ -440,6 +452,7 @@ static void VerifyClientCompatibility()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
+		case FEARMP:
 			ValidateClientTimestamp(timestamp, FEAR_CLIENT_TIMESTAMP);
 			break;
 		case FEARXP:
@@ -467,6 +480,7 @@ static void ApplyClientPatch()
 		switch (gState.CurrentFEARGame)
 		{
 			case FEAR:
+			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x81A5D, 8, true);
 				break;
 			case FEARXP:
@@ -483,6 +497,7 @@ static void ApplyClientPatch()
 		switch (gState.CurrentFEARGame)
 		{
 			case FEAR:
+			case FEARMP:
 				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x81E10, 0xC3, true);
 				break;
 			case FEARXP:
@@ -499,6 +514,7 @@ static void ApplyClientPatch()
 		switch (gState.CurrentFEARGame)
 		{
 			case FEAR:
+			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
 				break;
 			case FEARXP:
@@ -515,6 +531,7 @@ static void ApplyClientPatch()
 		switch (gState.CurrentFEARGame)
 		{
 			case FEAR:
+			case FEARMP:
 				MemoryHelper::WriteMemory<char>(ClientBaseAddress + 0x698D0, 0xC3, true);
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xBBD03, 6, true);
 				break;
@@ -531,7 +548,7 @@ static void ApplyClientPatch()
 
 	if (HUDScaling)
 	{
-		if (gState.CurrentFEARGame == FEAR)
+		if (gState.CurrentFEARGame == FEAR || gState.CurrentFEARGame == FEARMP)
 		{
 			int pGameDatabase = MemoryHelper::ReadMemory<int>(ClientBaseAddress + 0x1AFA30, false);
 			int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase, false);
@@ -707,6 +724,9 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 			case FEAR:
 				MH_DisableHook((void*)0x510CB0);
 				break;
+			case FEARMP:
+				MH_DisableHook((void*)0x510DD0);
+				break;
 			case FEARXP:
 				MH_DisableHook((void*)0x5B3440);
 				break;
@@ -721,6 +741,9 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 			switch (gState.CurrentFEARGame)
 			{
 				case FEAR:
+					SystemHelper::SimulateSpacebarPress(0x56C2CC);
+					break;
+				case FEARMP:
 					SystemHelper::SimulateSpacebarPress(0x56C2CC);
 					break;
 				case FEARXP:
@@ -813,6 +836,9 @@ static void ApplyFixDirectInputFps()
 		case FEAR:
 			MemoryHelper::MakeNOP(0x4840DD, 22, true);
 			break;
+		case FEARMP:
+			MemoryHelper::MakeNOP(0x4841FD, 22, true);
+			break;
 		case FEARXP:
 			MemoryHelper::MakeNOP(0x4B895D, 22, true);
 			break;
@@ -829,6 +855,7 @@ static void ApplyNoLODBias()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
+		case FEARMP:
 			MemoryHelper::WriteMemory<float>(0x56D864, -2.0f, false);
 			break;
 		case FEARXP:
@@ -847,6 +874,7 @@ static void ApplyNoMipMapBias()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
+		case FEARMP:
 			MemoryHelper::WriteMemory<float>(0x56D5C4, -2.0f, false);
 			break;
 		case FEARXP:
@@ -865,6 +893,9 @@ static void ApplyClientHook()
 		case FEAR:
 			HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
 			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x47D850, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
+			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x4AF260, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
 			break;
@@ -881,6 +912,9 @@ static void ApplySkipIntroHook()
 		case FEAR:
 			HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
 			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x510DD0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
+			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x5B3440, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
 			break;
@@ -895,6 +929,7 @@ static void ApplyConsoleVariableHook()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
+		case FEARMP:
 			HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat);
 			break;
 		case FEARXP:
@@ -913,6 +948,7 @@ static void ApplyAutoResolution()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
+		case FEARMP:
 			MemoryHelper::WriteMemory<int>(0x56ABF4, gState.screenWidth, true);
 			MemoryHelper::WriteMemory<int>(0x56ABF8, gState.screenHeight, true);
 			break;
@@ -937,6 +973,9 @@ static void ApplyFPSLimiterHook()
 	{
 		case FEAR:
 			HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
+			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x40FC30, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
 			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x419100, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
@@ -1001,6 +1040,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				case FEAR_TIMESTAMP:
 					gState.CurrentFEARGame = FEAR;
 					break;
+				case FEARMP_TIMESTAMP:
+					gState.CurrentFEARGame = FEARMP;
+					break;
 				case FEARXP_TIMESTAMP:
 				case FEARXP_TIMESTAMP2:
 					gState.CurrentFEARGame = FEARXP;
@@ -1008,12 +1050,9 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 				case FEARXP2_TIMESTAMP:
 					gState.CurrentFEARGame = FEARXP2;
 					break;
-				case FEARMP_TIMESTAMP:
-					SystemHelper::LoadProxyLibrary();
-					return TRUE; // Skip MP
 				default:
 					MessageBoxA(NULL, "This .exe is not supported.", "EchoPatch", MB_ICONERROR);
-					return false;
+					return FALSE;
 			}
 
 			SystemHelper::LoadProxyLibrary();
