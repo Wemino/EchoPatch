@@ -1,6 +1,3 @@
-#include <windows.h>
-#include <mmsystem.h>
-
 class FpsLimiter
 {
 public:
