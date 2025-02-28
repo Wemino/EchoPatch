@@ -247,18 +247,20 @@ namespace HookHelper
 	{
 		if (!InitializeMinHook()) return;
 
-		if (MH_CreateHook(addr, hookFunc, originalFunc) != MH_OK)
+		MH_STATUS status = MH_CreateHook(addr, hookFunc, originalFunc);
+		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
-			sprintf_s(errorMsg, "Failed to create hook at address: %p", addr);
+			sprintf_s(errorMsg, "Failed to create hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
 			return;
 		}
 
-		if (MH_EnableHook(addr) != MH_OK)
+		status = MH_EnableHook(addr);
+		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
-			sprintf_s(errorMsg, "Failed to enable hook at address: %p", addr);
+			sprintf_s(errorMsg, "Failed to enable hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
 			return;
 		}
@@ -268,22 +270,25 @@ namespace HookHelper
 	{
 		if (!InitializeMinHook()) return;
 
-		if (MH_CreateHookApi(moduleName, apiName, hookFunc, originalFunc) != MH_OK)
+		MH_STATUS status = MH_CreateHookApi(moduleName, apiName, hookFunc, originalFunc);
+		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
-			sprintf_s(errorMsg, "Failed to create hook for API: %s", apiName);
+			sprintf_s(errorMsg, "Failed to create hook for API: %s\nError: %s", apiName, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
 			return;
 		}
 
-		if (MH_EnableHook(MH_ALL_HOOKS) != MH_OK)
+		status = MH_EnableHook(MH_ALL_HOOKS);
+		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
-			sprintf_s(errorMsg, "Failed to enable hook for API: %s", apiName);
+			sprintf_s(errorMsg, "Failed to enable hook for API: %s\nError: %s", apiName, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
 			return;
 		}
 	}
+
 };
 
 namespace StringHelper
