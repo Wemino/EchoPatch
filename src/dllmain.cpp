@@ -29,6 +29,7 @@ int(__stdcall* LayoutDBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
 const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
+float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
@@ -430,6 +431,11 @@ static void __fastcall HUDTerminate_Hook(int thisPtr, int _ECX)
 	HUDTerminate(thisPtr);
 }
 
+static float __stdcall GetShatterLifetime_Hook(int shatterType)
+{
+	return FLT_MAX;
+}
+
 #pragma endregion
 
 #pragma region Client Patches
@@ -518,14 +524,17 @@ static void ApplyClientPatch()
 			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x151AC0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime); // Shatters
 				break;
 			case FEARXP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1BE050), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			case FEARXP2:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1D8CA0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			}
 	}
