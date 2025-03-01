@@ -156,7 +156,7 @@ static void ReadConfig()
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
-	NoMipMapBias = IniHelper::ReadInteger("Graphics", "NoMipMapBias", 1) == 1;
+	NoMipMapBias = IniHelper::ReadInteger("Graphics", "NoMipMapBias", 0) == 1;
 	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
 
 	// Display
