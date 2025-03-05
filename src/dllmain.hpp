@@ -7,7 +7,7 @@ struct dinput8
     FARPROC DllUnregisterServer;
     FARPROC GetdfDIJoystick;
 
-    void ProxySetup(HINSTANCE hL)
+    bool ProxySetup(HINSTANCE hL)
     {
         DirectInput8Create = GetProcAddress(hL, "DirectInput8Create");
         DllCanUnloadNow = GetProcAddress(hL, "DllCanUnloadNow");
@@ -15,6 +15,13 @@ struct dinput8
         DllRegisterServer = GetProcAddress(hL, "DllRegisterServer");
         DllUnregisterServer = GetProcAddress(hL, "DllUnregisterServer");
         GetdfDIJoystick = GetProcAddress(hL, "GetdfDIJoystick");
+
+        if (!DirectInput8Create)
+        {
+            return false;
+        }
+
+        return true;
     }
 } dinput8;
 

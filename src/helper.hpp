@@ -203,12 +203,41 @@ namespace SystemHelper
 
 	static void LoadProxyLibrary()
 	{
+		// Attempt to load the chain-load DLL from the game's directory
+		wchar_t modulePath[MAX_PATH];
+		if (GetModuleFileNameW(NULL, modulePath, MAX_PATH))
+		{
+			wchar_t* lastBackslash = wcsrchr(modulePath, L'\\');
+			if (lastBackslash != NULL)
+			{
+				*lastBackslash = L'\0';
+				lstrcatW(modulePath, L"\\dinput8_hook.dll");
+
+				HINSTANCE hChain = LoadLibraryExW(modulePath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+				if (hChain)
+				{
+					// Set up proxies to use the chain-loaded DLL
+					if (dinput8.ProxySetup(hChain))
+					{
+						return; // Successfully chained
+					}
+					else
+					{
+						// Handle missing exports in chain DLL
+						FreeLibrary(hChain);
+						// Fall through to system DLL
+					}
+				}
+			}
+		}
+
+		// Fallback to system dinput8.dll
 		wchar_t systemPath[MAX_PATH];
 		GetSystemDirectoryW(systemPath, MAX_PATH);
 		lstrcatW(systemPath, L"\\dinput8.dll");
 
-		HINSTANCE hL = LoadLibraryExW(systemPath, 0, LOAD_WITH_ALTERED_SEARCH_PATH);
-		if (!hL)
+		HINSTANCE hOriginal = LoadLibraryExW(systemPath, 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+		if (!hOriginal)
 		{
 			DWORD errorCode = GetLastError();
 			wchar_t errorMessage[512];
@@ -218,7 +247,8 @@ namespace SystemHelper
 			return;
 		}
 
-		dinput8.ProxySetup(hL);
+		// Set up proxies to system DLL
+		dinput8.ProxySetup(hOriginal);
 	}
 };
 
