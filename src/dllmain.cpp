@@ -77,7 +77,6 @@ struct GlobalState
 	int screenWidth = 0;
 	int screenHeight = 0;
 
-	bool isInit = false;
 	bool isClientLoaded = false;
 	bool skipClientPatching = false;
 	HMODULE GameClientFX = NULL;
@@ -1098,9 +1097,9 @@ static void Init()
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
-	if (!gState.isInit && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && dwStyle == 0xC10000 && nWidth == 320 && nHeight == 200)
+	if (lpWindowName && strstr(lpWindowName, "F.E.A.R.") && dwStyle == 0xC10000 && nWidth == 320 && nHeight == 200)
 	{
-		gState.isInit = true;
+		MH_DisableHook(MH_ALL_HOOKS);
 		Init();
 	}
 
