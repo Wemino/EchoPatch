@@ -3,7 +3,6 @@
 
 #include <Windows.h>
 #include <unordered_set>
-#include <chrono>
 
 #include "MinHook.hpp"
 #include "ini.hpp"
@@ -17,6 +16,7 @@
 // Original Function Pointers
 // =============================
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
+char(__thiscall* LoadClientFXDLL)(int, char*, char) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 void(__thiscall* HUDTerminate)(int) = nullptr;
@@ -31,6 +31,8 @@ const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
+bool(__thiscall* FXInitLTBModel)(DWORD*, DWORD*, int) = nullptr;
+bool(__thiscall* FXInitDecal)(DWORD*, DWORD*, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -78,6 +80,7 @@ struct GlobalState
 	bool isInit = false;
 	bool isClientLoaded = false;
 	bool skipClientPatching = false;
+	HMODULE GameClientFX = NULL;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 
@@ -103,10 +106,6 @@ struct GlobalState
 // Initialize static members
 std::unordered_map<std::string, GlobalState::DataEntry> GlobalState::textDataMap;
 std::unordered_map<std::string, std::unordered_set<std::string>> GlobalState::hudScalingRules;
-
-// Atomic flags to track whether the CreateDevice and Present hooks are active
-static std::atomic<bool> CreateDeviceHooked = false;
-static std::atomic<bool> PresentHooked = false;
 
 // Global instance
 GlobalState gState;
@@ -436,6 +435,70 @@ static float __stdcall GetShatterLifetime_Hook(int shatterType)
 	return FLT_MAX;
 }
 
+static bool __fastcall FXInitLTBModel_Hook(DWORD* thisPtr, int _ECX, DWORD* data, int props)
+{
+	if (props)
+	{
+		MemoryHelper::WriteMemory<float>(props + 0x8, FLT_MAX, false); // m_tmEnd
+		MemoryHelper::WriteMemory<float>(props + 0xC, FLT_MAX, false); // m_tmLifetime
+	}
+
+	return FXInitLTBModel(thisPtr, data, props);
+}
+
+static bool __fastcall FXInitDecal_Hook(DWORD* thisPtr, int _ECX, DWORD* data, int props)
+{
+	if (props)
+	{
+		MemoryHelper::WriteMemory<float>(props + 0x8, FLT_MAX, false); // m_tmEnd
+		MemoryHelper::WriteMemory<float>(props + 0xC, FLT_MAX, false); // m_tmLifetime
+	}
+
+	return FXInitDecal(thisPtr, data, props);
+}
+
+static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
+{
+	// Load the DLL
+	char result = LoadClientFXDLL(thisPtr, Source, a3);
+
+	// Get the path
+	char* clientFXPath = ((char*)thisPtr + 0x24);
+
+	// Get the handle
+	wchar_t wFileName[MAX_PATH];
+	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
+	HMODULE ApiDLL = GetModuleHandleW(wFileName);
+
+	if (ApiDLL)
+	{
+		gState.GameClientFX = ApiDLL;
+		
+		DWORD ClientFXBaseAddress = (DWORD)gState.GameClientFX;
+
+		switch (gState.CurrentFEARGame)
+		{
+			case FEAR:
+			case FEARMP:
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x18A50), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models		
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x24360), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
+				MH_DisableHook((void*)(ClientFXBaseAddress + 0x24360)); // Used by multiple BaseFX, disable all of them
+				MemoryHelper::WriteMemory<int>(ClientFXBaseAddress + 0x2C100, reinterpret_cast<uintptr_t>(FXInitDecal_Hook), true); // Re-enable manually for decals only
+				break;
+			case FEARXP:
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x2D700), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x185C0), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
+				break;
+			case FEARXP2:
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x32130), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models	
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x1A0A0), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
+			break;
+		}
+	}
+
+	return result;
+}
+
 #pragma endregion
 
 #pragma region Client Patches
@@ -524,16 +587,19 @@ static void ApplyClientPatch()
 			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x147010), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x151AC0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime); // Shatters
 				break;
 			case FEARXP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1AD8D0), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1BE050), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			case FEARXP2:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1C8A40), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1D8CA0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			}
@@ -823,6 +889,10 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		else if (strcmp(pszVarName, "PerturbScale") == 0)
 		{
 			fValue = fValue * gState.scalingFactorCrosshair;
+		}
+		else if (strcmp(pszVarName, "UseTextScaling") == 0)
+		{
+			fValue = 0.0f; // Scaling is already taken care of
 		}
 	}
 
