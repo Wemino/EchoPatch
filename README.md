@@ -36,9 +36,11 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **FPS Drop Fix** - Stop the game from initializing all HID devices, which leads to framerate drops over time. The difference with Methanhydrat's `dinput8.dll` fix is that, rather than intercepting and canceling the problematic call, the call will simply never be executed. This method is specifically effective for F.E.A.R. and does not apply to the other games affected by this issue.
 
+- **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: blood stains, debris, bullet holes, shell casings, glass shards...
+
 - **No Model LOD Bias** - Forces the highest quality models to be rendered at all distances.
 
-- **No Mipmap Bias** - Forces the highest quality textures to be rendered at all distances.
+- **No Mipmap Bias** - Forces the highest quality textures to be rendered at all distances. Disabled by default, set `NoMipMapBias` to 1 to enable. (may cause visual artifacts such as shimmering)
 <div align="center">
   <table>
     <tr>
@@ -73,6 +75,8 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 - **Skip Movies** - Skips all corporate intro videos while keeping the sound for the menu when `SkipAllIntro` is set to 1 in `EchoPatch.ini`. Additionally, individual videos can be skipped instead of all; refer to the `SkipIntro` section in `EchoPatch.ini`.
 
 - **Infinite Flashlight** - Removes the flashlight battery limit and hides the HUD indicator. Disabled by default, can be enabled by setting `InfiniteFlashlight = 1` in `EchoPatch.ini`.
+
+- **dinput8 Chaining Support** - Allows chaining another `dinput8.dll` file by loading `dinput8_hook.dll`, enabling compatibility with additional mods.
 
 ## Credits
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
