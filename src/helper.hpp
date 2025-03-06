@@ -93,19 +93,125 @@ namespace MemoryHelper
 	}
 };
 
+namespace SystemHelper
+{
+	void SimulateSpacebarPress(int phWnd)
+	{
+		HWND hWnd = MemoryHelper::ReadMemory<HWND>(phWnd, false);
+		if (hWnd)
+		{
+			PostMessage(hWnd, WM_KEYDOWN, VK_SPACE, 0);
+			PostMessage(hWnd, WM_KEYUP, VK_SPACE, 0);
+		}
+	}
+
+	static DWORD GetCurrentDisplayFrequency()
+	{
+		DEVMODE devMode = {};
+		devMode.dmSize = sizeof(DEVMODE);
+
+		if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devMode))
+		{
+			return devMode.dmDisplayFrequency;
+		}
+		return 60;
+	}
+
+	static std::pair<DWORD, DWORD> GetScreenResolution()
+	{
+		DEVMODE devMode = {};
+		devMode.dmSize = sizeof(DEVMODE);
+
+		if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devMode))
+		{
+			return { devMode.dmPelsWidth, devMode.dmPelsHeight };
+		}
+		return { 0, 0 };
+	}
+
+	bool FileExists(const std::string& path)
+	{
+		struct stat buffer;
+		return (stat(path.c_str(), &buffer) == 0);
+	}
+
+	static void LoadProxyLibrary()
+	{
+		// Attempt to load the chain-load DLL from the game's directory
+		wchar_t modulePath[MAX_PATH];
+		if (GetModuleFileNameW(NULL, modulePath, MAX_PATH))
+		{
+			wchar_t* lastBackslash = wcsrchr(modulePath, L'\\');
+			if (lastBackslash != NULL)
+			{
+				*lastBackslash = L'\0';
+				lstrcatW(modulePath, L"\\dinput8_hook.dll");
+
+				HINSTANCE hChain = LoadLibraryExW(modulePath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+				if (hChain)
+				{
+					// Set up proxies to use the chain-loaded DLL
+					if (dinput8.ProxySetup(hChain))
+					{
+						return; // Successfully chained
+					}
+					else
+					{
+						// Handle missing exports in chain DLL
+						FreeLibrary(hChain);
+						// Fall through to system DLL
+					}
+				}
+			}
+		}
+
+		// Fallback to system dinput8.dll
+		wchar_t systemPath[MAX_PATH];
+		GetSystemDirectoryW(systemPath, MAX_PATH);
+		lstrcatW(systemPath, L"\\dinput8.dll");
+
+		HINSTANCE hOriginal = LoadLibraryExW(systemPath, 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+		if (!hOriginal)
+		{
+			DWORD errorCode = GetLastError();
+			wchar_t errorMessage[512];
+
+			FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), errorMessage, sizeof(errorMessage) / sizeof(wchar_t), NULL);
+			MessageBoxW(NULL, errorMessage, L"Error Loading dinput8.dll", MB_ICONERROR);
+			return;
+		}
+
+		// Set up proxies to system DLL
+		dinput8.ProxySetup(hOriginal);
+	}
+};
+
 namespace IniHelper
 {
-	mINI::INIFile iniFile("EchoPatch.ini");
+	std::unique_ptr<mINI::INIFile> iniFile;
 	mINI::INIStructure iniReader;
 
 	void Init()
 	{
-		iniFile.read(iniReader);
+		std::string iniPath = "EchoPatch.ini";
+		if (!SystemHelper::FileExists(iniPath))
+		{
+			std::string parentPath = "..\\EchoPatch.ini";
+			if (SystemHelper::FileExists(parentPath))
+			{
+				iniPath = parentPath;
+			}
+		}
+		iniFile = std::make_unique<mINI::INIFile>(iniPath);
+		iniFile->read(iniReader);
 	}
 
 	void Save()
 	{
-		iniFile.write(iniReader);
+		if (iniFile)
+		{
+			iniFile->write(iniReader);
+		}
 	}
 
 	char* ReadString(const char* sectionName, const char* valueName, const char* defaultValue)
@@ -162,93 +268,6 @@ namespace IniHelper
 		}
 		catch (...) {}
 		return defaultValue;
-	}
-};
-
-namespace SystemHelper
-{
-	void SimulateSpacebarPress(int phWnd)
-	{
-		HWND hWnd = MemoryHelper::ReadMemory<HWND>(phWnd, false);
-		if (hWnd)
-		{
-			PostMessage(hWnd, WM_KEYDOWN, VK_SPACE, 0);
-			PostMessage(hWnd, WM_KEYUP, VK_SPACE, 0);
-		}
-	}
-
-	static DWORD GetCurrentDisplayFrequency()
-	{
-		DEVMODE devMode = {};
-		devMode.dmSize = sizeof(DEVMODE);
-
-		if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devMode))
-		{
-			return devMode.dmDisplayFrequency;
-		}
-		return 60;
-	}
-
-	static std::pair<DWORD, DWORD> GetScreenResolution()
-	{
-		DEVMODE devMode = {};
-		devMode.dmSize = sizeof(DEVMODE);
-
-		if (EnumDisplaySettings(NULL, ENUM_CURRENT_SETTINGS, &devMode))
-		{
-			return { devMode.dmPelsWidth, devMode.dmPelsHeight };
-		}
-		return { 0, 0 };
-	}
-
-	static void LoadProxyLibrary()
-	{
-		// Attempt to load the chain-load DLL from the game's directory
-		wchar_t modulePath[MAX_PATH];
-		if (GetModuleFileNameW(NULL, modulePath, MAX_PATH))
-		{
-			wchar_t* lastBackslash = wcsrchr(modulePath, L'\\');
-			if (lastBackslash != NULL)
-			{
-				*lastBackslash = L'\0';
-				lstrcatW(modulePath, L"\\dinput8_hook.dll");
-
-				HINSTANCE hChain = LoadLibraryExW(modulePath, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-				if (hChain)
-				{
-					// Set up proxies to use the chain-loaded DLL
-					if (dinput8.ProxySetup(hChain))
-					{
-						return; // Successfully chained
-					}
-					else
-					{
-						// Handle missing exports in chain DLL
-						FreeLibrary(hChain);
-						// Fall through to system DLL
-					}
-				}
-			}
-		}
-
-		// Fallback to system dinput8.dll
-		wchar_t systemPath[MAX_PATH];
-		GetSystemDirectoryW(systemPath, MAX_PATH);
-		lstrcatW(systemPath, L"\\dinput8.dll");
-
-		HINSTANCE hOriginal = LoadLibraryExW(systemPath, 0, LOAD_WITH_ALTERED_SEARCH_PATH);
-		if (!hOriginal)
-		{
-			DWORD errorCode = GetLastError();
-			wchar_t errorMessage[512];
-
-			FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorCode, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), errorMessage, sizeof(errorMessage) / sizeof(wchar_t), NULL);
-			MessageBoxW(NULL, errorMessage, L"Error Loading dinput8.dll", MB_ICONERROR);
-			return;
-		}
-
-		// Set up proxies to system DLL
-		dinput8.ProxySetup(hOriginal);
 	}
 };
 
