@@ -456,6 +456,13 @@ static bool __fastcall FXInitDecal_Hook(DWORD* thisPtr, int _ECX, DWORD* data, i
 	return FXInitDecal(thisPtr, data, props);
 }
 
+uint8_t FXInitDecal_HookBytes[0x30] = {
+	0x8B, 0x44, 0x24, 0x08, 0x83, 0xF8, 0x00, 0x74, 0x0E, 0xC7, 0x40, 0x08, 0xFF, 0xFF, 0x7F, 0x7F, 
+	0xC7, 0x40, 0x0C, 0xFF, 0xFF, 0x7F, 0x7F, 0x8B, 0x54, 0x24, 0x04, 0x50, 0x52, 0xE8, 0xF1, 0xD8, 
+	0xFD, 0xFF, 0x84, 0xC0, 0x0F, 0x95, 0xC0, 0xC2, 0x08, 0x00, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
+};
+
+
 static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
 {
 	// Load the DLL
@@ -479,10 +486,10 @@ static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source,
 		{
 			case FEAR:
 			case FEARMP:
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x18A50), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models		
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x24360), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
-				MH_DisableHook((void*)(ClientFXBaseAddress + 0x24360)); // Used by multiple BaseFX, disable all of them
-				MemoryHelper::WriteMemory<int>(ClientFXBaseAddress + 0x2C100, reinterpret_cast<uintptr_t>(FXInitDecal_Hook), true); // Re-enable manually for decals only
+				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x18A50), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models
+			    MemoryHelper::WriteMemoryRaw(ClientFXBaseAddress + 0x28530, FXInitDecal_HookBytes, sizeof(FXInitDecal_HookBytes), true); // Decals
+				MemoryHelper::MakeCALL(ClientFXBaseAddress + 0x2854D, ClientFXBaseAddress + 0x1C60);
+				MemoryHelper::WriteMemory(ClientFXBaseAddress + 0x2C100, ClientFXBaseAddress + 0x28530, true);
 				break;
 			case FEARXP:
 				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x2D700), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models
