@@ -1,4 +1,7 @@
 # EchoPatch
+<p align="center">
+ <img style="width:70%" src="assets/EchoPatch_Logo.png"">
+</p>
 
 Modernizes F.E.A.R. and its expansions with HUD scaling and a variety of enhancements.
 
@@ -82,3 +85,4 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
 - [mINI](https://github.com/metayeti/mINI) for INI file handling.
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for finding the root cause of the FPS drop issue.
+- [CRASHARKI](https://github.com/CRASHARKI) for the logo.
