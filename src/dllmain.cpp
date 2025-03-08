@@ -31,8 +31,7 @@ const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
-bool(__thiscall* FXInitLTBModel)(DWORD*, DWORD*, int) = nullptr;
-bool(__thiscall* FXInitDecal)(DWORD*, DWORD*, int) = nullptr;
+int(__stdcall* CreateFX)(char*, int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -79,7 +78,6 @@ struct GlobalState
 
 	bool isClientLoaded = false;
 	bool skipClientPatching = false;
-	HMODULE GameClientFX = NULL;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 
@@ -434,75 +432,16 @@ static float __stdcall GetShatterLifetime_Hook(int shatterType)
 	return FLT_MAX;
 }
 
-static bool __fastcall FXInitLTBModel_Hook(DWORD* thisPtr, int _ECX, DWORD* data, int props)
+static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 {
-	if (props)
+	// Decal & LTBModel
+	if (prop && (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544 || *reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C))
 	{
-		MemoryHelper::WriteMemory<float>(props + 0x8, FLT_MAX, false); // m_tmEnd
-		MemoryHelper::WriteMemory<float>(props + 0xC, FLT_MAX, false); // m_tmLifetime
+		MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
+		MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
 	}
 
-	return FXInitLTBModel(thisPtr, data, props);
-}
-
-static bool __fastcall FXInitDecal_Hook(DWORD* thisPtr, int _ECX, DWORD* data, int props)
-{
-	if (props)
-	{
-		MemoryHelper::WriteMemory<float>(props + 0x8, FLT_MAX, false); // m_tmEnd
-		MemoryHelper::WriteMemory<float>(props + 0xC, FLT_MAX, false); // m_tmLifetime
-	}
-
-	return FXInitDecal(thisPtr, data, props);
-}
-
-uint8_t FXInitDecal_HookBytes[0x30] = {
-	0x8B, 0x44, 0x24, 0x08, 0x83, 0xF8, 0x00, 0x74, 0x0E, 0xC7, 0x40, 0x08, 0xFF, 0xFF, 0x7F, 0x7F, 
-	0xC7, 0x40, 0x0C, 0xFF, 0xFF, 0x7F, 0x7F, 0x8B, 0x54, 0x24, 0x04, 0x50, 0x52, 0xE8, 0xF1, 0xD8, 
-	0xFD, 0xFF, 0x84, 0xC0, 0x0F, 0x95, 0xC0, 0xC2, 0x08, 0x00, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC
-};
-
-
-static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
-{
-	// Load the DLL
-	char result = LoadClientFXDLL(thisPtr, Source, a3);
-
-	// Get the path
-	char* clientFXPath = ((char*)thisPtr + 0x24);
-
-	// Get the handle
-	wchar_t wFileName[MAX_PATH];
-	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
-	HMODULE ApiDLL = GetModuleHandleW(wFileName);
-
-	if (ApiDLL)
-	{
-		gState.GameClientFX = ApiDLL;
-		
-		DWORD ClientFXBaseAddress = (DWORD)gState.GameClientFX;
-
-		switch (gState.CurrentFEARGame)
-		{
-			case FEAR:
-			case FEARMP:
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x18A50), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models
-			    MemoryHelper::WriteMemoryRaw(ClientFXBaseAddress + 0x28530, FXInitDecal_HookBytes, sizeof(FXInitDecal_HookBytes), true); // Decals
-				MemoryHelper::MakeCALL(ClientFXBaseAddress + 0x2854D, ClientFXBaseAddress + 0x1C60);
-				MemoryHelper::WriteMemory(ClientFXBaseAddress + 0x2C100, ClientFXBaseAddress + 0x28530, true);
-				break;
-			case FEARXP:
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x2D700), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x185C0), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
-				break;
-			case FEARXP2:
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x32130), &FXInitLTBModel_Hook, (LPVOID*)&FXInitLTBModel); // Models	
-				HookHelper::ApplyHook((void*)(ClientFXBaseAddress + 0x1A0A0), &FXInitDecal_Hook, (LPVOID*)&FXInitDecal); // Decals
-			break;
-		}
-	}
-
-	return result;
+	return CreateFX(effectType, fxData, prop);
 }
 
 #pragma endregion
@@ -593,19 +532,19 @@ static void ApplyClientPatch()
 			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x147010), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1C640), &CreateFX_Hook, (LPVOID*)&CreateFX); // FX
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x151AC0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime); // Shatters
 				break;
 			case FEARXP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1AD8D0), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x26110), &CreateFX_Hook, (LPVOID*)&CreateFX);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1BE050), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			case FEARXP2:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1C8A40), &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x266D0), &CreateFX_Hook, (LPVOID*)&CreateFX);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1D8CA0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			}
