@@ -32,6 +32,7 @@ int(__thiscall* UpdateSlider)(int, int) = nullptr;
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
 int(__stdcall* CreateFX)(char*, int, int) = nullptr;
+int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -114,6 +115,7 @@ GlobalState gState;
 // Fixes
 bool DisableRedundantHIDInit = false;
 bool DisableXPWidescreenFiltering = false;
+bool FixKeyboardInputLanguage = false;
 
 // Graphics
 float MaxFPS = 0;
@@ -148,6 +150,7 @@ static void ReadConfig()
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
+	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
@@ -807,6 +810,52 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 	return FindStringCaseInsensitive(thisPtr, video_path);
 }
 
+static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int _ECX, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
+{
+	if (DeviceType == 0) // Keyboard
+	{
+		// Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
+		static const std::unordered_map<std::wstring, unsigned int> keyMap = 
+		{
+			{L"Left", 0xCB},
+			{L"Right", 0xCD},
+			{L"Right Ctrl", 0x9D},
+			{L"Space", 0x39},
+			{L"Shift", 0x2A},
+			{L"Ctrl", 0x1D},
+			{L"Tab", 0x0F},
+			{L"Up", 0xC8},
+			{L"Down", 0xD0},
+			{L"End", 0xCF},
+		};
+
+		auto it = keyMap.find(KeyName);
+		if (it != keyMap.end())
+		{
+			// Get pointer to keyboard the DIK table
+			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC, false);
+			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10, false);
+			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14, false);
+
+			// Iterate through the table
+			while (tableStart < tableEnd)
+			{
+				// If the corresponding DirectInput Key Id is found
+				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1, false) == it->second)
+				{
+					// Write and return the index for that DIK Id
+					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C, false);
+					return 0;
+				}
+
+				tableStart += 0x20;
+			}
+		}
+	}
+
+	return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
+}
+
 static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue)
 {
 	if (NoLODBias && strcmp(pszVarName, "ModelLODDistanceScale") == 0)
@@ -872,6 +921,27 @@ static void ApplyFixDirectInputFps()
 			break;
 		case FEARXP2:
 			MemoryHelper::MakeNOP(0x4B99AD, 22, true);
+			break;
+	}
+}
+
+static void ApplyFixKeyboardInputLanguage()
+{
+	if (!FixKeyboardInputLanguage) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x481F30, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x4B5DE0, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x4B6E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
 			break;
 	}
 }
@@ -1027,6 +1097,7 @@ static void Init()
 
 	// Fixes
 	ApplyFixDirectInputFps();
+	ApplyFixKeyboardInputLanguage();
 
 	// Display
 	ApplyAutoResolution();
