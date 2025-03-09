@@ -863,14 +863,16 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		fValue = 0.0f;
 	}
 
-	if (AutoResolution && strcmp(pszVarName, "Performance_ScreenWidth") == 0)
+	if (AutoResolution)
 	{
-		fValue = static_cast<float>(gState.screenWidth);
-	}
-
-	if (AutoResolution && strcmp(pszVarName, "Performance_ScreenHeight") == 0)
-	{
-		fValue = static_cast<float>(gState.screenHeight);
+		if (strcmp(pszVarName, "Performance_ScreenHeight") == 0)
+		{
+			fValue = static_cast<float>(gState.screenHeight);
+		}
+		else if (strcmp(pszVarName, "Performance_ScreenWidth") == 0)
+		{
+			fValue = static_cast<float>(gState.screenWidth);
+		}
 	}
 
 	if (HUDScaling)
