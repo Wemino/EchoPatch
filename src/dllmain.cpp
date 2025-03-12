@@ -349,7 +349,7 @@ static int __fastcall UpdateSlider_Hook(int thisPtr, int _ECX, int index)
 		char* sliderName = MemoryHelper::ReadMemory<char*>(thisPtr + 0x8, false);
 
 		// If 'ScreenCrosshair_Size_Help' is next
-		if (strcmp(sliderName, "ScreenCrosshair_Alpha_Help") == 0)
+		if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
 		{
 			gState.crosshairSliderUpdated = false;
 		}
