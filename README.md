@@ -39,6 +39,8 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **FPS Drop Fix** - Stop the game from initializing all HID devices, which leads to framerate drops over time. The difference with Methanhydrat's `dinput8.dll` fix is that, rather than intercepting and canceling the problematic call, the call will simply never be executed. This method is specifically effective for F.E.A.R. and does not apply to the other games affected by this issue.
 
+- **Fix Keyboard Input Initialization** - Fixes key mapping issues in non-English systems by correctly initializing keyboard input settings, preventing keys from showing as "[unassigned]" in the controls mapping.
+
 - **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: blood stains, debris, bullet holes, shell casings, glass shards...
 
 - **No Model LOD Bias** - Forces the highest quality models to be rendered at all distances.
