@@ -860,7 +860,10 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 {
 	if (NoLODBias && strcmp(pszVarName, "ModelLODDistanceScale") == 0)
 	{
-		fValue = 0.0f;
+		if (fValue > 0.0f)
+		{
+			fValue = 0.003f;
+		}
 	}
 
 	if (AutoResolution)
