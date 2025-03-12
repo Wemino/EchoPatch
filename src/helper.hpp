@@ -191,10 +191,10 @@ namespace IniHelper
 	std::unique_ptr<mINI::INIFile> iniFile;
 	mINI::INIStructure iniReader;
 
-	void Init()
+	void Init(bool lookUp)
 	{
 		std::string iniPath = "EchoPatch.ini";
-		if (!SystemHelper::FileExists(iniPath))
+		if (!SystemHelper::FileExists(iniPath) && lookUp)
 		{
 			std::string parentPath = "..\\EchoPatch.ini";
 			if (SystemHelper::FileExists(parentPath))

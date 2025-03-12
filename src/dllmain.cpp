@@ -145,7 +145,7 @@ bool InfiniteFlashlight = false;
 
 static void ReadConfig()
 {
-	IniHelper::Init();
+	IniHelper::Init(gState.CurrentFEARGame == FEARXP || gState.CurrentFEARGame == FEARXP2);
 
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
