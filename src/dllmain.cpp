@@ -856,11 +856,18 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int _ECX, unsigned i
 
 static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue)
 {
-	if (NoLODBias && strcmp(pszVarName, "ModelLODDistanceScale") == 0)
+	if (NoLODBias)
 	{
-		if (fValue > 0.0f)
+		if (strcmp(pszVarName, "ModelLODDistanceScale") == 0)
 		{
-			fValue = 0.003f;
+			if (fValue > 0.0f)
+			{
+				fValue = 0.003f;
+			}
+		}
+		else if (strcmp(pszVarName, "CameraFirstPersonLODBias") == 0)
+		{
+			fValue = 0.0f;
 		}
 	}
 
