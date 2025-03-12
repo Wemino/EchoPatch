@@ -768,8 +768,6 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 			switch (gState.CurrentFEARGame)
 			{
 				case FEAR:
-					SystemHelper::SimulateSpacebarPress(0x56C2CC);
-					break;
 				case FEARMP:
 					SystemHelper::SimulateSpacebarPress(0x56C2CC);
 					break;
