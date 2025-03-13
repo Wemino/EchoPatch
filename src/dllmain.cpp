@@ -437,13 +437,15 @@ static float __stdcall GetShatterLifetime_Hook(int shatterType)
 
 static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 {
-	// Decal & LTBModel
-	if (prop && (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544 || *reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C))
+	if (prop)
 	{
-		MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
-		MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
+		// Decal & LTBModel
+		if (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544 || *reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C)
+		{
+			MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
+			MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
+		}
 	}
-
 	return CreateFX(effectType, fxData, prop);
 }
 
@@ -534,18 +536,21 @@ static void ApplyClientPatch()
 			case FEAR:
 			case FEARMP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0x5141F, 13); // Don't save decals
+				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals on bodies
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1C640), &CreateFX_Hook, (LPVOID*)&CreateFX); // FX
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x151AC0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime); // Shatters
 				break;
 			case FEARXP:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0x68BEF, 13);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x26110), &CreateFX_Hook, (LPVOID*)&CreateFX);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1BE050), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 				break;
 			case FEARXP2:
 				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
+				MemoryHelper::MakeNOP(ClientBaseAddress + 0x6A87F, 13);
 				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x266D0), &CreateFX_Hook, (LPVOID*)&CreateFX);
 				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1D8CA0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
