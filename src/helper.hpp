@@ -91,6 +91,68 @@ namespace MemoryHelper
 		}
 		return value;
 	}
+
+	DWORD64 PatternScan(HMODULE hModule, std::string_view signature)
+	{
+		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
+		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+			return 0;
+
+		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<BYTE*>(hModule) + dosHeader->e_lfanew);
+
+		if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+			return 0;
+
+		DWORD sizeOfImage = ntHeaders->OptionalHeader.SizeOfImage;
+		DWORD64 baseAddress = reinterpret_cast<DWORD64>(hModule);
+
+		// Convert pattern to byte array
+		std::vector<uint8_t> patternBytes;
+		std::vector<bool> mask;
+
+		for (size_t i = 0; i < signature.length(); ++i)
+		{
+			if (signature[i] == ' ')
+				continue;
+
+			if (signature[i] == '?')
+			{
+				patternBytes.push_back(0);
+				mask.push_back(true);
+
+				if (i + 1 < signature.length() && signature[i + 1] == '?')
+				{
+					i++;
+				}
+			}
+			else
+			{
+				patternBytes.push_back(static_cast<uint8_t>(std::strtol(signature.data() + i, nullptr, 16)));
+				mask.push_back(false);
+				i++;
+			}
+		}
+
+		size_t patternSize = patternBytes.size();
+		BYTE* data = reinterpret_cast<BYTE*>(baseAddress);
+
+		for (DWORD64 i = 0; i <= sizeOfImage - patternSize; ++i)
+		{
+			size_t j = 0;
+
+			while (j < patternSize && (mask[j] || data[i + j] == patternBytes[j]))
+			{
+				j++;
+			}
+
+			if (j == patternSize)
+			{
+				return baseAddress + i;
+			}
+		}
+
+		return 0;
+	}
 };
 
 namespace SystemHelper

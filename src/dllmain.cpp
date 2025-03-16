@@ -44,10 +44,6 @@ const int FEARXP_TIMESTAMP = 0x450B3629;
 const int FEARXP_TIMESTAMP2 = 0x450DA808;
 const int FEARXP2_TIMESTAMP = 0x46FC10A3;
 
-const int FEAR_CLIENT_TIMESTAMP = 0x44EF6B27;
-const int FEARXP_CLIENT_TIMESTAMP = 0x450DA85F;
-const int FEARXP2_CLIENT_TIMESTAMP = 0x46FC10FE;
-
 constexpr float BASE_WIDTH = 960.0f;
 constexpr float BASE_HEIGHT = 720.0f;
 
@@ -78,7 +74,6 @@ struct GlobalState
 	int screenHeight = 0;
 
 	bool isClientLoaded = false;
-	bool skipClientPatching = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 
@@ -468,41 +463,22 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 
 #pragma region Client Patches
 
-static void ValidateClientTimestamp(int currentGame, int expectedTimestamp)
+static DWORD ScanClientSignature(std::string_view signature, const char* patchName)
 {
-	if (currentGame != expectedTimestamp)
-	{
-		gState.skipClientPatching = true;
-		MessageBoxA(NULL, "Unsupported version of GameClient.dll\nClient patching will be skipped.", "EchoPatch", MB_OK | MB_ICONWARNING);
-	}
-}
+	DWORD targetMemoryLocation = MemoryHelper::PatternScan(gState.GameClient, signature);
 
-// Check if the version of the client is compatible
-static void VerifyClientCompatibility()
-{
-	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)gState.GameClient;
-	PIMAGE_NT_HEADERS ntHeaders = (PIMAGE_NT_HEADERS)((BYTE*)gState.GameClient + dosHeader->e_lfanew);
-	DWORD timestamp = ntHeaders->FileHeader.TimeDateStamp;
-
-	switch (gState.CurrentFEARGame)
+	if (targetMemoryLocation == 0)
 	{
-		case FEAR:
-		case FEARMP:
-			ValidateClientTimestamp(timestamp, FEAR_CLIENT_TIMESTAMP);
-			break;
-		case FEARXP:
-			ValidateClientTimestamp(timestamp, FEARXP_CLIENT_TIMESTAMP);
-			break;
-		case FEARXP2:
-			ValidateClientTimestamp(timestamp, FEARXP2_CLIENT_TIMESTAMP);
-			break;
+		std::string errorMessage = "Error: Unable to find signature for patch: ";
+		errorMessage += patchName;
+		MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
 	}
+
+	return targetMemoryLocation;
 }
 
 static void ApplyClientPatch()
 {
-	if (gState.skipClientPatching) return;
-
 	DWORD ClientBaseAddress = (DWORD)gState.GameClient;
 
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
@@ -512,136 +488,138 @@ static void ApplyClientPatch()
 
 	if (SkipSplashScreen)
 	{
-		switch (gState.CurrentFEARGame)
+		DWORD targetMemoryLocation = ScanClientSignature("10 53 8B CE E8 ?? ?? ?? FF 5F 5E 5D 5B C2 0C", "SkipSplashScreen");
+
+		if (targetMemoryLocation != 0)
 		{
-			case FEAR:
-			case FEARMP:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x81A5D, 8, true);
-				break;
-			case FEARXP:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xA772D, 8, true);
-				break;
-			case FEARXP2:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xA97AD, 8, true);
-				break;
+			MemoryHelper::MakeNOP(targetMemoryLocation + 0x5C, 8, true);
 		}
 	}
 
 	if (DisableLetterbox)
 	{
-		switch (gState.CurrentFEARGame)
+		DWORD targetMemoryLocation = ScanClientSignature("83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+
+		if (targetMemoryLocation != 0)
 		{
-			case FEAR:
-			case FEARMP:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x81E10, 0xC3, true);
-				break;
-			case FEARXP:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xA7AE0, 0xC3, true);
-				break;
-			case FEARXP2:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xA9BF0, 0xC3, true);
-				break;
+			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3, true);
 		}
 	}
 
 	if (EnablePersistentWorldState)
-	{
-		switch (gState.CurrentFEARGame)
+	{	
+		DWORD targetMemoryLocation_ShellCasing = ScanClientSignature("D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
+		DWORD targetMemoryLocation_DecalSaving = ScanClientSignature("FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
+		DWORD targetMemoryLocation_Decal = ScanClientSignature("DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
+		DWORD targetMemoryLocation_FX = ScanClientSignature("8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
+		DWORD targetMemoryLocation_Shatter = ScanClientSignature("8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
+
+		if (targetMemoryLocation_ShellCasing != 0)
 		{
-			case FEAR:
-			case FEARMP:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xFC6BD, 4, true); // ShellCasing
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x5141F, 13); // Don't save decals
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x96A2B, 0x74, true); // Decals on bodies
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1C640), &CreateFX_Hook, (LPVOID*)&CreateFX); // FX
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x151AC0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime); // Shatters
-				break;
-			case FEARXP:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x13EE5D, 4, true);
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x68BEF, 13);
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC09BB, 0x74, true);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x26110), &CreateFX_Hook, (LPVOID*)&CreateFX);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1BE050), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
-				break;
-			case FEARXP2:
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x14C81D, 4, true);
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0x6A87F, 13);
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0xC651B, 0x74, true);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x266D0), &CreateFX_Hook, (LPVOID*)&CreateFX);
-				HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x1D8CA0), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
-				break;
+			MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4, true);
+		}
+
+		if (targetMemoryLocation_DecalSaving != 0)
+		{
+			MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13, true);
+		}
+
+		if (targetMemoryLocation_Decal != 0)
+		{
+			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
+		}
+
+		if (targetMemoryLocation_FX != 0)
+		{
+			// Not pretty, for devmode compatibility 
+			for (int i = 0; i < 0x1000; i++) 
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_FX - 1) == 0xCC)
+				{
+					break;
+				}
+				else
+				{
+					targetMemoryLocation_FX--;
+				}
 			}
+
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_FX), &CreateFX_Hook, (LPVOID*)&CreateFX);
+		}
+
+		if (targetMemoryLocation_Shatter != 0)
+		{
+			int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
+			int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
+			HookHelper::ApplyHook((void*)(shatterLiftetimeAddress), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
+		}
 	}
 
 	if (InfiniteFlashlight)
 	{
-		switch (gState.CurrentFEARGame)
+		DWORD targetMemoryLocation_HUD = ScanClientSignature("8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_HUD");
+		DWORD targetMemoryLocation_Battery = ScanClientSignature("D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+
+		if (targetMemoryLocation_HUD != 0)
 		{
-			case FEAR:
-			case FEARMP:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x698D0, 0xC3, true);
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xBBD03, 6, true);
-				break;
-			case FEARXP:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x86780, 0xC3, true);
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xEE1C3, 6, true);
-				break;
-			case FEARXP2:
-				MemoryHelper::WriteMemory<uint8_t>(ClientBaseAddress + 0x887D0, 0xC3, true);
-				MemoryHelper::MakeNOP(ClientBaseAddress + 0xF4B73, 6, true);
-				break;
-			}
+			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HUD - 0x31, 0xC3, true);
+		}
+
+		if (targetMemoryLocation_Battery != 0)
+		{
+			MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
+		}
 	}
 
 	if (HUDScaling)
 	{
-		if (gState.CurrentFEARGame == FEAR || gState.CurrentFEARGame == FEARMP)
-		{
-			int pGameDatabase = MemoryHelper::ReadMemory<int>(ClientBaseAddress + 0x1AFA30, false);
-			int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase, false);
+		DWORD targetMemoryLocation_GameDatabase = ScanClientSignature("8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+		if (targetMemoryLocation_GameDatabase == 0) return;
 
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x6FDE0), &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x705A0), &HUDInit_Hook, (LPVOID*)&HUDInit);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x85E50), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x88330), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x88FE0), &GetRectF_Hook, (LPVOID*)&GetRectF);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x164BF0), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
+		int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
+		int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
+		int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
+
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
+
+		DWORD targetMemoryLocation_HUDTerminate = ScanClientSignature("53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
+		DWORD targetMemoryLocation_HUDInit = ScanClientSignature("8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
+		DWORD targetMemoryLocation_ScreenDimsChanged = ScanClientSignature("A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
+		DWORD targetMemoryLocation_LayoutDBGetPosition = ScanClientSignature("83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
+		DWORD targetMemoryLocation_GetRectF = ScanClientSignature("14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
+		DWORD targetMemoryLocation_UpdateSlider = ScanClientSignature("56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
+
+		if (targetMemoryLocation_HUDTerminate != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDTerminate), &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
 		}
-		else if (gState.CurrentFEARGame == FEARXP)
-		{
-			int pGameDatabase = MemoryHelper::ReadMemory<int>(ClientBaseAddress + 0x216018, false);
-			int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase, false);
 
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x8FD20), &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x911D0), &HUDInit_Hook, (LPVOID*)&HUDInit);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAB150), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xADDB0), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAEA60), &GetRectF_Hook, (LPVOID*)&GetRectF);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x184500), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
+		if (targetMemoryLocation_HUDInit != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDInit - 0x2), &HUDInit_Hook, (LPVOID*)&HUDInit);
 		}
-		else if (gState.CurrentFEARGame == FEARXP2)
-		{
-			int pGameDatabase = MemoryHelper::ReadMemory<int>(ClientBaseAddress + 0x237910, false);
-			int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase, false);
 
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x92320), &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x93840), &HUDInit_Hook, (LPVOID*)&HUDInit);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xAE5A0), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xB1270), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0xB1F20), &GetRectF_Hook, (LPVOID*)&GetRectF);
-			HookHelper::ApplyHook((void*)(ClientBaseAddress + 0x19EFE0), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
-			HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
+		if (targetMemoryLocation_ScreenDimsChanged != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_ScreenDimsChanged), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
+		}
+
+		if (targetMemoryLocation_LayoutDBGetPosition != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_LayoutDBGetPosition), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
+		}
+
+		if (targetMemoryLocation_GetRectF != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
+		}
+
+		if (targetMemoryLocation_UpdateSlider != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_UpdateSlider), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
 		}
 
 		// Text: Interface\Credits\LineLayout
@@ -749,7 +727,6 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 			gState.GameClient = ApiDLL;
 			gState.isClientLoaded = true;
 
-			VerifyClientCompatibility();
 			ApplyClientPatch();
 		}
 		else // Otherwise server
