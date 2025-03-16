@@ -137,6 +137,7 @@ bool SkipDellIntro = false;
 
 // Extra
 bool InfiniteFlashlight = false;
+bool ShowErrors = false;
 
 static void ReadConfig()
 {
@@ -172,6 +173,7 @@ static void ReadConfig()
 
 	// Extra
 	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 1) == 1;
+	ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
 	// Get screen resolution
 	if (AutoResolution)
@@ -467,7 +469,7 @@ static DWORD ScanClientSignature(std::string_view signature, const char* patchNa
 {
 	DWORD targetMemoryLocation = MemoryHelper::PatternScan(gState.GameClient, signature);
 
-	if (targetMemoryLocation == 0)
+	if (targetMemoryLocation == 0 && ShowErrors)
 	{
 		std::string errorMessage = "Error: Unable to find signature for patch: ";
 		errorMessage += patchName;
