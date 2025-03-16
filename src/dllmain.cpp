@@ -488,11 +488,11 @@ static void ApplyClientPatch()
 
 	if (SkipSplashScreen)
 	{
-		DWORD targetMemoryLocation = ScanClientSignature("10 53 8B CE E8 ?? ?? ?? FF 5F 5E 5D 5B C2 0C", "SkipSplashScreen");
+		DWORD targetMemoryLocation = ScanClientSignature("53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
 
 		if (targetMemoryLocation != 0)
 		{
-			MemoryHelper::MakeNOP(targetMemoryLocation + 0x5C, 8, true);
+			MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8, true);
 		}
 	}
 
