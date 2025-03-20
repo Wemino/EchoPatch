@@ -1084,6 +1084,26 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		}
 	}
 
+	if (EnablePersistentWorldState)
+	{
+		if (strcmp(pszVarName, "BodyLifetime") == 0)
+		{
+			fValue = -1.0f;
+		}
+		else if (strcmp(pszVarName, "BodyCapRadius") == 0)
+		{
+			fValue = -1.0f;
+		}
+		else if (strcmp(pszVarName, "BodyCapRadiusCount") == 0)
+		{
+			fValue = -1.0f;
+		}
+		else if (strcmp(pszVarName, "BodyCapTotalCount") == 0)
+		{
+			fValue = -1.0f;
+		}
+	}
+
 	if (AutoResolution)
 	{
 		if (strcmp(pszVarName, "Performance_ScreenHeight") == 0)
