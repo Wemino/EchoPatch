@@ -2,7 +2,9 @@
 #define NOMINMAX
 
 #include <Windows.h>
+#include <Xinput.h>
 #include <unordered_set>
+#include <map>
 
 #include "MinHook.hpp"
 #include "ini.hpp"
@@ -11,6 +13,7 @@
 #include "FpsLimiter.hpp"
 
 #pragma comment(lib, "libMinHook.x86.lib")
+#pragma comment(lib, "Xinput.lib")
 
 // =============================
 // Original Function Pointers
@@ -33,7 +36,15 @@ float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
 int(__stdcall* CreateFX)(char*, int, int) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
+void(__thiscall* PauseGame)(int, bool, bool) = nullptr;
+bool(__thiscall* IsCommandOn)(int, int) = nullptr;
+bool(__thiscall* OnCommandOn)(int, int) = nullptr;
+bool(__thiscall* OnCommandOff)(int, int) = nullptr;
+double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
+int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
+int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
+
 
 // =============================
 // Constants 
@@ -61,6 +72,7 @@ enum FEARGAME
 struct GlobalState
 {
 	FEARGAME CurrentFEARGame;
+	HWND hWnd = 0;
 
 	int currentWidth = 0;
 	int currentHeight = 0;
@@ -77,6 +89,7 @@ struct GlobalState
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 
+	bool isUsingFpsLimiter = false;
 	FpsLimiter fpsLimiter{ 120.0f };
 
 	bool updateLayoutReturnValue = false;
@@ -85,6 +98,11 @@ struct GlobalState
 	int int32ToUpdate = 0;
 	float floatToUpdate = 0;
 	bool crosshairSliderUpdated = false;
+
+	int g_pGameClientShell = 0;
+	bool isGamePaused = true;
+	bool canActivate = false;
+	bool isOperatingTurret = false;
 
 	struct DataEntry
 	{
@@ -104,6 +122,63 @@ std::unordered_map<std::string, std::unordered_set<std::string>> GlobalState::hu
 GlobalState gState;
 
 // =============================
+// Controller State
+// =============================
+struct ControllerState 
+{
+	XINPUT_STATE state;
+	bool isConnected = false;
+
+	// Command activation states
+	bool commandActive[117] = { false };
+
+	// Button state tracking
+	struct ButtonState 
+	{
+		bool isPressed = false;
+		bool wasHandled = false;
+		DWORD pressTime = 0;
+	};
+
+	// Menu navigation states
+	ButtonState menuButtons[6];
+
+	// Game button states
+	std::map<WORD, ButtonState> gameButtons;
+};
+
+ControllerState g_Controller;
+
+constexpr std::pair<WORD, int> g_buttonMappings[] =
+{
+	{ XINPUT_GAMEPAD_A, 15 }, // Jump
+	{ XINPUT_GAMEPAD_B, 19 }, // Melee
+	{ XINPUT_GAMEPAD_X, 88 }, // Reload
+	{ XINPUT_GAMEPAD_Y, 70 }, // Medkit
+	{ XINPUT_GAMEPAD_LEFT_THUMB, 14 }, // Crouch
+	{ XINPUT_GAMEPAD_RIGHT_THUMB, 71 }, // Zoom
+	{ XINPUT_GAMEPAD_LEFT_SHOULDER, 106 }, // SlowMo
+	{ XINPUT_GAMEPAD_RIGHT_SHOULDER, 77 }, // Next Weapon
+	{ XINPUT_GAMEPAD_DPAD_UP, 73 }, // Next Grenade
+	{ XINPUT_GAMEPAD_DPAD_DOWN, 114 }, // Flashlight
+	{ XINPUT_GAMEPAD_DPAD_LEFT, 20 }, // Lean Left
+	{ XINPUT_GAMEPAD_DPAD_RIGHT, 21 }, // Lean Right
+	{ 0x400, 81 }, // Thow Grenade
+	{ 0x800, 17 }, // Fire
+	{ XINPUT_GAMEPAD_START, -1 },
+};
+
+constexpr int MENU_NAVIGATION_MAP[][2] =
+{
+	{XINPUT_GAMEPAD_DPAD_UP,    VK_UP},
+	{XINPUT_GAMEPAD_DPAD_DOWN,  VK_DOWN},
+	{XINPUT_GAMEPAD_DPAD_LEFT,  VK_LEFT},
+	{XINPUT_GAMEPAD_DPAD_RIGHT, VK_RIGHT},
+	{XINPUT_GAMEPAD_A,          VK_RETURN},
+	{XINPUT_GAMEPAD_B,          VK_ESCAPE},
+};
+
+// =============================
 // Ini Variables
 // =============================
 
@@ -111,6 +186,9 @@ GlobalState gState;
 bool DisableRedundantHIDInit = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
+
+// Controller
+bool XInputControllerSupport = false;
 
 // Graphics
 float MaxFPS = 0;
@@ -147,6 +225,9 @@ static void ReadConfig()
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
+
+	// Controller
+	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
@@ -458,8 +539,78 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 			}
 		}
 	}
+
 	return CreateFX(effectType, fxData, prop);
 }
+
+static void __fastcall PauseGame_Hook(int thisPtr, int _ECX, bool pause, bool pauseSound)
+{
+	gState.isGamePaused = pause;
+	return PauseGame(thisPtr, pause, pauseSound);
+}
+
+static bool __fastcall IsCommandOn_Hook(int thisPtr, int _ECX, int commandId) 
+{
+	return (commandId < 117 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
+}
+
+static bool __fastcall OnCommandOn_Hook(int thisPtr, int _ECX, int commandId)
+{
+	return OnCommandOn(thisPtr, commandId);
+}
+
+static bool __fastcall OnCommandOff_Hook(int thisPtr, int _ECX, int commandId)
+{
+	return OnCommandOff(thisPtr, commandId);
+}
+
+static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int _ECX, int commandId) 
+{
+	if (g_Controller.isConnected) 
+	{
+		const int DEAD_ZONE = 7849;
+		const auto& gamepad = g_Controller.state.Gamepad;
+
+		switch (commandId) 
+		{
+			case 2: // Forward
+			{
+				if (abs(gamepad.sThumbLY) < DEAD_ZONE) return 0.0;
+				return gamepad.sThumbLY / 32768.0;
+			}
+			case 5: // Strafe
+			{
+				if (abs(gamepad.sThumbLX) < DEAD_ZONE) return 0.0;
+				return gamepad.sThumbLX / 32768.0;
+			}
+			case 22: // Pitch
+			{
+				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
+				return -gamepad.sThumbRY / 32768.0;
+			}
+			case 23: // Yaw
+			{
+				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
+				return gamepad.sThumbRX / 32768.0;
+			}
+		}
+	}
+
+	return GetExtremalCommandValue(thisPtr, commandId);
+}
+
+static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int _ECX, void** a2, int a3, int a4, int a5, int a6)
+{
+	gState.canActivate = a6 != -1;
+	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, a6);
+}
+
+static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret)
+{
+	gState.isOperatingTurret = pTurret != 0;
+	return SetOperatingTurret(thisPtr, pTurret);
+}
+
 
 #pragma endregion
 
@@ -570,6 +721,81 @@ static void ApplyClientPatch()
 		if (targetMemoryLocation_Battery != 0)
 		{
 			MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
+		}
+	}
+
+	if (XInputControllerSupport)
+	{
+		DWORD targetMemoryLocation_pGameClientShell = ScanClientSignature("C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
+		if (targetMemoryLocation_pGameClientShell == 0) return;
+
+		gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
+		DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
+		DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
+
+		DWORD targetMemoryLocation_GetExtremalCommandValue = ScanClientSignature("83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");
+		DWORD targetMemoryLocation_IsCommandOn = ScanClientSignature("8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
+		DWORD targetMemoryLocation_PauseGame = ScanClientSignature("8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
+		DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanClientSignature("8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
+		DWORD targetMemoryLocation_SetOperatingTurret = ScanClientSignature("8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
+
+		if (targetMemoryLocation_GetExtremalCommandValue != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
+		}
+
+		if (targetMemoryLocation_IsCommandOn != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_IsCommandOn), &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
+		}
+
+		if (targetMemoryLocation_PauseGame != 0)
+		{
+			for (int i = 0; i < 0x1000; i++)
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 1) == 0xCC && MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 2) == 0xCC)
+				{
+					break;
+				}
+				else
+				{
+					targetMemoryLocation_PauseGame--;
+				}
+			}
+
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_PauseGame), &PauseGame_Hook, (LPVOID*)&PauseGame);
+		}
+
+		if (targetMemoryLocation_OnCommandOn != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_OnCommandOn), &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
+		}
+
+		if (targetMemoryLocation_OnCommandOff != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_OnCommandOff), &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
+		}
+
+		if (targetMemoryLocation_HUDActivateObjectSetObject != 0)
+		{
+			for (int i = 0; i < 0x1000; i++)
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_HUDActivateObjectSetObject - 1) == 0xCC)
+				{
+					break;
+				}
+				else
+				{
+					targetMemoryLocation_HUDActivateObjectSetObject--;
+				}
+			}
+
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDActivateObjectSetObject), &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+		}
+
+		if (targetMemoryLocation_SetOperatingTurret != 0)
+		{
+			HookHelper::ApplyHook((void*)(targetMemoryLocation_SetOperatingTurret), &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
 		}
 	}
 
@@ -764,19 +990,7 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 		if (SkipAllIntro)
 		{
 			// Skip all movies while keeping the sound of the menu
-			switch (gState.CurrentFEARGame)
-			{
-				case FEAR:
-				case FEARMP:
-					SystemHelper::SimulateSpacebarPress(0x56C2CC);
-					break;
-				case FEARXP:
-					SystemHelper::SimulateSpacebarPress(0x610304);
-					break;
-				case FEARXP2:
-					SystemHelper::SimulateSpacebarPress(0x61230C);
-					break;
-			}
+			SystemHelper::SimulateSpacebarPress(gState.hWnd);
 		}
 	}
 
@@ -902,9 +1116,113 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 	return SetConsoleVariableFloat(pszVarName, fValue);
 }
 
+static void HandleControllerButton(WORD button, int commandId)
+{
+	auto& btnState = g_Controller.gameButtons[button];
+	bool isPressed;
+
+	// Activate instead of Reload
+	if (commandId == 88 && (gState.canActivate || gState.isOperatingTurret))
+	{
+		commandId = 87;
+	}
+
+	if (button == 0x400)
+	{
+		// Left trigger
+		isPressed = g_Controller.state.Gamepad.bLeftTrigger > 30;
+	}
+	else if (button == 0x800)
+	{
+		// Right trigger
+		isPressed = g_Controller.state.Gamepad.bRightTrigger > 30;
+	}
+	else 
+	{
+		// Regular button
+		isPressed = (g_Controller.state.Gamepad.wButtons & button) != 0;
+	}
+
+	if (isPressed && !btnState.isPressed)
+	{
+		// Press Escape to show the menu
+		if (commandId == -1)
+		{
+			PostMessage(gState.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
+			return;
+		}
+
+		g_Controller.commandActive[commandId] = true;
+		OnCommandOn(gState.g_pGameClientShell, commandId);
+		btnState.wasHandled = true;
+		btnState.pressTime = GetTickCount64();
+	}
+	else if (isPressed)
+	{
+		g_Controller.commandActive[commandId] = true;
+	}
+	else if (!isPressed && btnState.isPressed)
+	{
+		g_Controller.commandActive[commandId] = false;
+		OnCommandOff(gState.g_pGameClientShell, commandId);
+		btnState.wasHandled = false;
+	}
+
+	btnState.isPressed = isPressed;
+}
+
+// Main function to poll controller and process all button mappings
+static void PollController()
+{
+	// Update controller state once per frame
+	g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS;
+
+	if (!g_Controller.isConnected)
+	{
+		memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
+		return;
+	}
+
+	// Handle menu navigation
+	if (gState.isGamePaused)
+	{
+		for (int i = 0; i < 6; i++)
+		{
+			auto& btnState = g_Controller.menuButtons[i];
+			const bool pressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+
+			if (pressed != btnState.isPressed)
+			{
+				PostMessage(gState.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, MENU_NAVIGATION_MAP[i][1], 0);
+				btnState.isPressed = pressed;
+			}
+		}
+	}
+	// Handle in-game controls
+	else
+	{
+		// Reset command states
+		memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
+
+		// Process buttons
+		for (const auto& mapping : g_buttonMappings)
+		{
+			HandleControllerButton(mapping.first, mapping.second);
+		}
+	}
+}
+
 static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
 {
-	gState.fpsLimiter.Limit();
+	if (gState.isUsingFpsLimiter)
+	{
+		gState.fpsLimiter.Limit();
+	}
+
+	if (XInputControllerSupport)
+	{
+		PollController();
+	}
 	return IsFrameComplete(thisPtr);
 }
 
@@ -1070,9 +1388,11 @@ static void ApplyAutoResolution()
 	}
 }
 
-static void ApplyFPSLimiterHook()
+static void HookIsFrameComplete()
 {
-	if (MaxFPS == 0) return;
+	gState.isUsingFpsLimiter = MaxFPS != 0;
+
+	if (!gState.isUsingFpsLimiter && !XInputControllerSupport) return;
 
 	gState.fpsLimiter.SetTargetFps(MaxFPS);
 
@@ -1116,7 +1436,7 @@ static void Init()
 	ApplyNoLODBias();
 
 	// Misc
-	ApplyFPSLimiterHook();
+	HookIsFrameComplete();
 	ApplySkipIntroHook();
 	ApplyConsoleVariableHook();
 }
@@ -1129,7 +1449,8 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
 		Init();
 	}
 
-	return ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+	gState.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+	return gState.hWnd;
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)

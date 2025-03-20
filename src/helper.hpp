@@ -157,13 +157,12 @@ namespace MemoryHelper
 
 namespace SystemHelper
 {
-	void SimulateSpacebarPress(int phWnd)
+	void SimulateSpacebarPress(HWND phWnd)
 	{
-		HWND hWnd = MemoryHelper::ReadMemory<HWND>(phWnd, false);
-		if (hWnd)
+		if (phWnd)
 		{
-			PostMessage(hWnd, WM_KEYDOWN, VK_SPACE, 0);
-			PostMessage(hWnd, WM_KEYUP, VK_SPACE, 0);
+			PostMessage(phWnd, WM_KEYDOWN, VK_SPACE, 0);
+			PostMessage(phWnd, WM_KEYUP, VK_SPACE, 0);
 		}
 	}
 
