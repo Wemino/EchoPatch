@@ -83,6 +83,31 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **dinput8 Chaining Support** - Allows chaining another `dinput8.dll` file by loading `dinput8_hook.dll`, enabling compatibility with additional mods.
 
+- **XInput Controller Support** - Enables full compatibility with XInput-based controllers, controls are the same as the Xbox 360 port:
+
+<div align="center">
+ 
+| Controller Input       | Action                        |
+|------------------------|------------------------------|
+| **Left Analog Stick** | Move                          |
+| **Right Analog Stick** | Aim                          |
+| **Left Analog Stick** (Press) | Crouch               |
+| **Right Analog Stick** (Press) | Zoom                |
+| **A**                 | Jump                          |
+| **B**                 | Melee                         |
+| **X**                 | Reload / Interact / Pick Up |
+| **Y**                 | Use Health Kit               |
+| **RT (Right Trigger)** | Use Weapon                 |
+| **LT (Left Trigger)** | Throw Grenade                |
+| **RB (Right Bumper)** | Switch Weapon                |
+| **LB (Left Bumper)** | Toggle Slow-Motion           |
+| **D-Pad Up**         | Next Grenade Type            |
+| **D-Pad Down**       | Toggle Flashlight On/Off     |
+| **D-Pad Left**       | Lean Left                    |
+| **D-Pad Right**      | Lean Right                   |
+
+</div>
+
 ## Credits
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
 - [mINI](https://github.com/metayeti/mINI) for INI file handling.
