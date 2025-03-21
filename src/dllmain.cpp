@@ -295,8 +295,10 @@ static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* At
 	auto hudEntry = gState.hudScalingRules.find(hudElement);
 	if (hudEntry != gState.hudScalingRules.end() && hudEntry->second.count(attribute))
 	{
-		result[0] = static_cast<DWORD>((int)result[0] * gState.scalingFactor);
-		result[1] = static_cast<DWORD>((int)result[1] * gState.scalingFactor);
+		float scalingFactor = (hudElement == "HUDSwap") ? gState.scalingFactorText : gState.scalingFactor;
+
+		result[0] = static_cast<DWORD>((int)result[0] * scalingFactor);
+		result[1] = static_cast<DWORD>((int)result[1] * scalingFactor);
 	}
 
 	return result;
