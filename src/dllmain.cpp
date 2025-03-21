@@ -184,6 +184,7 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 
 // Fixes
 bool DisableRedundantHIDInit = false;
+bool CheckLAAPatch = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 
@@ -223,6 +224,7 @@ static void ReadConfig()
 
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
+	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 
@@ -1440,6 +1442,12 @@ static void HookIsFrameComplete()
 static void Init()
 {
 	ReadConfig();
+
+	// LAA Patching if needed
+	if (CheckLAAPatch)
+	{
+		SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL));
+	}
 
 	// Get the handle of the client as soon as it is loaded
 	ApplyClientHook();

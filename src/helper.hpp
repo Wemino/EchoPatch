@@ -245,6 +245,317 @@ namespace SystemHelper
 		// Set up proxies to system DLL
 		dinput8.ProxySetup(hOriginal);
 	}
+
+	// Reference: https://github.com/nipkownix/re4_tweaks/blob/master/dllmain/LAApatch.cpp
+	static bool PerformLAAPatch(HMODULE hModule)
+	{
+		if (!hModule)
+		{
+			MessageBox(NULL, L"Invalid module handle", L"EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			return false;
+		}
+
+		// Get the module filename
+		char moduleFilePathA[MAX_PATH];
+		if (!GetModuleFileNameA(hModule, moduleFilePathA, MAX_PATH))
+		{
+			char errorMsg[256];
+			sprintf_s(errorMsg, "Failed to get module filename. Error: %d", GetLastError());
+			MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			return false;
+		}
+
+		// Check if LAA flag is already set
+		bool isLAA = false;
+		bool hasBindSection = false;
+		PIMAGE_SECTION_HEADER textSectionHeader = nullptr;
+		DWORD textSectionRVA = 0;
+		DWORD textSectionSize = 0;
+		char executableName[MAX_PATH];
+
+		// Extract the executable name for later use
+		const char* lastSlash = strrchr(moduleFilePathA, '\\');
+		if (lastSlash)
+		{
+			strcpy_s(executableName, sizeof(executableName), lastSlash + 1);
+		}
+		else
+		{
+			strcpy_s(executableName, sizeof(executableName), moduleFilePathA);
+		}
+
+		{
+			std::ifstream file(moduleFilePathA, std::ios::binary);
+			if (!file.is_open())
+			{
+				MessageBoxA(NULL, "Failed to open executable file for checking", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
+			std::vector<uint8_t> fileBuffer((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+			file.close();
+
+			if (fileBuffer.empty())
+			{
+				MessageBoxA(NULL, "Failed to read file or file is empty", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
+			PIMAGE_DOS_HEADER dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(fileBuffer.data());
+			if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
+			{
+				MessageBoxA(NULL, "Invalid DOS header", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
+			PIMAGE_NT_HEADERS ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(fileBuffer.data() + dosHeader->e_lfanew);
+			if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
+			{
+				MessageBoxA(NULL, "Invalid NT header", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
+			isLAA = (ntHeaders->FileHeader.Characteristics & IMAGE_FILE_LARGE_ADDRESS_AWARE) != 0;
+
+			// Check for .bind section and locate .text section
+			PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+			for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
+			{
+				char sectionName[9] = { 0 };
+				memcpy(sectionName, sectionHeader[i].Name, 8);
+
+				if (strcmp(sectionName, ".bind") == 0)
+				{
+					hasBindSection = true;
+				}
+
+				if (strcmp(sectionName, ".text") == 0)
+				{
+					textSectionRVA = sectionHeader[i].VirtualAddress;
+					textSectionSize = sectionHeader[i].Misc.VirtualSize;
+				}
+			}
+		}
+
+		if (isLAA && !hasBindSection)
+		{
+			return true; // No need to modify
+		}
+
+		// If SteamDRM (.bind section) is detected
+		if (hasBindSection)
+		{
+			char steamDrmMessage[512];
+			sprintf_s(steamDrmMessage,
+				"SteamDRM protection has been detected in '%s'.\n\n"
+				"You have two options:\n"
+				"- Press YES to continue with the current patcher (less reliable)\n"
+				"- Press NO to abort and use Steamless to remove the DRM first (recommended)\n\n"
+				"Using Steamless for proper unpacking before applying the LAA patch is recommended for better compatibility.",
+				executableName);
+
+			int result = MessageBoxA(NULL, steamDrmMessage, "EchoPatch - LAA Patcher", MB_YESNO | MB_ICONWARNING);
+			if (result == IDNO)
+			{
+				// User chose to use Steamless instead
+				MessageBoxA(NULL,
+					"Operation aborted. Please use Steamless first to unpack the executable, then run this patcher again.",
+					"EchoPatch - Operation Cancelled",
+					MB_ICONINFORMATION);
+				return false;
+			}
+			// If user pressed Yes, continue with current patcher
+		}
+
+		// Setup file paths
+		std::string modulePath = moduleFilePathA;
+		std::string modulePathNew = modulePath + ".new";
+		std::string modulePathBak = modulePath + ".bak";
+
+		// Clean up any existing temporary files
+		if (GetFileAttributesA(modulePathNew.c_str()) != INVALID_FILE_ATTRIBUTES)
+		{
+			DeleteFileA(modulePathNew.c_str());
+		}
+
+		if (GetFileAttributesA(modulePathBak.c_str()) != INVALID_FILE_ATTRIBUTES)
+		{
+			DeleteFileA(modulePathBak.c_str());
+		}
+
+		// Copy the original file
+		if (!CopyFileA(modulePath.c_str(), modulePathNew.c_str(), FALSE))
+		{
+			DWORD error = GetLastError();
+			if (error == ERROR_ACCESS_DENIED)
+			{
+				MessageBoxA(NULL, "Administrator rights are required to modify the executable. Please run the application as administrator.", "EchoPatch - LAAPatcher Admin Rights Required", MB_ICONWARNING);
+				return false;
+			}
+
+			char errorMsg[256];
+			sprintf_s(errorMsg, "Failed to create a copy of the executable. Error: %d", error);
+			MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			return false;
+		}
+
+		// Open the copied file for patching
+		FILE* file;
+		int errorCode = fopen_s(&file, modulePathNew.c_str(), "rb+");
+		if (errorCode != 0)
+		{
+			char errorMsg[256];
+			sprintf_s(errorMsg, "Failed to open file for patching. Error: %d", errorCode);
+			MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
+
+		// Read the file into memory
+		fseek(file, 0, SEEK_END);
+		size_t fileSize = ftell(file);
+		fseek(file, 0, SEEK_SET);
+
+		std::vector<uint8_t> exeData(fileSize);
+		if (fread(exeData.data(), 1, fileSize, file) != fileSize)
+		{
+			MessageBoxA(NULL, "Failed to read file data", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			fclose(file);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
+
+		// Modify the PE header
+		PIMAGE_DOS_HEADER dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(exeData.data());
+		PIMAGE_NT_HEADERS ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(exeData.data() + dosHeader->e_lfanew);
+
+		// Set LAA flag
+		ntHeaders->FileHeader.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
+
+		// Set checksum to 0 and skip calculation
+		ntHeaders->OptionalHeader.CheckSum = 0;
+
+		// Handle .bind section if present
+		if (hasBindSection)
+		{
+			// Set the AddressOfEntryPoint to 0x13E428 for F.E.A.R. (Steam)
+			ntHeaders->OptionalHeader.AddressOfEntryPoint = 0x13E428;
+
+			PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+			int bindSectionIndex = -1;
+			PIMAGE_SECTION_HEADER textSection = nullptr;
+
+			// Find the .bind and .text sections
+			for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
+			{
+				char sectionName[9] = { 0 };
+				memcpy(sectionName, sectionHeader[i].Name, 8);
+
+				if (strcmp(sectionName, ".bind") == 0)
+				{
+					bindSectionIndex = i;
+				}
+
+				if (strcmp(sectionName, ".text") == 0)
+				{
+					textSection = &sectionHeader[i];
+				}
+			}
+
+			if (bindSectionIndex >= 0 && textSection)
+			{
+				// Copy the decrypted .text section from memory to the file
+				BYTE* textSectionInMemory = reinterpret_cast<BYTE*>(hModule) + textSection->VirtualAddress;
+
+				// Write the in-memory .text section to the file
+				fseek(file, textSection->PointerToRawData, SEEK_SET);
+				if (fwrite(textSectionInMemory, 1, textSection->SizeOfRawData, file) != textSection->SizeOfRawData)
+				{
+					MessageBoxA(NULL, "Failed to write .text section from memory", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+					fclose(file);
+					DeleteFileA(modulePathNew.c_str());
+					return false;
+				}
+
+				// 'Remove' the .bind section by updating the section count
+				ntHeaders->FileHeader.NumberOfSections--;
+			}
+		}
+
+		// Write modified headers back to file
+		fseek(file, 0, SEEK_SET);
+		if (fwrite(exeData.data(), 1, dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS), file) != dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS))
+		{
+			MessageBoxA(NULL, "Failed to write modified headers", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			fclose(file);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
+
+		// Write section headers
+		PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
+		fseek(file, dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS), SEEK_SET);
+		if (fwrite(sectionHeader, sizeof(IMAGE_SECTION_HEADER), ntHeaders->FileHeader.NumberOfSections, file) !=
+			ntHeaders->FileHeader.NumberOfSections)
+		{
+			MessageBoxA(NULL, "Failed to write section headers", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			fclose(file);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
+
+		// Close the file
+		fflush(file);
+		fclose(file);
+
+		// Replace the original file with the patched one
+		BOOL moveResult1 = MoveFileExA(modulePath.c_str(), modulePathBak.c_str(), MOVEFILE_REPLACE_EXISTING);
+		if (!moveResult1)
+		{
+			DWORD error = GetLastError();
+			if (error == ERROR_ACCESS_DENIED)
+			{
+				MessageBoxA(NULL, "Administrator rights are required to replace the executable. Please run the application as administrator.", "EchoPatch - LAAPatcher Admin Rights Required", MB_ICONWARNING);
+				DeleteFileA(modulePathNew.c_str());
+				return false;
+			}
+
+			char errorMsg[256];
+			sprintf_s(errorMsg, "Failed to backup original file. Error: %d", error);
+			MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
+
+		BOOL moveResult2 = MoveFileA(modulePathNew.c_str(), modulePath.c_str());
+		if (!moveResult2)
+		{
+			char errorMsg[256];
+			sprintf_s(errorMsg, "Failed to replace original file. Error: %d", GetLastError());
+			MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+
+			// Try to restore the original file
+			MoveFileA(modulePathBak.c_str(), modulePath.c_str());
+			return false;
+		}
+
+		MessageBoxA(NULL, "Successfully patched the executable with LAA flag (a backup has been created).\n\nPress OK to relaunch the application for the patch to take effect!", "EchoPatch - LAAPatcher Successful", MB_ICONINFORMATION);
+
+		wchar_t moduleFilePathW[MAX_PATH];
+		MultiByteToWideChar(CP_ACP, 0, moduleFilePathA, -1, moduleFilePathW, MAX_PATH);
+
+		// Relaunch the application
+		if ((int)ShellExecuteW(NULL, L"open", moduleFilePathW, NULL, NULL, SW_SHOWDEFAULT) > 32)
+		{
+			// Exit the current instance
+			ExitProcess(0);
+		}
+		else
+		{
+			MessageBoxA(NULL, "Failed to restart the application. Please restart it manually.", "EchoPatch - LAAPatcher Warning", MB_ICONWARNING);
+			return true;
+		}
+	}
 };
 
 namespace IniHelper
