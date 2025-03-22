@@ -58,6 +58,9 @@ const int FEARXP2_TIMESTAMP = 0x46FC10A3;
 constexpr float BASE_WIDTH = 960.0f;
 constexpr float BASE_HEIGHT = 720.0f;
 
+#define XINPUT_GAMEPAD_LEFT_TRIGGER   0x400
+#define XINPUT_GAMEPAD_RIGHT_TRIGGER  0x800
+
 enum FEARGAME
 {
 	FEAR,
@@ -149,7 +152,7 @@ struct ControllerState
 
 ControllerState g_Controller;
 
-constexpr std::pair<WORD, int> g_buttonMappings[] =
+std::pair<WORD, int> g_buttonMappings[] =
 {
 	{ XINPUT_GAMEPAD_A, 15 }, // Jump
 	{ XINPUT_GAMEPAD_B, 19 }, // Melee
@@ -163,9 +166,9 @@ constexpr std::pair<WORD, int> g_buttonMappings[] =
 	{ XINPUT_GAMEPAD_DPAD_DOWN, 114 }, // Flashlight
 	{ XINPUT_GAMEPAD_DPAD_LEFT, 20 }, // Lean Left
 	{ XINPUT_GAMEPAD_DPAD_RIGHT, 21 }, // Lean Right
-	{ 0x400, 81 }, // Thow Grenade
-	{ 0x800, 17 }, // Fire
-	{ XINPUT_GAMEPAD_START, -1 },
+	{ XINPUT_GAMEPAD_LEFT_TRIGGER, 81 }, // Throw Grenade
+	{ XINPUT_GAMEPAD_RIGHT_TRIGGER, 17 }, // Fire
+	{ XINPUT_GAMEPAD_START, -1 }, // Menu
 };
 
 constexpr int MENU_NAVIGATION_MAP[][2] =
@@ -190,6 +193,20 @@ bool FixKeyboardInputLanguage = false;
 
 // Controller
 bool XInputControllerSupport = false;
+int GAMEPAD_A = 0;
+int GAMEPAD_B = 0;
+int GAMEPAD_X = 0;
+int GAMEPAD_Y = 0;
+int GAMEPAD_LEFT_THUMB = 0;
+int GAMEPAD_RIGHT_THUMB = 0;
+int GAMEPAD_LEFT_SHOULDER = 0;
+int GAMEPAD_RIGHT_SHOULDER = 0;
+int GAMEPAD_DPAD_UP = 0;
+int GAMEPAD_DPAD_DOWN = 0;
+int GAMEPAD_DPAD_LEFT = 0;
+int GAMEPAD_DPAD_RIGHT = 0;
+int GAMEPAD_LEFT_TRIGGER = 0;
+int GAMEPAD_RIGHT_TRIGGER = 0;
 
 // Graphics
 float MaxFPS = 0;
@@ -230,6 +247,20 @@ static void ReadConfig()
 
 	// Controller
 	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
+	GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
+	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 19);
+	GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
+	GAMEPAD_Y = IniHelper::ReadInteger("Controller", "GAMEPAD_Y", 70);
+	GAMEPAD_LEFT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_THUMB", 14);
+	GAMEPAD_RIGHT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_THUMB", 71);
+	GAMEPAD_LEFT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER", 106);
+	GAMEPAD_RIGHT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER", 77);
+	GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 73);
+	GAMEPAD_DPAD_DOWN = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN", 114);
+	GAMEPAD_DPAD_LEFT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT", 20);
+	GAMEPAD_DPAD_RIGHT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT", 21);
+	GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 81);
+	GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
@@ -274,6 +305,32 @@ static void ReadConfig()
 	else if (!SkipAllIntro && gState.CurrentFEARGame == FEARXP || gState.CurrentFEARGame == FEARXP2)
 	{
 		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
+	}
+
+	if (XInputControllerSupport)
+	{
+		// Update g_buttonMappings with INI values
+		for (auto& [button, key] : g_buttonMappings)
+		{
+			switch (button)
+			{
+				case XINPUT_GAMEPAD_A: key = GAMEPAD_A; break;
+				case XINPUT_GAMEPAD_B: key = GAMEPAD_B; break;
+				case XINPUT_GAMEPAD_X: key = GAMEPAD_X; break;
+				case XINPUT_GAMEPAD_Y: key = GAMEPAD_Y; break;
+				case XINPUT_GAMEPAD_LEFT_THUMB: key = GAMEPAD_LEFT_THUMB; break;
+				case XINPUT_GAMEPAD_RIGHT_THUMB: key = GAMEPAD_RIGHT_THUMB; break;
+				case XINPUT_GAMEPAD_LEFT_SHOULDER: key = GAMEPAD_LEFT_SHOULDER; break;
+				case XINPUT_GAMEPAD_RIGHT_SHOULDER: key = GAMEPAD_RIGHT_SHOULDER; break;
+				case XINPUT_GAMEPAD_DPAD_UP: key = GAMEPAD_DPAD_UP; break;
+				case XINPUT_GAMEPAD_DPAD_DOWN: key = GAMEPAD_DPAD_DOWN; break;
+				case XINPUT_GAMEPAD_DPAD_LEFT: key = GAMEPAD_DPAD_LEFT; break;
+				case XINPUT_GAMEPAD_DPAD_RIGHT: key = GAMEPAD_DPAD_RIGHT; break;
+				case XINPUT_GAMEPAD_LEFT_TRIGGER: key = GAMEPAD_LEFT_TRIGGER; break;
+				case XINPUT_GAMEPAD_RIGHT_TRIGGER: key = GAMEPAD_RIGHT_TRIGGER; break;
+				default: break;
+			}
+		}
 	}
 
 	if (HUDScaling)
@@ -1153,12 +1210,12 @@ static void HandleControllerButton(WORD button, int commandId)
 		commandId = 87;
 	}
 
-	if (button == 0x400)
+	if (button == XINPUT_GAMEPAD_LEFT_TRIGGER)
 	{
 		// Left trigger
 		isPressed = g_Controller.state.Gamepad.bLeftTrigger > 30;
 	}
-	else if (button == 0x800)
+	else if (button == XINPUT_GAMEPAD_RIGHT_TRIGGER)
 	{
 		// Right trigger
 		isPressed = g_Controller.state.Gamepad.bRightTrigger > 30;
