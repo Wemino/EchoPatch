@@ -275,6 +275,90 @@ static void ReadConfig()
 	{
 		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
 	}
+
+	if (HUDScaling)
+	{
+		// Text: Interface\Credits\LineLayout
+		gState.textDataMap["Default10"] = { 12, 0 };
+		gState.textDataMap["Default12"] = { 12, 0 };
+		gState.textDataMap["Default14"] = { 14, 0 };
+		gState.textDataMap["Default16"] = { 16, 0 };
+		gState.textDataMap["Default18"] = { 18, 0 };
+		gState.textDataMap["Default24"] = { 24, 0 };
+		gState.textDataMap["Default32"] = { 32, 0 };
+		gState.textDataMap["EndCredits16"] = { 16, 0 };
+		gState.textDataMap["EndCredits18"] = { 18, 0 };
+		gState.textDataMap["Intro16"] = { 16, 0 };
+		gState.textDataMap["Objective"] = { 22, 0 };
+		gState.textDataMap["Training"] = { 22, 0 };
+
+		// Text: Interface\HUD
+		gState.textDataMap["HUDActivate"] = { 18, 0 };
+		gState.textDataMap["HUDActivateObject"] = { 14, 0 };
+		gState.textDataMap["HUDAmmo"] = { 16, 0 };
+		gState.textDataMap["HUDArmor"] = { 25, 0 };
+		gState.textDataMap["HUDBuildVersion"] = { 12, 0 };
+		gState.textDataMap["HUDChatInput"] = { 16, 2 };
+		gState.textDataMap["HUDChatMessage"] = { 14, 2 };
+		gState.textDataMap["HUDControlPoint"] = { 24, 0 };
+		gState.textDataMap["HUDControlPointBar"] = { 24, 0 };
+		gState.textDataMap["HUDControlPointList"] = { 24, 0 };
+		gState.textDataMap["HUDCrosshair"] = { 12, 2 };
+		gState.textDataMap["HUDCTFBaseEnemy"] = { 14, 0 };
+		gState.textDataMap["HUDCTFBaseFriendly"] = { 14, 0 };
+		gState.textDataMap["HUDCTFFlag"] = { 14, 0 };
+		gState.textDataMap["HUDDamageDir"] = { 16, 0 };
+		gState.textDataMap["HUDDebug"] = { 12, 0 };
+		gState.textDataMap["HUDDecision"] = { 16, 0 };
+		gState.textDataMap["HUDDialogue"] = { 13, 1 };
+		gState.textDataMap["HUDDistance"] = { 16, 0 };
+		gState.textDataMap["HUDEditorPosition"] = { 12, 0 };
+		gState.textDataMap["HudEndRoundMessage"] = { 32, 0 };
+		gState.textDataMap["HUDFocus"] = { 16, 0 };
+		gState.textDataMap["HUDGameMessage"] = { 14, 2 };
+		gState.textDataMap["HUDGear"] = { 14, 0 };
+		gState.textDataMap["HUDGrenade"] = { 14, 0 };
+		gState.textDataMap["HUDGrenadeList"] = { 14, 0 };
+		gState.textDataMap["HUDHealth"] = { 25, 0 };
+		gState.textDataMap["HUDLadder"] = { 18, 0 };
+		gState.textDataMap["HUDObjective"] = { 22, 0 };
+		gState.textDataMap["HUDPaused"] = { 20, 0 };
+		gState.textDataMap["HUDPlayerList"] = { 14, 0 };
+		gState.textDataMap["HUDRadio"] = { 16, 0 };
+		gState.textDataMap["HUDRespawn"] = { 18, 0 };
+		gState.textDataMap["HUDScoreDiff"] = { 16, 0 };
+		gState.textDataMap["HUDScores"] = { 14, 0 };
+		gState.textDataMap["HUDSpectator"] = { 12, 0 };
+		gState.textDataMap["HUDSubtitle"] = { 14, 2 };
+		gState.textDataMap["HUDSwap"] = { 12, 2 };
+		gState.textDataMap["HUDTeamScoreControl"] = { 24, 0 };
+		gState.textDataMap["HUDTeamScoreCTF"] = { 14, 0 };
+		gState.textDataMap["HUDTeamScoreTDM"] = { 14, 0 };
+		gState.textDataMap["HUDTimerMain"] = { 14, 0 };
+		gState.textDataMap["HUDTimerSuddenDeath"] = { 14, 0 };
+		gState.textDataMap["HUDTimerTeam0"] = { 18, 0 };
+		gState.textDataMap["HUDTimerTeam1"] = { 18, 0 };
+		gState.textDataMap["HUDTransmission"] = { 16, 0 };
+		gState.textDataMap["HUDTurret"] = { 18, 0 };
+		gState.textDataMap["HUDVote"] = { 16, 0 };
+		gState.textDataMap["HUDWeapon"] = { 14, 0 };
+
+		// HUD
+		gState.hudScalingRules =
+		{
+			{"HUDHealth",      {"AdditionalPoint", "IconSize", "IconOffset", "TextOffset",}},
+			{"HUDDialogue",    {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDGrenadeList", {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDWeapon",      {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDArmor",       {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDSwap",        {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDGear",        {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDGrenade",     {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDAmmo",        {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDFlashlight",  {"IconSize", "IconOffset"}},
+			{"HUDSlowMo2",     {"IconSize", "IconOffset"}},
+		};
+	}
 }
 
 #pragma region Client Hooks
@@ -633,318 +717,224 @@ static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, con
 	return targetMemoryLocation;
 }
 
-static void ApplyClientPatch()
+static void ApplyXPWidescreenClientPatch()
 {
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
 	{
 		MemoryHelper::MakeNOP((DWORD)gState.GameClient + 0x10DDB0, 24, true);
 	}
+}
 
-	if (SkipSplashScreen)
+static void ApplySkipSplashScreenClientPatch()
+{
+	if (!SkipSplashScreen) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
+
+	if (targetMemoryLocation != 0)
 	{
-		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
+		MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8, true);
+	}
+}
 
-		if (targetMemoryLocation != 0)
+static void ApplyDisableLetterboxClientPatch()
+{
+	if (!DisableLetterbox) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+
+	if (targetMemoryLocation != 0)
+	{
+		MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3, true);
+	}
+}
+
+static void ApplyPersistentWorldClientPatch()
+{
+	if (!EnablePersistentWorldState) return;
+
+	DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
+	DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
+	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
+	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
+	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
+
+	if (targetMemoryLocation_ShellCasing == 0 ||
+		targetMemoryLocation_DecalSaving == 0 ||
+		targetMemoryLocation_Decal == 0 ||
+		targetMemoryLocation_FX == 0 ||
+		targetMemoryLocation_Shatter == 0) {
+		return;
+	}
+
+	MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
+
+	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
+	int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
+	HookHelper::ApplyHook((void*)shatterLiftetimeAddress, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
+
+	// Not pretty, for devmode compatibility 
+	for (int i = 0; i < 0x1000; i++)
+	{
+		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_FX - 1) == 0xCC)
 		{
-			MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8, true);
+			break;
+		}
+		else
+		{
+			targetMemoryLocation_FX--;
 		}
 	}
 
-	if (DisableLetterbox)
-	{
-		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+	HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
+}
 
-		if (targetMemoryLocation != 0)
+static void ApplyInfiniteFlashlightClientPatch()
+{
+	if (!InfiniteFlashlight) return;
+
+	DWORD targetMemoryLocation_HUD = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_HUD");
+	DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+
+	if (targetMemoryLocation_HUD == 0 || targetMemoryLocation_Battery == 0) return;
+
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HUD - 0x31, 0xC3, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
+}
+
+static void ApplyXInputControllerClientPatch()
+{
+	if (!XInputControllerSupport) return;
+
+	DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
+	if (targetMemoryLocation_pGameClientShell == 0) return;
+
+	DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
+	DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
+	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");	
+	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
+	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
+	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
+	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
+
+	if (targetMemoryLocation_OnCommandOn == 0 ||
+		targetMemoryLocation_OnCommandOff == 0 ||
+		targetMemoryLocation_GetExtremalCommandValue == 0 ||
+		targetMemoryLocation_IsCommandOn == 0 ||
+		targetMemoryLocation_PauseGame == 0 ||
+		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
+		targetMemoryLocation_SetOperatingTurret == 0) {
+		return;
+	}
+
+	gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
+
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
+
+	for (int i = 0; i < 0x1000; i++)
+	{
+		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 1) == 0xCC && MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 2) == 0xCC)
 		{
-			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3, true);
+			break;
+		}
+		else
+		{
+			targetMemoryLocation_PauseGame--;
 		}
 	}
 
-	if (EnablePersistentWorldState)
-	{	
-		DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
-		DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
-		DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
-		DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
-		DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_PauseGame), &PauseGame_Hook, (LPVOID*)&PauseGame);
 
-		if (targetMemoryLocation_ShellCasing != 0)
+	for (int i = 0; i < 0x1000; i++)
+	{
+		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_HUDActivateObjectSetObject - 1) == 0xCC)
 		{
-			MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4, true);
+			break;
 		}
-
-		if (targetMemoryLocation_DecalSaving != 0)
+		else
 		{
-			MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13, true);
-		}
-
-		if (targetMemoryLocation_Decal != 0)
-		{
-			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
-		}
-
-		if (targetMemoryLocation_FX != 0)
-		{
-			// Not pretty, for devmode compatibility 
-			for (int i = 0; i < 0x1000; i++) 
-			{
-				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_FX - 1) == 0xCC)
-				{
-					break;
-				}
-				else
-				{
-					targetMemoryLocation_FX--;
-				}
-			}
-
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_FX), &CreateFX_Hook, (LPVOID*)&CreateFX);
-		}
-
-		if (targetMemoryLocation_Shatter != 0)
-		{
-			int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
-			int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
-			HookHelper::ApplyHook((void*)(shatterLiftetimeAddress), &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
+			targetMemoryLocation_HUDActivateObjectSetObject--;
 		}
 	}
 
-	if (InfiniteFlashlight)
-	{
-		DWORD targetMemoryLocation_HUD = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_HUD");
-		DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+}
 
-		if (targetMemoryLocation_HUD != 0)
-		{
-			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HUD - 0x31, 0xC3, true);
-		}
+static void ApplyHUDScalingClientPatch()
+{
+	if (!HUDScaling) return;
 
-		if (targetMemoryLocation_Battery != 0)
-		{
-			MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
-		}
+	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
+	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
+	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
+	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
+	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
+	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
+
+	if (targetMemoryLocation_GameDatabase == 0 ||
+		targetMemoryLocation_HUDTerminate == 0 ||
+		targetMemoryLocation_HUDInit == 0 ||
+		targetMemoryLocation_ScreenDimsChanged == 0 ||
+		targetMemoryLocation_LayoutDBGetPosition == 0 ||
+		targetMemoryLocation_GetRectF == 0 ||
+		targetMemoryLocation_UpdateSlider == 0) {
+		return;
 	}
 
-	if (XInputControllerSupport)
+	int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
+	int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
+	int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
+
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDInit - 0x2), &HUDInit_Hook, (LPVOID*)&HUDInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
+}
+
+static void ApplyClientPatch()
+{
+	ApplyXPWidescreenClientPatch();
+	ApplySkipSplashScreenClientPatch();
+	ApplyDisableLetterboxClientPatch();
+	ApplyPersistentWorldClientPatch();
+	ApplyInfiniteFlashlightClientPatch();
+	ApplyXInputControllerClientPatch();
+	ApplyHUDScalingClientPatch();
+}
+
+#pragma endregion
+
+#pragma region Server Patches
+
+static void ApplyPersistentWorldServerPatch()
+{
+	if (!EnablePersistentWorldState) return;
+
+	DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "EnablePersistentWorldState_BodyFading");
+
+	if (targetMemoryLocation_BodyFading != 0)
 	{
-		DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
-		if (targetMemoryLocation_pGameClientShell == 0) return;
-
-		gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
-		DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
-		DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
-
-		DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");
-		DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
-		DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
-		DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
-		DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
-
-		if (targetMemoryLocation_GetExtremalCommandValue != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
-		}
-
-		if (targetMemoryLocation_IsCommandOn != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_IsCommandOn), &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
-		}
-
-		if (targetMemoryLocation_PauseGame != 0)
-		{
-			for (int i = 0; i < 0x1000; i++)
-			{
-				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 1) == 0xCC && MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 2) == 0xCC)
-				{
-					break;
-				}
-				else
-				{
-					targetMemoryLocation_PauseGame--;
-				}
-			}
-
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_PauseGame), &PauseGame_Hook, (LPVOID*)&PauseGame);
-		}
-
-		if (targetMemoryLocation_OnCommandOn != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_OnCommandOn), &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
-		}
-
-		if (targetMemoryLocation_OnCommandOff != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_OnCommandOff), &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
-		}
-
-		if (targetMemoryLocation_HUDActivateObjectSetObject != 0)
-		{
-			for (int i = 0; i < 0x1000; i++)
-			{
-				if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_HUDActivateObjectSetObject - 1) == 0xCC)
-				{
-					break;
-				}
-				else
-				{
-					targetMemoryLocation_HUDActivateObjectSetObject--;
-				}
-			}
-
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDActivateObjectSetObject), &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
-		}
-
-		if (targetMemoryLocation_SetOperatingTurret != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_SetOperatingTurret), &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
-		}
-	}
-
-	if (HUDScaling)
-	{
-		DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
-		if (targetMemoryLocation_GameDatabase == 0) return;
-
-		int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
-		int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
-		int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
-
-		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
-		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
-		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
-		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
-
-		DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
-		DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
-		DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
-		DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
-		DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
-		DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
-
-		if (targetMemoryLocation_HUDTerminate != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDTerminate), &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-		}
-
-		if (targetMemoryLocation_HUDInit != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDInit - 0x2), &HUDInit_Hook, (LPVOID*)&HUDInit);
-		}
-
-		if (targetMemoryLocation_ScreenDimsChanged != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_ScreenDimsChanged), &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-		}
-
-		if (targetMemoryLocation_LayoutDBGetPosition != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_LayoutDBGetPosition), &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-		}
-
-		if (targetMemoryLocation_GetRectF != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
-		}
-
-		if (targetMemoryLocation_UpdateSlider != 0)
-		{
-			HookHelper::ApplyHook((void*)(targetMemoryLocation_UpdateSlider), &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-		}
-
-		// Text: Interface\Credits\LineLayout
-		gState.textDataMap["Default10"] = { 12, 0 };
-		gState.textDataMap["Default12"] = { 12, 0 };
-		gState.textDataMap["Default14"] = { 14, 0 };
-		gState.textDataMap["Default16"] = { 16, 0 };
-		gState.textDataMap["Default18"] = { 18, 0 };
-		gState.textDataMap["Default24"] = { 24, 0 };
-		gState.textDataMap["Default32"] = { 32, 0 };
-		gState.textDataMap["EndCredits16"] = { 16, 0 };
-		gState.textDataMap["EndCredits18"] = { 18, 0 };
-		gState.textDataMap["Intro16"] = { 16, 0 };
-		gState.textDataMap["Objective"] = { 22, 0 };
-		gState.textDataMap["Training"] = { 22, 0 };
-
-		// Text: Interface\HUD
-		gState.textDataMap["HUDActivate"] = { 18, 0 };
-		gState.textDataMap["HUDActivateObject"] = { 14, 0 };
-		gState.textDataMap["HUDAmmo"] = { 16, 0 };
-		gState.textDataMap["HUDArmor"] = { 25, 0 };
-		gState.textDataMap["HUDBuildVersion"] = { 12, 0 };
-		gState.textDataMap["HUDChatInput"] = { 16, 2 };
-		gState.textDataMap["HUDChatMessage"] = { 14, 2 };
-		gState.textDataMap["HUDControlPoint"] = { 24, 0 };
-		gState.textDataMap["HUDControlPointBar"] = { 24, 0 };
-		gState.textDataMap["HUDControlPointList"] = { 24, 0 };
-		gState.textDataMap["HUDCrosshair"] = { 12, 2 };
-		gState.textDataMap["HUDCTFBaseEnemy"] = { 14, 0 };
-		gState.textDataMap["HUDCTFBaseFriendly"] = { 14, 0 };
-		gState.textDataMap["HUDCTFFlag"] = { 14, 0 };
-		gState.textDataMap["HUDDamageDir"] = { 16, 0 };
-		gState.textDataMap["HUDDebug"] = { 12, 0 };
-		gState.textDataMap["HUDDecision"] = { 16, 0 };
-		gState.textDataMap["HUDDialogue"] = { 13, 1 };
-		gState.textDataMap["HUDDistance"] = { 16, 0 };
-		gState.textDataMap["HUDEditorPosition"] = { 12, 0 };
-		gState.textDataMap["HudEndRoundMessage"] = { 32, 0 };
-		gState.textDataMap["HUDFocus"] = { 16, 0 };
-		gState.textDataMap["HUDGameMessage"] = { 14, 2 };
-		gState.textDataMap["HUDGear"] = { 14, 0 };
-		gState.textDataMap["HUDGrenade"] = { 14, 0 };
-		gState.textDataMap["HUDGrenadeList"] = { 14, 0 };
-		gState.textDataMap["HUDHealth"] = { 25, 0 };
-		gState.textDataMap["HUDLadder"] = { 18, 0 };
-		gState.textDataMap["HUDObjective"] = { 22, 0 };
-		gState.textDataMap["HUDPaused"] = { 20, 0 };
-		gState.textDataMap["HUDPlayerList"] = { 14, 0 };
-		gState.textDataMap["HUDRadio"] = { 16, 0 };
-		gState.textDataMap["HUDRespawn"] = { 18, 0 };
-		gState.textDataMap["HUDScoreDiff"] = { 16, 0 };
-		gState.textDataMap["HUDScores"] = { 14, 0 };
-		gState.textDataMap["HUDSpectator"] = { 12, 0 };
-		gState.textDataMap["HUDSubtitle"] = { 14, 2 };
-		gState.textDataMap["HUDSwap"] = { 12, 2 };
-		gState.textDataMap["HUDTeamScoreControl"] = { 24, 0 };
-		gState.textDataMap["HUDTeamScoreCTF"] = { 14, 0 };
-		gState.textDataMap["HUDTeamScoreTDM"] = { 14, 0 };
-		gState.textDataMap["HUDTimerMain"] = { 14, 0 };
-		gState.textDataMap["HUDTimerSuddenDeath"] = { 14, 0 };
-		gState.textDataMap["HUDTimerTeam0"] = { 18, 0 };
-		gState.textDataMap["HUDTimerTeam1"] = { 18, 0 };
-		gState.textDataMap["HUDTransmission"] = { 16, 0 };
-		gState.textDataMap["HUDTurret"] = { 18, 0 };
-		gState.textDataMap["HUDVote"] = { 16, 0 };
-		gState.textDataMap["HUDWeapon"] = { 14, 0 };
-
-		// HUD
-		gState.hudScalingRules =
-		{
-			{"HUDHealth",      {"AdditionalPoint", "IconSize", "IconOffset", "TextOffset",}},
-			{"HUDDialogue",    {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDGrenadeList", {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDWeapon",      {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDArmor",       {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDSwap",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGear",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGrenade",     {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDAmmo",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDFlashlight",  {"IconSize", "IconOffset"}},
-			{"HUDSlowMo2",     {"IconSize", "IconOffset"}},
-		};
+		MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75, true);
 	}
 }
 
 static void ApplyServerPatch()
 {
-	if (EnablePersistentWorldState)
-	{
-		DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "EnablePersistentWorldState_BodyFading");
-
-		if (targetMemoryLocation_BodyFading != 0)
-		{
-			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75, true);
-		}
-	}
+	ApplyPersistentWorldServerPatch();
 }
 
 #pragma endregion
