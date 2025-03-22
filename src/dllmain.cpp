@@ -43,6 +43,7 @@ bool(__thiscall* OnCommandOff)(int, int) = nullptr;
 double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
+const wchar_t*(__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 
@@ -756,6 +757,124 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret
 	return SetOperatingTurret(thisPtr, pTurret);
 }
 
+static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int* ECX, int commandId)
+{
+	if (g_Controller.isConnected)
+	{
+		bool useShortNames = false;
+
+		// Left Thumbstick movement
+		if (commandId == 0)
+		{
+			return L"Left Thumbstick Up";
+		}
+		if (commandId == 1)
+		{
+			return L"Left Thumbstick Down";
+		}
+
+		// Activate Key = Reload Key
+		if (commandId == 87)
+		{
+			commandId = 88;
+		}
+
+		// HUDWeapon -> Next Weapon
+		if (commandId >= 30 && commandId <= 39)
+		{
+			commandId = 77;
+			useShortNames = true;
+		}
+
+		// HUDGrenadeList -> Next Grenade
+		if (commandId >= 40 && commandId <= 45)
+		{
+			commandId = 73;
+			useShortNames = true;
+		}
+
+		for (size_t i = 0; i < sizeof(g_buttonMappings) / sizeof(g_buttonMappings[0]); i++)
+		{
+			if (g_buttonMappings[i].second == commandId)
+			{
+				if (useShortNames) 
+				{
+					switch (g_buttonMappings[i].first)
+					{
+						case XINPUT_GAMEPAD_A:
+							return L"A";
+						case XINPUT_GAMEPAD_B:
+							return L"B";
+						case XINPUT_GAMEPAD_X:
+							return L"X";
+						case XINPUT_GAMEPAD_Y:
+							return L"Y";
+						case XINPUT_GAMEPAD_LEFT_THUMB:
+							return L"L3";
+						case XINPUT_GAMEPAD_RIGHT_THUMB:
+							return L"R3";
+						case XINPUT_GAMEPAD_LEFT_SHOULDER:
+							return L"LB";
+						case XINPUT_GAMEPAD_RIGHT_SHOULDER:
+							return L"RB";
+						case XINPUT_GAMEPAD_DPAD_UP:
+							return L"D-Up";
+						case XINPUT_GAMEPAD_DPAD_DOWN:
+							return L"D-Down";
+						case XINPUT_GAMEPAD_DPAD_LEFT:
+							return L"D-Left";
+						case XINPUT_GAMEPAD_DPAD_RIGHT:
+							return L"D-Right";
+						case XINPUT_GAMEPAD_LEFT_TRIGGER:
+							return L"LT";
+						case XINPUT_GAMEPAD_RIGHT_TRIGGER:
+							return L"RT";
+						default:
+							break;
+					}
+				}
+				else 
+				{
+					switch (g_buttonMappings[i].first)
+					{
+						case XINPUT_GAMEPAD_A:
+							return L"A Button";
+						case XINPUT_GAMEPAD_B:
+							return L"B Button";
+						case XINPUT_GAMEPAD_X:
+							return L"X Button";
+						case XINPUT_GAMEPAD_Y:
+							return L"Y Button";
+						case XINPUT_GAMEPAD_LEFT_THUMB:
+							return L"Left Thumbstick";
+						case XINPUT_GAMEPAD_RIGHT_THUMB:
+							return L"Right Thumbstick";
+						case XINPUT_GAMEPAD_LEFT_SHOULDER:
+							return L"Left Bumper";
+						case XINPUT_GAMEPAD_RIGHT_SHOULDER:
+							return L"Right Bumper";
+						case XINPUT_GAMEPAD_DPAD_UP:
+							return L"D-Pad Up";
+						case XINPUT_GAMEPAD_DPAD_DOWN:
+							return L"D-Pad Down";
+						case XINPUT_GAMEPAD_DPAD_LEFT:
+							return L"D-Pad Left";
+						case XINPUT_GAMEPAD_DPAD_RIGHT:
+							return L"D-Pad Right";
+						case XINPUT_GAMEPAD_LEFT_TRIGGER:
+							return L"Left Trigger";
+						case XINPUT_GAMEPAD_RIGHT_TRIGGER:
+							return L"Right Trigger";
+						default:
+							break;
+					}
+				}
+			}
+		}
+	}
+	return GetTriggerNameFromCommandID(thisPtr, commandId);
+}
+
 #pragma endregion
 
 #pragma region Client Patches
@@ -875,6 +994,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
 	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
 	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
+	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -882,7 +1002,8 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_IsCommandOn == 0 ||
 		targetMemoryLocation_PauseGame == 0 ||
 		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
-		targetMemoryLocation_SetOperatingTurret == 0) {
+		targetMemoryLocation_SetOperatingTurret == 0 ||
+		targetMemoryLocation_GetTriggerNameFromCommandID == 0) {
 		return;
 	}
 
@@ -893,6 +1014,7 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
 
 	for (int i = 0; i < 0x1000; i++)
 	{
@@ -1575,6 +1697,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 			SystemHelper::LoadProxyLibrary();
 			HookHelper::ApplyHookAPI(L"user32.dll", "CreateWindowExA", &CreateWindowExA_Hook, (LPVOID*)&ori_CreateWindowExA);
+			g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS; // For GetTriggerNameFromCommandID_Hook
 			break;
 		}
 		case DLL_PROCESS_DETACH:
