@@ -44,6 +44,8 @@ double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t*(__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
+void(__thiscall* UseCursor)(int, bool) = nullptr;
+bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 
@@ -194,6 +196,7 @@ bool FixKeyboardInputLanguage = false;
 
 // Controller
 bool XInputControllerSupport = false;
+bool HideMouseCursor = false;
 int GAMEPAD_A = 0;
 int GAMEPAD_B = 0;
 int GAMEPAD_X = 0;
@@ -248,6 +251,7 @@ static void ReadConfig()
 
 	// Controller
 	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
+	HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 1) == 1;
 	GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
 	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 19);
 	GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
@@ -801,78 +805,64 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 				{
 					switch (g_buttonMappings[i].first)
 					{
-						case XINPUT_GAMEPAD_A:
-							return L"A";
-						case XINPUT_GAMEPAD_B:
-							return L"B";
-						case XINPUT_GAMEPAD_X:
-							return L"X";
-						case XINPUT_GAMEPAD_Y:
-							return L"Y";
-						case XINPUT_GAMEPAD_LEFT_THUMB:
-							return L"L3";
-						case XINPUT_GAMEPAD_RIGHT_THUMB:
-							return L"R3";
-						case XINPUT_GAMEPAD_LEFT_SHOULDER:
-							return L"LB";
-						case XINPUT_GAMEPAD_RIGHT_SHOULDER:
-							return L"RB";
-						case XINPUT_GAMEPAD_DPAD_UP:
-							return L"D-Up";
-						case XINPUT_GAMEPAD_DPAD_DOWN:
-							return L"D-Down";
-						case XINPUT_GAMEPAD_DPAD_LEFT:
-							return L"D-Left";
-						case XINPUT_GAMEPAD_DPAD_RIGHT:
-							return L"D-Right";
-						case XINPUT_GAMEPAD_LEFT_TRIGGER:
-							return L"LT";
-						case XINPUT_GAMEPAD_RIGHT_TRIGGER:
-							return L"RT";
-						default:
-							break;
+						case XINPUT_GAMEPAD_A: return L"A";
+						case XINPUT_GAMEPAD_B: return L"B";
+						case XINPUT_GAMEPAD_X: return L"X";
+						case XINPUT_GAMEPAD_Y: return L"Y";
+						case XINPUT_GAMEPAD_LEFT_THUMB: return L"L3";
+						case XINPUT_GAMEPAD_RIGHT_THUMB: return L"R3";
+						case XINPUT_GAMEPAD_LEFT_SHOULDER: return L"LB";
+						case XINPUT_GAMEPAD_RIGHT_SHOULDER: return L"RB";
+						case XINPUT_GAMEPAD_DPAD_UP: return L"D-Up";
+						case XINPUT_GAMEPAD_DPAD_DOWN: return L"D-Down";
+						case XINPUT_GAMEPAD_DPAD_LEFT: return L"D-Left";
+						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Right";
+						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"LT";
+						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"RT";
+						default: break;
 					}
 				}
 				else 
 				{
 					switch (g_buttonMappings[i].first)
 					{
-						case XINPUT_GAMEPAD_A:
-							return L"A Button";
-						case XINPUT_GAMEPAD_B:
-							return L"B Button";
-						case XINPUT_GAMEPAD_X:
-							return L"X Button";
-						case XINPUT_GAMEPAD_Y:
-							return L"Y Button";
-						case XINPUT_GAMEPAD_LEFT_THUMB:
-							return L"Left Thumbstick";
-						case XINPUT_GAMEPAD_RIGHT_THUMB:
-							return L"Right Thumbstick";
-						case XINPUT_GAMEPAD_LEFT_SHOULDER:
-							return L"Left Bumper";
-						case XINPUT_GAMEPAD_RIGHT_SHOULDER:
-							return L"Right Bumper";
-						case XINPUT_GAMEPAD_DPAD_UP:
-							return L"D-Pad Up";
-						case XINPUT_GAMEPAD_DPAD_DOWN:
-							return L"D-Pad Down";
-						case XINPUT_GAMEPAD_DPAD_LEFT:
-							return L"D-Pad Left";
-						case XINPUT_GAMEPAD_DPAD_RIGHT:
-							return L"D-Pad Right";
-						case XINPUT_GAMEPAD_LEFT_TRIGGER:
-							return L"Left Trigger";
-						case XINPUT_GAMEPAD_RIGHT_TRIGGER:
-							return L"Right Trigger";
-						default:
-							break;
+						case XINPUT_GAMEPAD_A: return L"A Button";
+						case XINPUT_GAMEPAD_B: return L"B Button";
+						case XINPUT_GAMEPAD_X: return L"X Button";
+						case XINPUT_GAMEPAD_Y: return L"Y Button";
+						case XINPUT_GAMEPAD_LEFT_THUMB: return L"Left Thumbstick";
+						case XINPUT_GAMEPAD_RIGHT_THUMB: return L"Right Thumbstick";
+						case XINPUT_GAMEPAD_LEFT_SHOULDER: return L"Left Bumper";
+						case XINPUT_GAMEPAD_RIGHT_SHOULDER: return L"Right Bumper";
+						case XINPUT_GAMEPAD_DPAD_UP: return L"D-Pad Up";
+						case XINPUT_GAMEPAD_DPAD_DOWN: return L"D-Pad Down";
+						case XINPUT_GAMEPAD_DPAD_LEFT: return L"D-Pad Left";
+						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Pad Right";
+						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"Left Trigger";
+						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"Right Trigger";
+						default: break;
 					}
 				}
 			}
 		}
 	}
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
+}
+
+static void __fastcall UseCursor_Hook(int thisPtr, int _ECX, bool bUseCursor)
+{
+	if (g_Controller.isConnected && bUseCursor) bUseCursor = false;
+	UseCursor(thisPtr, bUseCursor);
+}
+
+static bool __fastcall OnMouseMove_Hook(int thisPtr, int _ECX, int x, int y)
+{
+	if (g_Controller.isConnected)
+	{
+		x = 0;
+		y = 0;
+	}
+	return OnMouseMove(thisPtr, x, y);
 }
 
 #pragma endregion
@@ -1043,6 +1033,15 @@ static void ApplyXInputControllerClientPatch()
 	}
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+
+	if (!HideMouseCursor) return;
+
+	DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "Controller_UseCursor");
+	DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "Controller_OnMouseMove");
+
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
 }
 
 static void ApplyHUDScalingClientPatch()
