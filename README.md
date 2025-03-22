@@ -41,7 +41,9 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **Fix Keyboard Input Initialization** - Fixes key mapping issues in non-English systems by correctly initializing keyboard input settings, preventing keys from showing as "[unassigned]" in the controls mapping.
 
-- **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: blood stains, debris, bullet holes, shell casings, glass shards...
+- **LAA Patcher** - Apply a Large Address Aware (LAA) patch when necessary, enabling the use of up to 4GB of memory instead of the default 2GB, which can resolve loading issues. Disabled by default, set `CheckLAAPatch` to 1 to enable. Note: If you are using the Steam version, please run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling this feature.
+
+- **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: bodies, blood stains, debris, bullet holes, shell casings, glass shards...
 
 - **No Model LOD Bias** - Forces the highest quality models to be rendered at all distances.
 
@@ -83,7 +85,7 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **dinput8 Chaining Support** - Allows chaining another `dinput8.dll` file by loading `dinput8_hook.dll`, enabling compatibility with additional mods.
 
-- **XInput Controller Support** - Enables full compatibility with XInput-based controllers, controls are the same as the Xbox 360 port:
+- **XInput Controller Support** - Enables full compatibility with XInput-based controllers, controls are the same as the Xbox 360 port: 
 
 <div align="center">
  
@@ -106,6 +108,7 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 | **D-Pad Left**       | Lean Left                    |
 | **D-Pad Right**      | Lean Right                   |
 
+(Customizable under the ini section of `[Controller]`)
 </div>
 
 ## Credits
