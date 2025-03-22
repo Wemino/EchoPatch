@@ -942,7 +942,7 @@ static void ApplyServerPatch()
 
 		if (targetMemoryLocation_BodyFading != 0)
 		{
-			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading, 0x8, true);
+			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75, true);
 		}
 	}
 }
@@ -1108,15 +1108,15 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		}
 		else if (strcmp(pszVarName, "BodyCapRadius") == 0)
 		{
-			fValue = -1.0f;
+			fValue = 1000000.0f;
 		}
 		else if (strcmp(pszVarName, "BodyCapRadiusCount") == 0)
 		{
-			fValue = -1.0f;
+			fValue = 1000000.0f;
 		}
 		else if (strcmp(pszVarName, "BodyCapTotalCount") == 0)
 		{
-			fValue = -1.0f;
+			fValue = 1000000.0f;
 		}
 	}
 
