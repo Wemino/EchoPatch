@@ -615,14 +615,13 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret
 	return SetOperatingTurret(thisPtr, pTurret);
 }
 
-
 #pragma endregion
 
 #pragma region Client Patches
 
-static DWORD ScanClientSignature(std::string_view signature, const char* patchName)
+static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName)
 {
-	DWORD targetMemoryLocation = MemoryHelper::PatternScan(gState.GameClient, signature);
+	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
 
 	if (targetMemoryLocation == 0 && ShowErrors)
 	{
@@ -636,16 +635,14 @@ static DWORD ScanClientSignature(std::string_view signature, const char* patchNa
 
 static void ApplyClientPatch()
 {
-	DWORD ClientBaseAddress = (DWORD)gState.GameClient;
-
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
 	{
-		MemoryHelper::MakeNOP(ClientBaseAddress + 0x10DDB0, 24, true);
+		MemoryHelper::MakeNOP((DWORD)gState.GameClient + 0x10DDB0, 24, true);
 	}
 
 	if (SkipSplashScreen)
 	{
-		DWORD targetMemoryLocation = ScanClientSignature("53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
+		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
 
 		if (targetMemoryLocation != 0)
 		{
@@ -655,7 +652,7 @@ static void ApplyClientPatch()
 
 	if (DisableLetterbox)
 	{
-		DWORD targetMemoryLocation = ScanClientSignature("83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
 
 		if (targetMemoryLocation != 0)
 		{
@@ -665,11 +662,11 @@ static void ApplyClientPatch()
 
 	if (EnablePersistentWorldState)
 	{	
-		DWORD targetMemoryLocation_ShellCasing = ScanClientSignature("D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
-		DWORD targetMemoryLocation_DecalSaving = ScanClientSignature("FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
-		DWORD targetMemoryLocation_Decal = ScanClientSignature("DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
-		DWORD targetMemoryLocation_FX = ScanClientSignature("8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
-		DWORD targetMemoryLocation_Shatter = ScanClientSignature("8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
+		DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
+		DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
+		DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
+		DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
+		DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
 
 		if (targetMemoryLocation_ShellCasing != 0)
 		{
@@ -714,8 +711,8 @@ static void ApplyClientPatch()
 
 	if (InfiniteFlashlight)
 	{
-		DWORD targetMemoryLocation_HUD = ScanClientSignature("8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_HUD");
-		DWORD targetMemoryLocation_Battery = ScanClientSignature("D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+		DWORD targetMemoryLocation_HUD = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_HUD");
+		DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
 
 		if (targetMemoryLocation_HUD != 0)
 		{
@@ -730,18 +727,18 @@ static void ApplyClientPatch()
 
 	if (XInputControllerSupport)
 	{
-		DWORD targetMemoryLocation_pGameClientShell = ScanClientSignature("C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
+		DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
 		if (targetMemoryLocation_pGameClientShell == 0) return;
 
 		gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
 		DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
 		DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
 
-		DWORD targetMemoryLocation_GetExtremalCommandValue = ScanClientSignature("83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");
-		DWORD targetMemoryLocation_IsCommandOn = ScanClientSignature("8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
-		DWORD targetMemoryLocation_PauseGame = ScanClientSignature("8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
-		DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanClientSignature("8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
-		DWORD targetMemoryLocation_SetOperatingTurret = ScanClientSignature("8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
+		DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");
+		DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
+		DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
+		DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
+		DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
 
 		if (targetMemoryLocation_GetExtremalCommandValue != 0)
 		{
@@ -805,7 +802,7 @@ static void ApplyClientPatch()
 
 	if (HUDScaling)
 	{
-		DWORD targetMemoryLocation_GameDatabase = ScanClientSignature("8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+		DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 		if (targetMemoryLocation_GameDatabase == 0) return;
 
 		int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
@@ -817,12 +814,12 @@ static void ApplyClientPatch()
 		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
 		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
 
-		DWORD targetMemoryLocation_HUDTerminate = ScanClientSignature("53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
-		DWORD targetMemoryLocation_HUDInit = ScanClientSignature("8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
-		DWORD targetMemoryLocation_ScreenDimsChanged = ScanClientSignature("A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
-		DWORD targetMemoryLocation_LayoutDBGetPosition = ScanClientSignature("83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
-		DWORD targetMemoryLocation_GetRectF = ScanClientSignature("14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
-		DWORD targetMemoryLocation_UpdateSlider = ScanClientSignature("56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
+		DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
+		DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
+		DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
+		DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
+		DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
+		DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
 
 		if (targetMemoryLocation_HUDTerminate != 0)
 		{
@@ -937,6 +934,19 @@ static void ApplyClientPatch()
 	}
 }
 
+static void ApplyServerPatch()
+{
+	if (EnablePersistentWorldState)
+	{
+		DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "EnablePersistentWorldState_BodyFading");
+
+		if (targetMemoryLocation_BodyFading != 0)
+		{
+			MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading, 0x8, true);
+		}
+	}
+}
+
 #pragma endregion
 
 #pragma region Hooks
@@ -964,6 +974,8 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 		else // Otherwise server
 		{
 			gState.GameServer = ApiDLL;
+
+			ApplyServerPatch();
 		}
 	}
 	return result;
