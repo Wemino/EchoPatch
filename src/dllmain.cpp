@@ -171,6 +171,7 @@ std::pair<WORD, int> g_buttonMappings[] =
 	{ XINPUT_GAMEPAD_DPAD_RIGHT, 21 }, // Lean Right
 	{ XINPUT_GAMEPAD_LEFT_TRIGGER, 81 }, // Throw Grenade
 	{ XINPUT_GAMEPAD_RIGHT_TRIGGER, 17 }, // Fire
+	{ XINPUT_GAMEPAD_BACK, 78 }, // Mission Status
 	{ XINPUT_GAMEPAD_START, -1 }, // Menu
 };
 
