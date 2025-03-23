@@ -767,7 +767,7 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret
 
 static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int* ECX, int commandId)
 {
-	if (g_Controller.isConnected)
+	if (XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS)
 	{
 		bool useShortNames = false;
 
@@ -1702,7 +1702,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 
 			SystemHelper::LoadProxyLibrary();
 			HookHelper::ApplyHookAPI(L"user32.dll", "CreateWindowExA", &CreateWindowExA_Hook, (LPVOID*)&ori_CreateWindowExA);
-			g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS; // For GetTriggerNameFromCommandID_Hook
 			break;
 		}
 		case DLL_PROCESS_DETACH:
