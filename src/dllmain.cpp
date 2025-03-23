@@ -212,6 +212,7 @@ int GAMEPAD_DPAD_LEFT = 0;
 int GAMEPAD_DPAD_RIGHT = 0;
 int GAMEPAD_LEFT_TRIGGER = 0;
 int GAMEPAD_RIGHT_TRIGGER = 0;
+int GAMEPAD_BACK = 0;
 
 // Graphics
 float MaxFPS = 0;
@@ -267,6 +268,7 @@ static void ReadConfig()
 	GAMEPAD_DPAD_RIGHT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT", 21);
 	GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 81);
 	GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
+	GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
@@ -334,6 +336,7 @@ static void ReadConfig()
 				case XINPUT_GAMEPAD_DPAD_RIGHT: key = GAMEPAD_DPAD_RIGHT; break;
 				case XINPUT_GAMEPAD_LEFT_TRIGGER: key = GAMEPAD_LEFT_TRIGGER; break;
 				case XINPUT_GAMEPAD_RIGHT_TRIGGER: key = GAMEPAD_RIGHT_TRIGGER; break;
+				case XINPUT_GAMEPAD_BACK: key = GAMEPAD_BACK; break;
 				default: break;
 			}
 		}
@@ -820,6 +823,7 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Right";
 						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"LT";
 						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"RT";
+						case XINPUT_GAMEPAD_BACK: return L"Back";
 						default: break;
 					}
 				}
@@ -841,6 +845,7 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Pad Right";
 						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"Left Trigger";
 						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"Right Trigger";
+						case XINPUT_GAMEPAD_BACK: return L"Back Button";
 						default: break;
 					}
 				}
