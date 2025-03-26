@@ -889,6 +889,29 @@ static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, con
 	return targetMemoryLocation;
 }
 
+static DWORD FindFunctionStart(DWORD addr, int checkCount = 1)
+{
+	for (int i = 0; i < 0x1000; i++)
+	{
+		bool valid = true;
+		for (int j = 1; j <= checkCount; j++)
+		{
+			if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
+			{
+				valid = false;
+				break;
+			}
+		}
+		if (valid)
+		{
+			break;
+		}
+
+		addr--;
+	}
+	return addr;
+}
+
 static void ApplyXPWidescreenClientPatch()
 {
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
@@ -947,19 +970,7 @@ static void ApplyPersistentWorldClientPatch()
 	int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
 	HookHelper::ApplyHook((void*)shatterLiftetimeAddress, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 
-	// Not pretty, for devmode compatibility 
-	for (int i = 0; i < 0x1000; i++)
-	{
-		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_FX - 1) == 0xCC)
-		{
-			break;
-		}
-		else
-		{
-			targetMemoryLocation_FX--;
-		}
-	}
-
+	targetMemoryLocation_FX = FindFunctionStart(targetMemoryLocation_FX, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
 
@@ -1012,32 +1023,10 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
 
-	for (int i = 0; i < 0x1000; i++)
-	{
-		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 1) == 0xCC && MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PauseGame - 2) == 0xCC)
-		{
-			break;
-		}
-		else
-		{
-			targetMemoryLocation_PauseGame--;
-		}
-	}
+	targetMemoryLocation_PauseGame = FindFunctionStart(targetMemoryLocation_PauseGame, 2);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_PauseGame, &PauseGame_Hook, (LPVOID*)&PauseGame);
 
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_PauseGame), &PauseGame_Hook, (LPVOID*)&PauseGame);
-
-	for (int i = 0; i < 0x1000; i++)
-	{
-		if (MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_HUDActivateObjectSetObject - 1) == 0xCC)
-		{
-			break;
-		}
-		else
-		{
-			targetMemoryLocation_HUDActivateObjectSetObject--;
-		}
-	}
-
+	targetMemoryLocation_HUDActivateObjectSetObject = FindFunctionStart(targetMemoryLocation_HUDActivateObjectSetObject, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
 
 	if (!HideMouseCursor) return;
