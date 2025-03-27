@@ -24,6 +24,11 @@ int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 void(__thiscall* HUDTerminate)(int) = nullptr;
 char(__thiscall* HUDInit)(int) = nullptr;
+int(__thiscall* HUDWeaponListReset)(int) = nullptr;
+int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
+int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
+bool(__thiscall* HUDWeaponListInit)(int) = nullptr;
+bool(__thiscall* HUDGrenadeListInit)(int) = nullptr;
 int(__thiscall* ScreenDimsChanged)(int) = nullptr;
 DWORD* (__stdcall* LayoutDBGetPosition)(DWORD*, int, char*, int) = nullptr;
 float* (__stdcall* GetRectF)(DWORD*, int, char*, int) = nullptr;
@@ -87,6 +92,8 @@ struct GlobalState
 	float scalingFactorCrosshair = 0;
 	float crosshairSize = 0;
 	int CHUDMgr = 0;
+	int CHUDWeaponList = 0;
+	int CHUDGrenadeList = 0;
 
 	int screenWidth = 0;
 	int screenHeight = 0;
@@ -642,6 +649,9 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 		// Reinitialize the HUD
 		HUDTerminate(gState.CHUDMgr);
 		HUDInit(gState.CHUDMgr);
+		HUDWeaponListReset(gState.CHUDWeaponList);
+		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
+		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
 
 		// Update the size of the crosshair
 		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * gState.scalingFactorCrosshair);
@@ -660,6 +670,33 @@ static char __fastcall HUDInit_Hook(int thisPtr, int _ECX)
 static void __fastcall HUDTerminate_Hook(int thisPtr, int _ECX)
 {
 	HUDTerminate(thisPtr);
+}
+
+static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int _ECX)
+{
+	gState.CHUDWeaponList = thisPtr;
+	return HUDWeaponListInit(thisPtr);
+}
+
+static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int _ECX)
+{
+	HUDWeaponListReset(thisPtr);
+}
+
+static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
+{
+	HUDWeaponListUpdateTriggerNames(thisPtr);
+}
+
+static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int _ECX)
+{
+	gState.CHUDGrenadeList = thisPtr;
+	return HUDGrenadeListInit(thisPtr);
+}
+
+static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
+{
+	HUDGrenadeListUpdateTriggerNames(thisPtr);
 }
 
 static float __stdcall GetShatterLifetime_Hook(int shatterType)
@@ -682,7 +719,7 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 			char* fxName = MemoryHelper::ReadMemory<char*>(fxData + 0x74, false);
 
 			if (*reinterpret_cast<uint64_t*>(fxName) == 0x75625F656E6F7453 // Stone_bullethole
-		     || *reinterpret_cast<uint64_t*>(fxName) == 0x455F736972626544 // Debris_Electronic_Chunk
+			 || *reinterpret_cast<uint64_t*>(fxName) == 0x455F736972626544 // Debris_Electronic_Chunk
 			 || *reinterpret_cast<uint64_t*>(fxName) == 0x575F736972626544 // Debris_Wood_Chunk
 			 || *reinterpret_cast<uint64_t*>(fxName) == 0x4D5F736972626544 // Debris_Mug_Chunk
 			 || *reinterpret_cast<uint64_t*>(fxName) == 0x565F736972626544 // Debris_Vase1_Chunk
@@ -1050,6 +1087,11 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
 	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
 	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
+	DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDScaling_HUDWeaponListReset");
+	DWORD targetMemoryLocation_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDScaling_HUDWeaponListUpdateTriggerNames"); // -0x10
+	DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDScaling_HUDGrenadeListUpdateTriggerNames"); // -0x10
+	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDWeaponListInit");
+	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDGrenadeListInit");
 
 	if (targetMemoryLocation_GameDatabase == 0 ||
 		targetMemoryLocation_HUDTerminate == 0 ||
@@ -1057,7 +1099,12 @@ static void ApplyHUDScalingClientPatch()
 		targetMemoryLocation_ScreenDimsChanged == 0 ||
 		targetMemoryLocation_LayoutDBGetPosition == 0 ||
 		targetMemoryLocation_GetRectF == 0 ||
-		targetMemoryLocation_UpdateSlider == 0) {
+		targetMemoryLocation_UpdateSlider == 0 ||
+		targetMemoryLocation_HUDWeaponListReset == 0 ||
+		targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
+		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0 ||
+		targetMemoryLocation_HUDWeaponListInit == 0 ||
+		targetMemoryLocation_HUDGrenadeListInit == 0) {
 		return;
 	}
 
@@ -1071,11 +1118,18 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDInit - 0x2), &HUDInit_Hook, (LPVOID*)&HUDInit);
+
+	targetMemoryLocation_HUDInit = FindFunctionStart(targetMemoryLocation_HUDInit, 1);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 }
 
 static void ApplyClientPatch()
@@ -1422,6 +1476,7 @@ static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
 	{
 		PollController();
 	}
+
 	return IsFrameComplete(thisPtr);
 }
 
