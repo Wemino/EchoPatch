@@ -51,6 +51,11 @@ int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t*(__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
 void(__thiscall* UseCursor)(int, bool) = nullptr;
 bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
+uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
+void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
+void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
+void(__thiscall* OnEnterWorld)(int) = nullptr;
+void(__thiscall* DisconnectFromServer)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 
@@ -117,6 +122,9 @@ struct GlobalState
 	bool canActivate = false;
 	bool isOperatingTurret = false;
 
+	int CPlayerInventory = 0;
+	bool appliedCustomMaxWeaponCapacity = false;
+
 	struct DataEntry
 	{
 		int TextSize;
@@ -125,6 +133,8 @@ struct GlobalState
 
 	static std::unordered_map<std::string, DataEntry> textDataMap;
 	static std::unordered_map<std::string, std::unordered_set<std::string>> hudScalingRules;
+
+	std::list<DWORD> hookedServerFunctionAddresses;
 };
 
 // Initialize static members
@@ -246,6 +256,8 @@ bool SkipDellIntro = false;
 
 // Extra
 bool InfiniteFlashlight = false;
+bool EnableCustomMaxWeaponCapacity = false;
+int MaxWeaponCapacity = 0;
 bool ShowErrors = false;
 
 static void ReadConfig()
@@ -301,7 +313,9 @@ static void ReadConfig()
 	SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
 
 	// Extra
-	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 1) == 1;
+	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 0) == 1;
+	EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
+	MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
 	ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
 	// Get screen resolution
@@ -432,6 +446,9 @@ static void ReadConfig()
 			{"HUDSlowMo2",     {"IconSize", "IconOffset"}},
 		};
 	}
+
+	// 10 slots max
+	MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
 }
 
 #pragma region Client Hooks
@@ -908,6 +925,29 @@ static bool __fastcall OnMouseMove_Hook(int thisPtr, int _ECX, int x, int y)
 	return OnMouseMove(thisPtr, x, y);
 }
 
+static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int _ECX)
+{
+	return MaxWeaponCapacity;
+}
+
+static void __fastcall OnEnterWorld_Hook(int thisPtr, int _ECX)
+{
+	OnEnterWorld(thisPtr);
+	SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
+}
+
+static void __fastcall DisconnectFromServer_Hook(int thisPtr, int _ECX)
+{
+	for (DWORD address : gState.hookedServerFunctionAddresses) 
+	{
+		MH_RemoveHook((void*)address);
+	}
+
+	gState.hookedServerFunctionAddresses.clear();
+
+	DisconnectFromServer(thisPtr);
+}
+
 #pragma endregion
 
 #pragma region Client Patches
@@ -1132,6 +1172,28 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 }
 
+static void ApplySetWeaponCapacityClientPatch()
+{
+	if (!EnableCustomMaxWeaponCapacity) return;
+
+	DWORD targetMemoryLocation_DisconnectFromServer = ScanModuleSignature(gState.GameClient, "81 EC 08 02 00 00 E8", "WeaponCapacity_DisconnectFromServer");
+	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "WeaponCapacity_OnEnterWorld");
+	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "WeaponCapacity_GetWeaponCapacity");
+	targetMemoryLocation_OnEnterWorld = FindFunctionStart(targetMemoryLocation_OnEnterWorld, 1);
+
+	if (targetMemoryLocation_DisconnectFromServer == 0 ||
+		targetMemoryLocation_OnEnterWorld == 0 ||
+		targetMemoryLocation_GetWeaponCapacity == 0) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_DisconnectFromServer, &DisconnectFromServer_Hook, (LPVOID*)&DisconnectFromServer);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
+
+	gState.appliedCustomMaxWeaponCapacity = true;
+}
+
 static void ApplyClientPatch()
 {
 	ApplyXPWidescreenClientPatch();
@@ -1141,11 +1203,34 @@ static void ApplyClientPatch()
 	ApplyInfiniteFlashlightClientPatch();
 	ApplyXInputControllerClientPatch();
 	ApplyHUDScalingClientPatch();
+	ApplySetWeaponCapacityClientPatch();
+}
+
+#pragma endregion
+
+#pragma region Server Hooks
+
+static void __fastcall SetWeaponCapacityServer_Hook(int thisPtr, int _ECX, uint8_t nCap)
+{
+	nCap = MaxWeaponCapacity;
+	SetWeaponCapacityServer(thisPtr, nCap);
+}
+
+static void __fastcall PlayerInventoryInit_Hook(int thisPtr, int _ECX, int nCap)
+{
+	gState.CPlayerInventory = thisPtr;
+	PlayerInventoryInit(thisPtr, nCap);
 }
 
 #pragma endregion
 
 #pragma region Server Patches
+
+static void ApplyTrackedHook(DWORD address, LPVOID hookFunc, LPVOID *originalPtr)
+{
+	HookHelper::ApplyHook((void*)address, hookFunc, originalPtr);
+	gState.hookedServerFunctionAddresses.push_back(address);
+}
 
 static void ApplyPersistentWorldServerPatch()
 {
@@ -1159,9 +1244,27 @@ static void ApplyPersistentWorldServerPatch()
 	}
 }
 
+static void ApplySetWeaponCapacityServerPatch()
+{
+	if (!EnableCustomMaxWeaponCapacity || !gState.appliedCustomMaxWeaponCapacity) return;
+
+	DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "WeaponCapacity_SetWeaponCapacityServer");
+	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "WeaponCapacity_PlayerInventoryInit");
+	targetMemoryLocation_PlayerInventoryInit = FindFunctionStart(targetMemoryLocation_PlayerInventoryInit, 2);
+
+	if (targetMemoryLocation_SetWeaponCapacityServer == 0 ||
+		targetMemoryLocation_PlayerInventoryInit == 0) {
+		return;
+	}
+
+	ApplyTrackedHook(targetMemoryLocation_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
+	ApplyTrackedHook(targetMemoryLocation_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
+}
+
 static void ApplyServerPatch()
 {
 	ApplyPersistentWorldServerPatch();
+	ApplySetWeaponCapacityServerPatch();
 }
 
 #pragma endregion
