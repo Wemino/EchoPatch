@@ -1055,12 +1055,18 @@ static void ApplyInfiniteFlashlightClientPatch()
 {
 	if (!InfiniteFlashlight) return;
 
-	DWORD targetMemoryLocation_HUD = ScanModuleSignature(gState.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_HUD");
+	DWORD targetMemoryLocation_Update = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
+	DWORD targetMemoryLocation_UpdateLayout = ScanModuleSignature(gState.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
 	DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
 
-	if (targetMemoryLocation_HUD == 0 || targetMemoryLocation_Battery == 0) return;
+	if (targetMemoryLocation_Update == 0 ||
+		targetMemoryLocation_UpdateLayout == 0 ||
+		targetMemoryLocation_Battery == 0) {
+		return;
+	}
 
-	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HUD - 0x36, 0xC3, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3, true);
 	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
 }
 
