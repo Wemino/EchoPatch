@@ -24,6 +24,7 @@ int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 void(__thiscall* HUDTerminate)(int) = nullptr;
 char(__thiscall* HUDInit)(int) = nullptr;
+void(__thiscall* HUDRender)(int, int) = nullptr;
 int(__thiscall* HUDWeaponListReset)(int) = nullptr;
 int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
 int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
@@ -99,6 +100,7 @@ struct GlobalState
 	int CHUDMgr = 0;
 	int CHUDWeaponList = 0;
 	int CHUDGrenadeList = 0;
+	bool updateHUD = false;
 
 	int screenWidth = 0;
 	int screenHeight = 0;
@@ -669,6 +671,7 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 		HUDWeaponListReset(gState.CHUDWeaponList);
 		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
 		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
+		gState.updateHUD = true;
 
 		// Update the size of the crosshair
 		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * gState.scalingFactorCrosshair);
@@ -687,6 +690,16 @@ static char __fastcall HUDInit_Hook(int thisPtr, int _ECX)
 static void __fastcall HUDTerminate_Hook(int thisPtr, int _ECX)
 {
 	HUDTerminate(thisPtr);
+}
+
+static void __fastcall HUDRender_Hook(int thisPtr, int _ECX, int eHUDRenderLayer)
+{
+	HUDRender(thisPtr, eHUDRenderLayer);
+	if (gState.updateHUD)
+	{
+		MemoryHelper::WriteMemory<int>(thisPtr + 0x14, -1, false);
+		gState.updateHUD = false;
+	}
 }
 
 static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int _ECX)
@@ -1054,12 +1067,13 @@ static void ApplyPersistentWorldClientPatch()
 static void ApplyInfiniteFlashlightClientPatch()
 {
 	if (!InfiniteFlashlight) return;
-
 	DWORD targetMemoryLocation_Update = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
+	DWORD targetMemoryLocation_UpdateBar = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
 	DWORD targetMemoryLocation_UpdateLayout = ScanModuleSignature(gState.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
 	DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
 
 	if (targetMemoryLocation_Update == 0 ||
+		targetMemoryLocation_UpdateBar == 0 ||
 		targetMemoryLocation_UpdateLayout == 0 ||
 		targetMemoryLocation_Battery == 0) {
 		return;
@@ -1067,6 +1081,7 @@ static void ApplyInfiniteFlashlightClientPatch()
 
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3, true);
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3, true);
 	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
 }
 
@@ -1129,6 +1144,8 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
 	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
+	targetMemoryLocation_HUDInit = FindFunctionStart(targetMemoryLocation_HUDInit, 1);
+	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDScaling_HUDRender");
 	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
 	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
 	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
@@ -1142,6 +1159,7 @@ static void ApplyHUDScalingClientPatch()
 	if (targetMemoryLocation_GameDatabase == 0 ||
 		targetMemoryLocation_HUDTerminate == 0 ||
 		targetMemoryLocation_HUDInit == 0 ||
+		targetMemoryLocation_HUDRender == 0 ||
 		targetMemoryLocation_ScreenDimsChanged == 0 ||
 		targetMemoryLocation_LayoutDBGetPosition == 0 ||
 		targetMemoryLocation_GetRectF == 0 ||
@@ -1164,9 +1182,8 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-
-	targetMemoryLocation_HUDInit = FindFunctionStart(targetMemoryLocation_HUDInit, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
