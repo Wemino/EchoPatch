@@ -57,6 +57,7 @@ void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
 void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* OnEnterWorld)(int) = nullptr;
 void(__thiscall* DisconnectFromServer)(int) = nullptr;
+bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 
@@ -235,6 +236,7 @@ int GAMEPAD_BACK = 0;
 
 // Graphics
 float MaxFPS = 0;
+bool HighResolutionReflections = false;
 bool NoLODBias = false;
 bool NoMipMapBias = false;
 bool EnablePersistentWorldState = false;
@@ -293,6 +295,7 @@ static void ReadConfig()
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
+	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
 	NoMipMapBias = IniHelper::ReadInteger("Graphics", "NoMipMapBias", 0) == 1;
 	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
@@ -961,6 +964,20 @@ static void __fastcall DisconnectFromServer_Hook(int thisPtr, int _ECX)
 	DisconnectFromServer(thisPtr);
 }
 
+static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int _ECX, int psfxCreateStruct)
+{
+	// Low
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0xC, 512, false);
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x10, 512, false);
+	// Medium
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x14, 1024, false);
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x18, 1024, false);
+	// High
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x1C, 2048, false);
+	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x20, 2048, false);
+	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
+}
+
 #pragma endregion
 
 #pragma region Client Patches
@@ -1217,6 +1234,17 @@ static void ApplySetWeaponCapacityClientPatch()
 	gState.appliedCustomMaxWeaponCapacity = true;
 }
 
+static void ApplyHighResolutionReflectionsClientPatch()
+{
+	if (!HighResolutionReflections) return;
+
+	DWORD targetMemoryLocation_HighResolutionReflections = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "HighResolutionReflections_RenderTargetGroupFXInit");
+
+	if (targetMemoryLocation_HighResolutionReflections == 0) return;
+
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HighResolutionReflections - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+}
+
 static void ApplyClientPatch()
 {
 	ApplyXPWidescreenClientPatch();
@@ -1227,6 +1255,7 @@ static void ApplyClientPatch()
 	ApplyXInputControllerClientPatch();
 	ApplyHUDScalingClientPatch();
 	ApplySetWeaponCapacityClientPatch();
+	ApplyHighResolutionReflectionsClientPatch();
 }
 
 #pragma endregion
