@@ -58,8 +58,9 @@ void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* OnEnterWorld)(int) = nullptr;
 void(__thiscall* DisconnectFromServer)(int) = nullptr;
 bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
+DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
+DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
-
 
 // =============================
 // Constants 
@@ -109,6 +110,7 @@ struct GlobalState
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
+	HMODULE GameClientFX = NULL;
 
 	bool isUsingFpsLimiter = false;
 	FpsLimiter fpsLimiter{ 120.0f };
@@ -212,6 +214,7 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 // Fixes
 bool DisableRedundantHIDInit = false;
 bool CheckLAAPatch = false;
+bool FixParticleLifetimeCalculation = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 
@@ -271,6 +274,7 @@ static void ReadConfig()
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
 	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
+	FixParticleLifetimeCalculation = IniHelper::ReadInteger("Fixes", "FixParticleLifetimeCalculation", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 
@@ -455,6 +459,100 @@ static void ReadConfig()
 	// 10 slots max
 	MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
 }
+
+#pragma region Helper
+
+static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName)
+{
+	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
+
+	if (targetMemoryLocation == 0 && ShowErrors)
+	{
+		std::string errorMessage = "Error: Unable to find signature for patch: ";
+		errorMessage += patchName;
+		MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
+	}
+
+	return targetMemoryLocation;
+}
+
+static DWORD FindFunctionStart(DWORD addr, int checkCount = 1)
+{
+	for (int i = 0; i < 0x1000; i++)
+	{
+		bool valid = true;
+		for (int j = 1; j <= checkCount; j++)
+		{
+			if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
+			{
+				valid = false;
+				break;
+			}
+		}
+		if (valid)
+		{
+			break;
+		}
+
+		addr--;
+	}
+	return addr;
+}
+
+#pragma endregion
+
+#pragma region ClientFX Hooks
+
+static void ProcessParticleResult(DWORD* result)
+{
+	// If m_fLifetime == -1
+	if (result && result[6] == 0xBF800000)
+	{
+		// Prevent an issue inside GetParticleSizeAndColor
+		result[6] = 0;
+	}
+}
+
+static DWORD* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int _ECX, int a2, bool a3)
+{
+	DWORD* result = AddParticleBatchMarker(thisPtr, a2, a3);
+	ProcessParticleResult(result);
+	return result;
+}
+
+static DWORD* __fastcall EmitParticleBatch_Hook(int thisPtr, int _ECX, float a2, int a3, int* a4)
+{
+	DWORD* result = EmitParticleBatch(thisPtr, a2, a3, a4);
+	ProcessParticleResult(result);
+	return result;
+}
+
+#pragma endregion
+
+#pragma region ClientFX Patches
+
+static void ApplyFixParticleLifetimeClientFXPatch()
+{
+	if (!FixParticleLifetimeCalculation) return;
+
+	DWORD targetMemoryLocation_AddParticleBatchMarker = ScanModuleSignature(gState.GameClientFX, "83 C1 10 E8 ?? ?? ?? ?? 85 C0 74 24 8A 4C 24 08", "FixParticleLifetime_AddParticleBatchMarker");
+	DWORD targetMemoryLocation_EmitParticleBatch = ScanModuleSignature(gState.GameClientFX, "CC CC CC CC 81 EC C0 00 00 00", "FixParticleLifetime_EmitParticleBatch");
+
+	if (targetMemoryLocation_AddParticleBatchMarker == 0 ||
+		targetMemoryLocation_EmitParticleBatch == 0) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AddParticleBatchMarker, &AddParticleBatchMarker_Hook, (LPVOID*)&AddParticleBatchMarker);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
+}
+
+static void ApplyClientFXPatch()
+{
+	ApplyFixParticleLifetimeClientFXPatch();
+}
+
+#pragma endregion
 
 #pragma region Client Hooks
 
@@ -978,46 +1076,32 @@ static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int _ECX, int p
 	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
 }
 
+static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
+{
+	// Load the DLL
+	char result = LoadClientFXDLL(thisPtr, Source, a3);
+
+	// Get the path
+	char* clientFXPath = ((char*)thisPtr + 0x24);
+
+	// Get the handle
+	wchar_t wFileName[MAX_PATH];
+	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
+	HMODULE clientFxDll = GetModuleHandleW(wFileName);
+
+	if (clientFxDll)
+	{
+		gState.GameClientFX = clientFxDll;
+
+		ApplyClientFXPatch();
+	}
+
+	return result;
+}
+
 #pragma endregion
 
 #pragma region Client Patches
-
-static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName)
-{
-	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
-
-	if (targetMemoryLocation == 0 && ShowErrors)
-	{
-		std::string errorMessage = "Error: Unable to find signature for patch: ";
-		errorMessage += patchName;
-		MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
-	}
-
-	return targetMemoryLocation;
-}
-
-static DWORD FindFunctionStart(DWORD addr, int checkCount = 1)
-{
-	for (int i = 0; i < 0x1000; i++)
-	{
-		bool valid = true;
-		for (int j = 1; j <= checkCount; j++)
-		{
-			if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
-			{
-				valid = false;
-				break;
-			}
-		}
-		if (valid)
-		{
-			break;
-		}
-
-		addr--;
-	}
-	return addr;
-}
 
 static void ApplyXPWidescreenClientPatch()
 {
@@ -1245,6 +1329,17 @@ static void ApplyHighResolutionReflectionsClientPatch()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_HighResolutionReflections - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
 }
 
+static void ApplyClientFXHook()
+{
+	if (!FixParticleLifetimeCalculation) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "ClientFXHook");
+
+	if (targetMemoryLocation == 0) return;
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+}
+
 static void ApplyClientPatch()
 {
 	ApplyXPWidescreenClientPatch();
@@ -1256,6 +1351,7 @@ static void ApplyClientPatch()
 	ApplyHUDScalingClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
+	ApplyClientFXHook();
 }
 
 #pragma endregion
