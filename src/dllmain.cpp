@@ -15,6 +15,8 @@
 #pragma comment(lib, "libMinHook.x86.lib")
 #pragma comment(lib, "Xinput.lib")
 
+// Disclaimer: The following code is chaotic and will be cleaned up at a later time
+
 // =============================
 // Original Function Pointers
 // =============================
