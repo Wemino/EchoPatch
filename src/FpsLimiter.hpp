@@ -59,10 +59,15 @@ public:
                 QueryPerformanceCounter(&currentTime);
             } 
             while (currentTime.QuadPart < targetTicks);
-        }
 
-        // Update lastTime for the next frame.
-        lastTime = currentTime;
+            // Update lastTime to the exact target time to prevent drift
+            lastTime.QuadPart = targetTicks;
+        }
+        else
+        {
+            // Frame took too long, proceed without limiting
+            lastTime = currentTime;
+        }
     }
 
 private:
