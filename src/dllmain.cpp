@@ -243,7 +243,7 @@ int GAMEPAD_BACK = 0;
 float MaxFPS = 0;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
-bool NoMipMapBias = false;
+bool ReducedMipMapBias = false;
 bool EnablePersistentWorldState = false;
 
 // Display
@@ -303,7 +303,7 @@ static void ReadConfig()
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
 	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
-	NoMipMapBias = IniHelper::ReadInteger("Graphics", "NoMipMapBias", 0) == 1;
+	ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
 	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
 
 	// Display
@@ -1780,40 +1780,21 @@ static void ApplyFixKeyboardInputLanguage()
 	}
 }
 
-static void ApplyNoLODBias()
+static void ApplyReducedMipMapBias()
 {
-	if (!NoLODBias) return;
+	if (!ReducedMipMapBias) return;
 
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
 		case FEARMP:
-			MemoryHelper::WriteMemory<float>(0x56D864, -2.0f, false);
+			MemoryHelper::WriteMemory<float>(0x56D5C4, -0.5f, false);
 			break;
 		case FEARXP:
-			MemoryHelper::WriteMemory<float>(0x612E34, -2.0f, false);
+			MemoryHelper::WriteMemory<float>(0x612B94, -0.5f, false);
 			break;
 		case FEARXP2:
-			MemoryHelper::WriteMemory<float>(0x614E44, -2.0f, false);
-			break;
-	}
-}
-
-static void ApplyNoMipMapBias()
-{
-	if (!NoMipMapBias) return;
-
-	switch (gState.CurrentFEARGame)
-	{
-		case FEAR:
-		case FEARMP:
-			MemoryHelper::WriteMemory<float>(0x56D5C4, -2.0f, false);
-			break;
-		case FEARXP:
-			MemoryHelper::WriteMemory<float>(0x612B94, -2.0f, false);
-			break;
-		case FEARXP2:
-			MemoryHelper::WriteMemory<float>(0x614BA4, -2.0f, false);
+			MemoryHelper::WriteMemory<float>(0x614BA4, -0.5f, false);
 			break;
 	}
 }
@@ -1945,8 +1926,7 @@ static void Init()
 	ApplyAutoResolution();
 
 	// Graphics
-	ApplyNoMipMapBias();
-	ApplyNoLODBias();
+	ApplyReducedMipMapBias();
 
 	// Misc
 	HookIsFrameComplete();
