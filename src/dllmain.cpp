@@ -217,6 +217,7 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 bool DisableRedundantHIDInit = false;
 bool CheckLAAPatch = false;
 bool FixParticleLifetimeCalculation = false;
+bool FixParticleUpdateThreshold = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 
@@ -277,6 +278,7 @@ static void ReadConfig()
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
 	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 	FixParticleLifetimeCalculation = IniHelper::ReadInteger("Fixes", "FixParticleLifetimeCalculation", 1) == 1;
+	FixParticleUpdateThreshold = IniHelper::ReadInteger("Fixes", "FixParticleUpdateThreshold", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 
@@ -549,9 +551,22 @@ static void ApplyFixParticleLifetimeClientFXPatch()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
 }
 
+static void ApplyFixParticleUpdateThresholdClientFXPatch()
+{
+	if (!FixParticleUpdateThreshold) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClientFX, "9A 99 99 3E 6F 12 83 3A", "FixParticleUpdateThreshold");
+
+	if (targetMemoryLocation == 0) return;
+
+	// Threshold  
+	MemoryHelper::WriteMemory<float>(targetMemoryLocation + 0x4, 0.0001f, true);
+}
+
 static void ApplyClientFXPatch()
 {
 	ApplyFixParticleLifetimeClientFXPatch();
+	ApplyFixParticleUpdateThresholdClientFXPatch();
 }
 
 #pragma endregion
@@ -1333,7 +1348,7 @@ static void ApplyHighResolutionReflectionsClientPatch()
 
 static void ApplyClientFXHook()
 {
-	if (!FixParticleLifetimeCalculation) return;
+	if (!FixParticleLifetimeCalculation && !FixParticleUpdateThreshold) return;
 
 	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "ClientFXHook");
 
