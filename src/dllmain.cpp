@@ -62,6 +62,7 @@ void(__thiscall* DisconnectFromServer)(int) = nullptr;
 bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
 DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
 DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
+int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -215,11 +216,12 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 
 // Fixes
 bool DisableRedundantHIDInit = false;
-bool CheckLAAPatch = false;
+bool FixHighFPSPhysics = false;
 bool FixParticleLifetimeCalculation = false;
 bool FixParticleUpdateThreshold = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
+bool CheckLAAPatch = false;
 
 // Controller
 bool XInputControllerSupport = false;
@@ -276,11 +278,12 @@ static void ReadConfig()
 
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
-	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
+	FixHighFPSPhysics = IniHelper::ReadInteger("Fixes", "FixHighFPSPhysics", 1) == 1;
 	FixParticleLifetimeCalculation = IniHelper::ReadInteger("Fixes", "FixParticleLifetimeCalculation", 1) == 1;
 	FixParticleUpdateThreshold = IniHelper::ReadInteger("Fixes", "FixParticleUpdateThreshold", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
+	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 
 	// Controller
 	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
@@ -1466,6 +1469,12 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 	return result;
 }
 
+static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int _ECX, float* timeStepParams)
+{
+	if (timeStepParams[1] > 60) timeStepParams[1] = 60;
+	return StepPhysicsSimulation(thisPtr, timeStepParams);
+}
+
 // Function utilized in the process of loading video files
 static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, char* video_path)
 {
@@ -1774,6 +1783,27 @@ static void ApplyFixDirectInputFps()
 	}
 }
 
+static void ApplyFixHighFPSPhysics()
+{
+	if (!FixHighFPSPhysics) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			HookHelper::ApplyHook((void*)0x495CD0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
+			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x495DF0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x4D9480, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x4DA4F0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
+			break;
+	}
+}
+
 static void ApplyFixKeyboardInputLanguage()
 {
 	if (!FixKeyboardInputLanguage) return;
@@ -1935,6 +1965,7 @@ static void Init()
 
 	// Fixes
 	ApplyFixDirectInputFps();
+	ApplyFixHighFPSPhysics();
 	ApplyFixKeyboardInputLanguage();
 
 	// Display
