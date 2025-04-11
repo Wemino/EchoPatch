@@ -64,6 +64,7 @@ DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
 DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
 int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
 void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
+void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -449,19 +450,20 @@ static void ReadConfig()
 		gState.textDataMap["HUDWeapon"] = { 14, 0 };
 
 		// HUD
-		gState.hudScalingRules =
+		gState.hudScalingRules = 
 		{
-			{"HUDHealth",      {"AdditionalPoint", "IconSize", "IconOffset", "TextOffset",}},
-			{"HUDDialogue",    {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDGrenadeList", {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDWeapon",      {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDArmor",       {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDSwap",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGear",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGrenade",     {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDAmmo",        {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDFlashlight",  {"IconSize", "IconOffset"}},
-			{"HUDSlowMo2",     {"IconSize", "IconOffset"}},
+			{"HUDHealth",            {"AdditionalPoint", "IconSize", "IconOffset", "TextOffset"}},
+			{"HUDDialogue",          {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDGrenadeList",       {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDWeapon",            {"AdditionalPoint", "IconSize", "TextOffset"}},
+			{"HUDArmor",             {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDSwap",              {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDGear",              {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDGrenade",           {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDAmmo",              {"IconSize", "IconOffset", "TextOffset"}},
+			{"HUDFlashlight",        {"IconSize", "IconOffset"}},
+			{"HUDSlowMo2",           {"IconSize", "IconOffset"}},
+			{"HUDActivateObject",    {"TextOffset"}}
 		};
 	}
 
@@ -845,6 +847,17 @@ static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int _ECX)
 {
 	gState.CHUDGrenadeList = thisPtr;
 	return HUDGrenadeListInit(thisPtr);
+}
+
+static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
+{
+	vPos[0] = static_cast<DWORD>((int)vPos[0] * gState.scalingFactor);
+	vPos[1] = static_cast<DWORD>((int)vPos[1] * gState.scalingFactor);
+
+	vSize[0] = static_cast<DWORD>((int)vSize[0] * gState.scalingFactor);
+	vSize[1] = static_cast<DWORD>((int)vSize[1] * gState.scalingFactor);
+
+	InitAdditionalTextureData(a1, a2, a3, vPos, vSize, a6);
 }
 
 static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
@@ -1278,6 +1291,7 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDScaling_HUDGrenadeListUpdateTriggerNames"); // -0x10
 	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDWeaponListInit");
 	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDGrenadeListInit");
+	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "HUDScaling_InitAdditionalTextureData");
 
 	if (targetMemoryLocation_GameDatabase == 0 ||
 		targetMemoryLocation_HUDTerminate == 0 ||
@@ -1291,7 +1305,8 @@ static void ApplyHUDScalingClientPatch()
 		targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
 		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0 ||
 		targetMemoryLocation_HUDWeaponListInit == 0 ||
-		targetMemoryLocation_HUDGrenadeListInit == 0) {
+		targetMemoryLocation_HUDGrenadeListInit == 0 ||
+		targetMemoryLocation_InitAdditionalTextureData == 0) {
 		return;
 	}
 
@@ -1316,6 +1331,7 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
 }
 
 static void ApplySetWeaponCapacityClientPatch()
