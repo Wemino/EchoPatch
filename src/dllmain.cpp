@@ -63,6 +63,7 @@ bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
 DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
 DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
 int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
+void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -109,6 +110,7 @@ struct GlobalState
 
 	int screenWidth = 0;
 	int screenHeight = 0;
+	bool isInAutoDetect = false;
 
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
@@ -1342,11 +1344,30 @@ static void ApplyHighResolutionReflectionsClientPatch()
 {
 	if (!HighResolutionReflections) return;
 
-	DWORD targetMemoryLocation_HighResolutionReflections = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "HighResolutionReflections_RenderTargetGroupFXInit");
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "HighResolutionReflections_RenderTargetGroupFXInit");
 
-	if (targetMemoryLocation_HighResolutionReflections == 0) return;
+	if (targetMemoryLocation == 0) return;
 
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_HighResolutionReflections - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+}
+
+static void __cdecl AutoDetectPerformanceSettings_Hook()
+{
+	gState.isInAutoDetect = true;
+	AutoDetectPerformanceSettings();
+	gState.isInAutoDetect = false;
+}
+
+static void ApplyAutoResolutionClientCheck()
+{
+	if (!AutoResolution) return; 
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoResolution_AutoDetectPerformanceSettings");
+	targetMemoryLocation = FindFunctionStart(targetMemoryLocation, 2);
+
+	if (targetMemoryLocation == 0) return;
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
 }
 
 static void ApplyClientFXHook()
@@ -1371,6 +1392,7 @@ static void ApplyClientPatch()
 	ApplyHUDScalingClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
+	ApplyAutoResolutionClientCheck();
 	ApplyClientFXHook();
 }
 
@@ -1614,7 +1636,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		}
 	}
 
-	if (AutoResolution)
+	if (gState.isInAutoDetect && AutoResolution)
 	{
 		if (strcmp(pszVarName, "Performance_ScreenHeight") == 0)
 		{
