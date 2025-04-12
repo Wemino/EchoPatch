@@ -66,6 +66,7 @@ int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
 void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
+void(__thiscall* HUDPausedInit)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -106,6 +107,7 @@ struct GlobalState
 	float scalingFactorCrosshair = 0;
 	float crosshairSize = 0;
 	int CHUDMgr = 0;
+	int CHUDPaused = 0;
 	int CHUDWeaponList = 0;
 	int CHUDGrenadeList = 0;
 	bool updateHUD = false;
@@ -798,6 +800,7 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 		HUDWeaponListReset(gState.CHUDWeaponList);
 		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
 		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
+		HUDPausedInit(gState.CHUDPaused);
 		gState.updateHUD = true;
 
 		// Update the size of the crosshair
@@ -849,6 +852,12 @@ static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int _ECX)
 {
 	gState.CHUDGrenadeList = thisPtr;
 	return HUDGrenadeListInit(thisPtr);
+}
+
+static void __fastcall HUDPausedInit_Hook(int thisPtr, int _ECX)
+{
+	gState.CHUDPaused = thisPtr;
+	HUDPausedInit(thisPtr);
 }
 
 static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
@@ -1280,7 +1289,6 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "Controller_UseCursor");
 	DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "Controller_OnMouseMove");
 
-
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
 }
@@ -1304,6 +1312,7 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDWeaponListInit");
 	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDGrenadeListInit");
 	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "HUDScaling_InitAdditionalTextureData");
+	DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDScaling_HUDPausedInit");
 
 	if (targetMemoryLocation_GameDatabase == 0 ||
 		targetMemoryLocation_HUDTerminate == 0 ||
@@ -1318,7 +1327,8 @@ static void ApplyHUDScalingClientPatch()
 		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0 ||
 		targetMemoryLocation_HUDWeaponListInit == 0 ||
 		targetMemoryLocation_HUDGrenadeListInit == 0 ||
-		targetMemoryLocation_InitAdditionalTextureData == 0) {
+		targetMemoryLocation_InitAdditionalTextureData == 0 ||
+		targetMemoryLocation_HUDPausedInit == 0) {
 		return;
 	}
 
@@ -1344,6 +1354,7 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
 }
 
 static void ApplySetWeaponCapacityClientPatch()
