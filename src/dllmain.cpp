@@ -65,6 +65,7 @@ DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
 int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
 void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
+void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -131,6 +132,7 @@ struct GlobalState
 	int g_pGameClientShell = 0;
 	bool isGamePaused = true;
 	bool canActivate = false;
+	bool canSwap = false;
 	bool isOperatingTurret = false;
 
 	int CPlayerInventory = 0;
@@ -962,6 +964,12 @@ static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int _ECX, voi
 	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, a6);
 }
 
+static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int _ECX)
+{
+	 HUDSwapUpdate(thisPtr);
+	 gState.canSwap = MemoryHelper::ReadMemory<uint8_t>(thisPtr + 0x1C0) != 0;
+}
+
 static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret)
 {
 	gState.isOperatingTurret = pTurret != 0;
@@ -1234,6 +1242,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
 	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
 	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
+	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "Controller_HUDSwapUpdate");
 	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
 	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
 
@@ -1243,6 +1252,7 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_IsCommandOn == 0 ||
 		targetMemoryLocation_PauseGame == 0 ||
 		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
+		targetMemoryLocation_HUDSwapUpdate == 0 ||
 		targetMemoryLocation_SetOperatingTurret == 0 ||
 		targetMemoryLocation_GetTriggerNameFromCommandID == 0) {
 		return;
@@ -1262,6 +1272,8 @@ static void ApplyXInputControllerClientPatch()
 
 	targetMemoryLocation_HUDActivateObjectSetObject = FindFunctionStart(targetMemoryLocation_HUDActivateObjectSetObject, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
 
 	if (!HideMouseCursor) return;
 
@@ -1690,7 +1702,7 @@ static void HandleControllerButton(WORD button, int commandId)
 	bool isPressed;
 
 	// Activate instead of Reload
-	if (commandId == 88 && (gState.canActivate || gState.isOperatingTurret))
+	if (commandId == 88 && (gState.canActivate || gState.canSwap || gState.isOperatingTurret))
 	{
 		commandId = 87;
 	}
