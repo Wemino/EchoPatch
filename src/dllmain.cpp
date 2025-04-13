@@ -67,6 +67,8 @@ void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* HUDPausedInit)(int) = nullptr;
+void(__thiscall* SwitchToScreen)(int, int) = nullptr;
+void(__thiscall* SetCurrentType)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -136,6 +138,9 @@ struct GlobalState
 	bool canActivate = false;
 	bool canSwap = false;
 	bool isOperatingTurret = false;
+	int pCurrentType = 0;
+	int currentType = 0;
+	int maxCurrentType = 0;
 
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
@@ -184,6 +189,10 @@ struct ControllerState
 
 	// Game button states
 	std::map<WORD, ButtonState> gameButtons;
+
+	// ScreenPerformanceAdvanced
+	ButtonState leftShoulderState;
+	ButtonState rightShoulderState;
 };
 
 ControllerState g_Controller;
@@ -215,7 +224,7 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 	{XINPUT_GAMEPAD_DPAD_LEFT,  VK_LEFT},
 	{XINPUT_GAMEPAD_DPAD_RIGHT, VK_RIGHT},
 	{XINPUT_GAMEPAD_A,          VK_RETURN},
-	{XINPUT_GAMEPAD_B,          VK_ESCAPE},
+	{XINPUT_GAMEPAD_B,          VK_ESCAPE}
 };
 
 // =============================
@@ -861,6 +870,57 @@ static void __fastcall HUDPausedInit_Hook(int thisPtr, int _ECX)
 	HUDPausedInit(thisPtr);
 }
 
+static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
+{
+	HUDGrenadeListUpdateTriggerNames(thisPtr);
+}
+
+static void __fastcall SetCurrentType_Hook(int thisPtr, int _ECX, int type)
+{
+	gState.pCurrentType = thisPtr;
+	SetCurrentType(thisPtr, type);
+}
+
+static void __fastcall SwitchToScreen_Hook(int thisPtr, int _ECX, int pNewScreen)
+{
+	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
+	int ScreenPerformanceCPU, ScreenPerformanceGPU;
+
+	switch (gState.CurrentFEARGame) 
+	{
+		case FEARXP:
+			ScreenPerformanceCPU = 18;
+			ScreenPerformanceGPU = 19;
+			break;
+		case FEARXP2:
+			ScreenPerformanceCPU = 20;
+			ScreenPerformanceGPU = 21;
+			break;
+		case FEAR:
+		default:
+			ScreenPerformanceCPU = 19;
+			ScreenPerformanceGPU = 20;
+			break;
+	}
+
+	if (currentScreenID == ScreenPerformanceCPU) 
+	{
+		gState.maxCurrentType = 3;
+		gState.currentType = 0;
+	}
+	else if (currentScreenID == ScreenPerformanceGPU) 
+	{
+		gState.maxCurrentType = 2;
+		gState.currentType = 0;
+	}
+	else 
+	{
+		gState.maxCurrentType = -1;
+	}
+	SwitchToScreen(thisPtr, pNewScreen);
+}
+
+
 static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
 {
 	vPos[0] = static_cast<DWORD>((int)vPos[0] * gState.scalingFactor);
@@ -870,11 +930,6 @@ static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DW
 	vSize[1] = static_cast<DWORD>((int)vSize[1] * gState.scalingFactor);
 
 	InitAdditionalTextureData(a1, a2, a3, vPos, vSize, a6);
-}
-
-static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
-{
-	HUDGrenadeListUpdateTriggerNames(thisPtr);
 }
 
 static float __stdcall GetShatterLifetime_Hook(int shatterType)
@@ -1255,6 +1310,8 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "Controller_HUDSwapUpdate");
 	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
 	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
+	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "Controller_SwitchToScreen");
+	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "Controller_SetCurrentType");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1264,7 +1321,9 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
 		targetMemoryLocation_HUDSwapUpdate == 0 ||
 		targetMemoryLocation_SetOperatingTurret == 0 ||
-		targetMemoryLocation_GetTriggerNameFromCommandID == 0) {
+		targetMemoryLocation_GetTriggerNameFromCommandID == 0 ||
+		targetMemoryLocation_SwitchToScreen == 0 ||
+		targetMemoryLocation_SetCurrentType == 0) {
 		return;
 	}
 
@@ -1284,6 +1343,9 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
 
 	if (!HideMouseCursor) return;
 
@@ -1850,6 +1912,27 @@ static void PollController()
 				}
 			}
 		}
+
+		// Handle shoulder buttons
+		auto UpdateScreenPerformanceSetting = [&](DWORD button, auto& btnState, int direction)
+		{
+			bool pressed = (g_Controller.state.Gamepad.wButtons & button);
+			if (pressed != btnState.isPressed)
+			{
+				if (pressed)
+				{
+					if (gState.pCurrentType != 0 && gState.maxCurrentType != -1)
+					{
+						gState.currentType = (gState.currentType + direction + gState.maxCurrentType) % gState.maxCurrentType;
+						SetCurrentType(gState.pCurrentType, gState.currentType);
+					}
+				}
+				btnState.isPressed = pressed;
+			}
+		};
+
+		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_LEFT_SHOULDER, g_Controller.leftShoulderState, -1);
+		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_RIGHT_SHOULDER, g_Controller.rightShoulderState, 1);
 	}
 	// Handle in-game controls
 	else
