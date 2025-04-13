@@ -487,41 +487,46 @@ static void ReadConfig()
 
 #pragma region Helper
 
-static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName)
+static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName, int functionStartCheckCount = -1)
 {
 	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
 
-	if (targetMemoryLocation == 0 && ShowErrors)
+	if (targetMemoryLocation == 0)
 	{
-		std::string errorMessage = "Error: Unable to find signature for patch: ";
-		errorMessage += patchName;
-		MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
+		if (ShowErrors)
+		{
+			std::string errorMessage = "Error: Unable to find signature for patch: ";
+			errorMessage += patchName;
+			MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
+		}
+		return 0;
+	}
+
+	if (functionStartCheckCount >= 0)
+	{
+		DWORD addr = targetMemoryLocation;
+		for (int i = 0; i < 0x1000; i++)
+		{
+			bool valid = true;
+			for (int j = 1; j <= functionStartCheckCount; j++)
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
+				{
+					valid = false;
+					break;
+				}
+			}
+			if (valid)
+			{
+				break;
+			}
+
+			addr--;
+		}
+		targetMemoryLocation = addr;
 	}
 
 	return targetMemoryLocation;
-}
-
-static DWORD FindFunctionStart(DWORD addr, int checkCount = 1)
-{
-	for (int i = 0; i < 0x1000; i++)
-	{
-		bool valid = true;
-		for (int j = 1; j <= checkCount; j++)
-		{
-			if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
-			{
-				valid = false;
-				break;
-			}
-		}
-		if (valid)
-		{
-			break;
-		}
-
-		addr--;
-	}
-	return addr;
 }
 
 #pragma endregion
@@ -1250,7 +1255,7 @@ static void ApplyPersistentWorldClientPatch()
 	DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
 	DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
 	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
-	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX");
+	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX", 1);
 	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
 
 	if (targetMemoryLocation_ShellCasing == 0 ||
@@ -1268,8 +1273,6 @@ static void ApplyPersistentWorldClientPatch()
 	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
 	int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
 	HookHelper::ApplyHook((void*)shatterLiftetimeAddress, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
-
-	targetMemoryLocation_FX = FindFunctionStart(targetMemoryLocation_FX, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
 
@@ -1305,8 +1308,8 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
 	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");	
 	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
-	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame");
-	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject");
+	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame", 2);
+	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject", 1);
 	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "Controller_HUDSwapUpdate");
 	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
 	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
@@ -1335,15 +1338,9 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
-
-	targetMemoryLocation_PauseGame = FindFunctionStart(targetMemoryLocation_PauseGame, 2);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_PauseGame, &PauseGame_Hook, (LPVOID*)&PauseGame);
-
-	targetMemoryLocation_HUDActivateObjectSetObject = FindFunctionStart(targetMemoryLocation_HUDActivateObjectSetObject, 1);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
-
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
-
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
 
@@ -1362,8 +1359,7 @@ static void ApplyHUDScalingClientPatch()
 
 	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
-	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit");
-	targetMemoryLocation_HUDInit = FindFunctionStart(targetMemoryLocation_HUDInit, 1);
+	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit", 1);
 	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDScaling_HUDRender");
 	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
 	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
@@ -1425,9 +1421,8 @@ static void ApplySetWeaponCapacityClientPatch()
 	if (!EnableCustomMaxWeaponCapacity) return;
 
 	DWORD targetMemoryLocation_DisconnectFromServer = ScanModuleSignature(gState.GameClient, "81 EC 08 02 00 00 E8", "WeaponCapacity_DisconnectFromServer");
-	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "WeaponCapacity_OnEnterWorld");
+	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "WeaponCapacity_OnEnterWorld", 1);
 	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "WeaponCapacity_GetWeaponCapacity");
-	targetMemoryLocation_OnEnterWorld = FindFunctionStart(targetMemoryLocation_OnEnterWorld, 1);
 
 	if (targetMemoryLocation_DisconnectFromServer == 0 ||
 		targetMemoryLocation_OnEnterWorld == 0 ||
@@ -1464,8 +1459,7 @@ static void ApplyAutoResolutionClientCheck()
 {
 	if (!AutoResolution) return; 
 
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoResolution_AutoDetectPerformanceSettings");
-	targetMemoryLocation = FindFunctionStart(targetMemoryLocation, 2);
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoResolution_AutoDetectPerformanceSettings", 2);
 
 	if (targetMemoryLocation == 0) return;
 
@@ -1541,8 +1535,7 @@ static void ApplySetWeaponCapacityServerPatch()
 	if (!EnableCustomMaxWeaponCapacity || !gState.appliedCustomMaxWeaponCapacity) return;
 
 	DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "WeaponCapacity_SetWeaponCapacityServer");
-	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "WeaponCapacity_PlayerInventoryInit");
-	targetMemoryLocation_PlayerInventoryInit = FindFunctionStart(targetMemoryLocation_PlayerInventoryInit, 2);
+	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "WeaponCapacity_PlayerInventoryInit", 2);
 
 	if (targetMemoryLocation_SetWeaponCapacityServer == 0 ||
 		targetMemoryLocation_PlayerInventoryInit == 0) {
