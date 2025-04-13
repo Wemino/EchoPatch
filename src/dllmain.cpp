@@ -175,7 +175,8 @@ struct ControllerState
 	{
 		bool isPressed = false;
 		bool wasHandled = false;
-		DWORD pressTime = 0;
+		ULONGLONG pressStartTime = 0;
+		ULONGLONG lastRepeatTime = 0;
 	};
 
 	// Menu navigation states
@@ -1746,7 +1747,7 @@ static void HandleControllerButton(WORD button, int commandId)
 		g_Controller.commandActive[commandId] = true;
 		OnCommandOn(gState.g_pGameClientShell, commandId);
 		btnState.wasHandled = true;
-		btnState.pressTime = GetTickCount64();
+		btnState.pressStartTime = GetTickCount64();
 	}
 	else if (isPressed)
 	{
@@ -1774,18 +1775,79 @@ static void PollController()
 		return;
 	}
 
-	// Handle menu navigation
 	if (gState.isGamePaused)
 	{
+		const ULONGLONG currentTime = GetTickCount64();
+
 		for (int i = 0; i < 6; i++)
 		{
 			auto& btnState = g_Controller.menuButtons[i];
-			const bool pressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+			bool pressed = false;
 
+			if (i < 4) // D-Pad
+			{
+				const bool buttonPressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+				bool joystickPressed = false;
+
+				switch (i)
+				{
+					case 0: // Up
+						joystickPressed = (g_Controller.state.Gamepad.sThumbLY > 16384) || (g_Controller.state.Gamepad.sThumbRY > 16384);
+						break;
+					case 1: // Down
+						joystickPressed = (g_Controller.state.Gamepad.sThumbLY < -16384) || (g_Controller.state.Gamepad.sThumbRY < -16384);
+						break;
+					case 2: // Left
+						joystickPressed = (g_Controller.state.Gamepad.sThumbLX < -16384) || (g_Controller.state.Gamepad.sThumbRX < -16384);
+						break;
+					case 3: // Right
+						joystickPressed = (g_Controller.state.Gamepad.sThumbLX > 16384) || (g_Controller.state.Gamepad.sThumbRX > 16384);
+						break;
+				}
+
+				pressed = buttonPressed || joystickPressed;
+
+				// Handle auto-repeat
+				if (pressed)
+				{
+					if (!btnState.isPressed)
+					{
+						// Initial press
+						btnState.pressStartTime = currentTime;
+						btnState.lastRepeatTime = currentTime;
+					}
+					else
+					{
+						// Calculate time since last valid input
+						const DWORD elapsedSinceStart = currentTime - btnState.pressStartTime;
+						const DWORD elapsedSinceLastRepeat = currentTime - btnState.lastRepeatTime;
+
+						if (elapsedSinceStart > 500 && elapsedSinceLastRepeat > 100)
+						{
+							// Trigger repeat
+							PostMessage(gState.hWnd, WM_KEYDOWN, MENU_NAVIGATION_MAP[i][1], 0);
+							btnState.lastRepeatTime = currentTime;
+						}
+					}
+				}
+			}
+			else // A/B
+			{
+				pressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+			}
+
+			// Handle state changes
 			if (pressed != btnState.isPressed)
 			{
 				PostMessage(gState.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, MENU_NAVIGATION_MAP[i][1], 0);
 				btnState.isPressed = pressed;
+
+				// Reset timing on release
+				if (!pressed)
+				{
+					btnState.pressStartTime = 0;
+					btnState.lastRepeatTime = 0;
+				}
 			}
 		}
 	}
