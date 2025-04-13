@@ -69,6 +69,7 @@ void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* HUDPausedInit)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
+const wchar_t*(__stdcall* LoadGameString)(int, char*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -141,6 +142,7 @@ struct GlobalState
 	int pCurrentType = 0;
 	int currentType = 0;
 	int maxCurrentType = 0;
+	bool hookedLoadString = false;
 
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
@@ -1189,6 +1191,16 @@ static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int _ECX, int p
 	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
 }
 
+static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
+{
+	if (g_Controller.isConnected && strcmp(String, "ScreenFailure_PressAnyKey") == 0)
+	{
+		return L"Press B to return to the main menu.\nPress any other button to continue.";
+	}
+	return LoadGameString(ptr, String);
+}
+
+
 static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
 {
 	// Load the DLL
@@ -1937,6 +1949,24 @@ static void PollController()
 		for (const auto& mapping : g_buttonMappings)
 		{
 			HandleControllerButton(mapping.first, mapping.second);
+		}
+	}
+
+	// Hook 'LoadString' to override 'ScreenFailure_PressAnyKey'
+	if (!gState.hookedLoadString)
+	{
+		gState.hookedLoadString = true;
+
+		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString");
+
+		if (targetMemoryLocation != 0)
+		{
+			int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
+			int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
+			int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
+			int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
+
+			HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
 		}
 	}
 }
