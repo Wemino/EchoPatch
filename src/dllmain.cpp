@@ -44,7 +44,7 @@ float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
 int(__stdcall* CreateFX)(char*, int, int) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
-void(__thiscall* PauseGame)(int, bool, bool) = nullptr;
+bool(__thiscall* ChangeState)(int, int, int) = nullptr;
 bool(__thiscall* IsCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOff)(int, int) = nullptr;
@@ -136,7 +136,7 @@ struct GlobalState
 	bool crosshairSliderUpdated = false;
 
 	int g_pGameClientShell = 0;
-	bool isGamePaused = true;
+	bool isPlaying = true;
 	bool canActivate = false;
 	bool canSwap = false;
 	bool isOperatingTurret = false;
@@ -490,13 +490,13 @@ static void ReadConfig()
 
 #pragma region Helper
 
-static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName, int functionStartCheckCount = -1)
+static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName, int functionStartCheckCount = -1, bool showError = true)
 {
 	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
 
 	if (targetMemoryLocation == 0)
 	{
-		if (ShowErrors)
+		if (ShowErrors && showError)
 		{
 			std::string errorMessage = "Error: Unable to find signature for patch: ";
 			errorMessage += patchName;
@@ -980,12 +980,10 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 	return CreateFX(effectType, fxData, prop);
 }
 
-static void __fastcall PauseGame_Hook(int thisPtr, int _ECX, bool pause, bool pauseSound)
+static bool __fastcall ChangeState_Hook(int thisPtr, int _ECX, int state, int screenId)
 {
-	MessageBoxA(NULL, std::to_string(pause).c_str(), "Base Address Info", MB_OK | MB_ICONINFORMATION);
-
-	gState.isGamePaused = pause;
-	return PauseGame(thisPtr, pause, pauseSound);
+	gState.isPlaying = state == 1;
+	return ChangeState(thisPtr, state, screenId);
 }
 
 static bool __fastcall IsCommandOn_Hook(int thisPtr, int _ECX, int commandId) 
@@ -1328,7 +1326,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
 	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");	
 	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
-	DWORD targetMemoryLocation_PauseGame = ScanModuleSignature(gState.GameClient, "8A C3 F6 D8 6A 01 1B C0 05 A1 00 00 00 50", "Controller_PauseGame", 2);
+	DWORD targetMemoryLocation_ChangeState = ScanModuleSignature(gState.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "Controller_ChangeState");
 	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject", 1);
 	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "Controller_HUDSwapUpdate");
 	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
@@ -1341,7 +1339,7 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_OnCommandOff == 0 ||
 		targetMemoryLocation_GetExtremalCommandValue == 0 ||
 		targetMemoryLocation_IsCommandOn == 0 ||
-		targetMemoryLocation_PauseGame == 0 ||
+		targetMemoryLocation_ChangeState == 0 ||
 		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
 		targetMemoryLocation_HUDSwapUpdate == 0 ||
 		targetMemoryLocation_SetOperatingTurret == 0 ||
@@ -1360,7 +1358,7 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
-	HookHelper::ApplyHook((void*)targetMemoryLocation_PauseGame, &PauseGame_Hook, (LPVOID*)&PauseGame);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
@@ -1886,7 +1884,7 @@ static void PollController()
 		return;
 	}
 
-	if (gState.isGamePaused)
+	if (!gState.isPlaying)
 	{
 		const ULONGLONG currentTime = GetTickCount64();
 
@@ -2001,7 +1999,7 @@ static void PollController()
 	{
 		gState.hookedLoadString = true;
 
-		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString");
+		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
 
 		if (targetMemoryLocation != 0)
 		{
