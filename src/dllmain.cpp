@@ -70,6 +70,7 @@ void(__thiscall* HUDPausedInit)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
 const wchar_t*(__stdcall* LoadGameString)(int, char*) = nullptr;
+void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -888,6 +889,11 @@ static void __fastcall SetCurrentType_Hook(int thisPtr, int _ECX, int type)
 	SetCurrentType(thisPtr, type);
 }
 
+static void __cdecl HUDSwapUpdateTriggerName_Hook()
+{
+	HUDSwapUpdateTriggerName();
+}
+
 static void __fastcall SwitchToScreen_Hook(int thisPtr, int _ECX, int pNewScreen)
 {
 	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
@@ -976,6 +982,8 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 
 static void __fastcall PauseGame_Hook(int thisPtr, int _ECX, bool pause, bool pauseSound)
 {
+	MessageBoxA(NULL, std::to_string(pause).c_str(), "Base Address Info", MB_OK | MB_ICONINFORMATION);
+
 	gState.isGamePaused = pause;
 	return PauseGame(thisPtr, pause, pauseSound);
 }
@@ -1050,7 +1058,7 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret
 
 static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int* ECX, int commandId)
 {
-	if (XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS)
+	if (g_Controller.isConnected)
 	{
 		bool useShortNames = false;
 
@@ -1327,6 +1335,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
 	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "Controller_SwitchToScreen");
 	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "Controller_SetCurrentType");
+	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "Controller_HUDSwapUpdateTriggerName");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1338,7 +1347,8 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_SetOperatingTurret == 0 ||
 		targetMemoryLocation_GetTriggerNameFromCommandID == 0 ||
 		targetMemoryLocation_SwitchToScreen == 0 ||
-		targetMemoryLocation_SetCurrentType == 0) {
+		targetMemoryLocation_SetCurrentType == 0 ||
+		targetMemoryLocation_HUDSwapUpdateTriggerName == 0) {
 		return;
 	}
 
@@ -1355,6 +1365,7 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
 
 	if (!HideMouseCursor) return;
 
@@ -1378,8 +1389,6 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
 	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
 	DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDScaling_HUDWeaponListReset");
-	DWORD targetMemoryLocation_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDScaling_HUDWeaponListUpdateTriggerNames"); // -0x10
-	DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDScaling_HUDGrenadeListUpdateTriggerNames"); // -0x10
 	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDWeaponListInit");
 	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDGrenadeListInit");
 	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "HUDScaling_InitAdditionalTextureData");
@@ -1394,8 +1403,6 @@ static void ApplyHUDScalingClientPatch()
 		targetMemoryLocation_GetRectF == 0 ||
 		targetMemoryLocation_UpdateSlider == 0 ||
 		targetMemoryLocation_HUDWeaponListReset == 0 ||
-		targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
-		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0 ||
 		targetMemoryLocation_HUDWeaponListInit == 0 ||
 		targetMemoryLocation_HUDGrenadeListInit == 0 ||
 		targetMemoryLocation_InitAdditionalTextureData == 0 ||
@@ -1420,8 +1427,6 @@ static void ApplyHUDScalingClientPatch()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
@@ -1489,6 +1494,22 @@ static void ApplyClientFXHook()
 	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
 }
 
+static void ApplyClientPatchSet1()
+{
+	if (!HUDScaling && !XInputControllerSupport) return;
+
+	DWORD targetMemoryLocation_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
+	DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+
+	if (targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
+		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+}
+
 static void ApplyClientPatch()
 {
 	ApplyXPWidescreenClientPatch();
@@ -1502,6 +1523,7 @@ static void ApplyClientPatch()
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientCheck();
 	ApplyClientFXHook();
+	ApplyClientPatchSet1();
 }
 
 #pragma endregion
@@ -1808,23 +1830,34 @@ static void HandleControllerButton(WORD button, int commandId)
 		if (commandId == -1)
 		{
 			PostMessage(gState.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
-			return;
 		}
-
-		g_Controller.commandActive[commandId] = true;
-		OnCommandOn(gState.g_pGameClientShell, commandId);
-		btnState.wasHandled = true;
-		btnState.pressStartTime = GetTickCount64();
+		else
+		{
+			g_Controller.commandActive[commandId] = true;
+			OnCommandOn(gState.g_pGameClientShell, commandId);
+			btnState.wasHandled = true;
+			btnState.pressStartTime = GetTickCount64();
+		}
 	}
 	else if (isPressed)
 	{
-		g_Controller.commandActive[commandId] = true;
+		if (commandId != -1)
+		{
+			g_Controller.commandActive[commandId] = true;
+		}
 	}
 	else if (!isPressed && btnState.isPressed)
 	{
-		g_Controller.commandActive[commandId] = false;
-		OnCommandOff(gState.g_pGameClientShell, commandId);
-		btnState.wasHandled = false;
+		if (commandId == -1)
+		{
+			PostMessage(gState.hWnd, WM_KEYUP, VK_ESCAPE, 0);
+		}
+		else
+		{
+			g_Controller.commandActive[commandId] = false;
+			OnCommandOff(gState.g_pGameClientShell, commandId);
+			btnState.wasHandled = false;
+		}
 	}
 
 	btnState.isPressed = isPressed;
@@ -1833,8 +1866,19 @@ static void HandleControllerButton(WORD button, int commandId)
 // Main function to poll controller and process all button mappings
 static void PollController()
 {
+	// Save previous connection state
+	bool wasConnected = g_Controller.isConnected;
+
 	// Update controller state once per frame
 	g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS;
+
+	// Check for connection state change
+	if (wasConnected != g_Controller.isConnected)
+	{
+		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
+		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
+		HUDSwapUpdateTriggerName();
+	}
 
 	if (!g_Controller.isConnected)
 	{
