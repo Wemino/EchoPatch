@@ -35,7 +35,9 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
   </table>
 </div>
 
-- **Framerate Limiter** - The game engine struggles with very low delta times at high framerates. Since it lacks a framerate cap, this can cause the game to run too fast. This feature lets you set a maximum framerate to prevent that. To adjust the limit, edit `MaxFPS` in `EchoPatch.ini`. A maximum value of 120 is recommended.
+- **Fix High FPS issues** - Addresses instability in physics, effects, and gameplay mechanics at high framerates, resolving issues such as erratic ragdoll behavior, unstable visual effects, and movement inaccuracies.
+
+- **Framerate Limiter** - The game engine struggles with very low delta times at high framerates. Since it lacks a framerate cap, this can cause the game to run too fast. This feature lets you set a maximum framerate to prevent that. To adjust the limit, edit `MaxFPS` in `EchoPatch.ini`. A maximum value of 240 when `HighFPSFixes` is enabled is recommended.
 
 - **FPS Drop Fix** - Stop the game from initializing all HID devices, which leads to framerate drops over time. The difference with Methanhydrat's `dinput8.dll` fix is that, rather than intercepting and canceling the problematic call, the call will simply never be executed. This method is specifically effective for F.E.A.R. and does not apply to the other games affected by this issue.
 
@@ -44,6 +46,8 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 - **LAA Patcher** - Apply a Large Address Aware (LAA) patch when necessary, enabling the use of up to 4GB of memory instead of the default 2GB, which can resolve loading issues. Disabled by default, set `CheckLAAPatch` to 1 to enable. Note: If you are using the Steam version, please run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling this feature.
 
 - **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: bodies, blood stains, debris, bullet holes, shell casings, glass shards...
+
+- **HD Reflections** - Increases the resolution quality of reflective surfaces (e.g., water reflections) and improves the clarity of security monitor video feeds.
 
 - **No Model LOD Bias** - Forces the highest quality models to be rendered at all distances.
 
