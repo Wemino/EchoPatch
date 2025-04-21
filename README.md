@@ -15,6 +15,13 @@ Modernizes F.E.A.R. and its expansions with HUD scaling and a variety of enhance
 >
 > Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.
 
+> [!NOTE]
+> The GOG version defaults to a 60 FPS cap.
+>
+> To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.
+>
+> This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
+
 ## Features
  - **HUD Scaling** - This feature dynamically scales HUD elements (such as texts, the crosshair, and icons) relative to the screen resolution. The base resolution is 960x720, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
