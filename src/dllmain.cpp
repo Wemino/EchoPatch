@@ -5,6 +5,7 @@
 #include <Xinput.h>
 #include <unordered_set>
 #include <map>
+#include <array>
 
 #include "MinHook.hpp"
 #include "ini.hpp"
@@ -71,6 +72,13 @@ void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
 const wchar_t*(__stdcall* LoadGameString)(int, char*) = nullptr;
 void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
+void(__thiscall* UpdateOnGround)(int) = nullptr;
+void(__thiscall* UpdateWaveProp)(int, float) = nullptr;
+double(__thiscall* GetMaxRecentVelocityMag)(int) = nullptr;
+void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
+void(__thiscall* UpdateNormalFriction)(int) = nullptr;
+double(__thiscall* GetTimerElapsedS)(int) = nullptr;
+int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
 // =============================
@@ -84,6 +92,7 @@ const int FEARXP2_TIMESTAMP = 0x46FC10A3;
 
 constexpr float BASE_WIDTH = 960.0f;
 constexpr float BASE_HEIGHT = 720.0f;
+constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
 
 #define XINPUT_GAMEPAD_LEFT_TRIGGER   0x400
 #define XINPUT_GAMEPAD_RIGHT_TRIGGER  0x800
@@ -126,7 +135,7 @@ struct GlobalState
 	HMODULE GameClientFX = NULL;
 
 	bool isUsingFpsLimiter = false;
-	FpsLimiter fpsLimiter{ 120.0f };
+	FpsLimiter fpsLimiter{ 240.0f };
 
 	bool updateLayoutReturnValue = false;
 	bool slowMoBarUpdated = false;
@@ -147,6 +156,17 @@ struct GlobalState
 
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
+
+	static constexpr int VELOCITY_HISTORY_SIZE = 5;
+	std::array<double, VELOCITY_HISTORY_SIZE> velocityHistory = {};
+	int velocityHistoryPosition = -1;
+	bool useVelocitySmoothing = false;
+	bool inFriction = false;
+	int remainingJumpFrames = 0;
+	bool previousJumpState = false;
+	float waveUpdateAccumulator = 0.0f;
+	float lastFrameTime = 0;
+	bool useVsyncOverride = false;
 
 	struct DataEntry
 	{
@@ -236,9 +256,7 @@ constexpr int MENU_NAVIGATION_MAP[][2] =
 
 // Fixes
 bool DisableRedundantHIDInit = false;
-bool FixHighFPSPhysics = false;
-bool FixParticleLifetimeCalculation = false;
-bool FixParticleUpdateThreshold = false;
+bool HighFPSFixes = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool CheckLAAPatch = false;
@@ -264,6 +282,7 @@ int GAMEPAD_BACK = 0;
 
 // Graphics
 float MaxFPS = 0;
+bool VsyncOverride = false;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
 bool ReducedMipMapBias = false;
@@ -298,9 +317,7 @@ static void ReadConfig()
 
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
-	FixHighFPSPhysics = IniHelper::ReadInteger("Fixes", "FixHighFPSPhysics", 1) == 1;
-	FixParticleLifetimeCalculation = IniHelper::ReadInteger("Fixes", "FixParticleLifetimeCalculation", 1) == 1;
-	FixParticleUpdateThreshold = IniHelper::ReadInteger("Fixes", "FixParticleUpdateThreshold", 1) == 1;
+	HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
@@ -325,7 +342,8 @@ static void ReadConfig()
 	GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
 
 	// Graphics
-	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 120.0f);
+	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
+	VsyncOverride = IniHelper::ReadFloat("Graphics", "VsyncOverride", 1) == 1;
 	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
 	ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
@@ -360,6 +378,13 @@ static void ReadConfig()
 		auto [screenWidth, screenHeight] = SystemHelper::GetScreenResolution();
 		gState.screenWidth = screenWidth;
 		gState.screenHeight = screenHeight;
+	}
+
+	// Use VSync?
+	if (VsyncOverride)
+	{
+		DWORD displayFrequency = SystemHelper::GetCurrentDisplayFrequency();
+		gState.useVsyncOverride = (MaxFPS >= displayFrequency || MaxFPS == 0.0f);
 	}
 
 	// Check if we should skip everything directly
@@ -564,38 +589,31 @@ static DWORD* __fastcall EmitParticleBatch_Hook(int thisPtr, int _ECX, float a2,
 
 #pragma region ClientFX Patches
 
-static void ApplyFixParticleLifetimeClientFXPatch()
+static void ApplyHighFPSFixesClientFXPatch()
 {
-	if (!FixParticleLifetimeCalculation) return;
+	if (!HighFPSFixes) return;
 
+	DWORD targetMemoryLocation_ParticleUpdateThreshold = ScanModuleSignature(gState.GameClientFX, "D9 44 24 04 ?? D8 1D", "FixParticleUpdateThreshold");
 	DWORD targetMemoryLocation_AddParticleBatchMarker = ScanModuleSignature(gState.GameClientFX, "83 C1 10 E8 ?? ?? ?? ?? 85 C0 74 24 8A 4C 24 08", "FixParticleLifetime_AddParticleBatchMarker");
 	DWORD targetMemoryLocation_EmitParticleBatch = ScanModuleSignature(gState.GameClientFX, "CC CC CC CC 81 EC C0 00 00 00", "FixParticleLifetime_EmitParticleBatch");
 
-	if (targetMemoryLocation_AddParticleBatchMarker == 0 ||
+	if (targetMemoryLocation_ParticleUpdateThreshold == 0 ||
+		targetMemoryLocation_AddParticleBatchMarker == 0 ||
 		targetMemoryLocation_EmitParticleBatch == 0) {
 		return;
 	}
+
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold, 0x4);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0x5, 0x6);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0xD, 0x7);
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_AddParticleBatchMarker, &AddParticleBatchMarker_Hook, (LPVOID*)&AddParticleBatchMarker);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
 }
 
-static void ApplyFixParticleUpdateThresholdClientFXPatch()
-{
-	if (!FixParticleUpdateThreshold) return;
-
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClientFX, "9A 99 99 3E 6F 12 83 3A", "FixParticleUpdateThreshold");
-
-	if (targetMemoryLocation == 0) return;
-
-	// Threshold  
-	MemoryHelper::WriteMemory<float>(targetMemoryLocation + 0x4, 0.0001f, true);
-}
-
 static void ApplyClientFXPatch()
 {
-	ApplyFixParticleLifetimeClientFXPatch();
-	ApplyFixParticleUpdateThresholdClientFXPatch();
+	ApplyHighFPSFixesClientFXPatch();
 }
 
 #pragma endregion
@@ -1206,6 +1224,96 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 	return LoadGameString(ptr, String);
 }
 
+static void __fastcall UpdateOnGround_Hook(int thisPtr, int _ECX)
+{
+	bool* pJumped = reinterpret_cast<bool*>(thisPtr + 0x78);
+
+	// Detect jump start
+	if (!gState.previousJumpState && *pJumped)
+	{
+		gState.remainingJumpFrames = 3;
+	}
+
+	UpdateOnGround(thisPtr);
+
+	// Maintain jump state for 3 frames
+	if (gState.remainingJumpFrames > 0)
+	{
+		*pJumped = true;
+		gState.remainingJumpFrames--;
+	}
+
+	// Update tracking state
+	gState.previousJumpState = *pJumped;
+
+	// Reset counter if not jumping
+	if (!gState.previousJumpState)
+	{
+		gState.remainingJumpFrames = 0;
+	}
+}
+
+static void __fastcall UpdateWaveProp_Hook(int thisPtr, int _ECX, float frameDelta)
+{
+	gState.waveUpdateAccumulator += frameDelta;
+
+	while (gState.waveUpdateAccumulator >= TARGET_FRAME_TIME)
+	{
+		UpdateWaveProp(thisPtr, TARGET_FRAME_TIME);
+		gState.waveUpdateAccumulator -= TARGET_FRAME_TIME;
+	}
+}
+
+static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int _ECX)
+{
+	if (!gState.useVelocitySmoothing)
+	{
+		return GetMaxRecentVelocityMag(thisPtr);
+	}
+
+	// Get and process raw velocity
+	const double raw = GetMaxRecentVelocityMag(thisPtr);
+	const double timeScale = TARGET_FRAME_TIME / gState.lastFrameTime;
+	const double scaled = raw * timeScale;
+
+	// Update history buffer
+	gState.velocityHistoryPosition = (gState.velocityHistoryPosition + 1) % gState.VELOCITY_HISTORY_SIZE;
+	gState.velocityHistory[gState.velocityHistoryPosition] = scaled;
+
+	// Calculate median
+	std::array<double, gState.VELOCITY_HISTORY_SIZE> sorted = gState.velocityHistory;
+	std::sort(sorted.begin(), sorted.end());
+
+	return sorted[gState.VELOCITY_HISTORY_SIZE / 2];
+}
+
+static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int _ECX)
+{
+	gState.useVelocitySmoothing = true;
+	UpdateNormalControlFlags(thisPtr);
+	gState.useVelocitySmoothing = false;
+}
+
+static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int _ECX)
+{
+	gState.inFriction = true;
+	UpdateNormalFriction(thisPtr);
+	gState.inFriction = false;
+}
+
+static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int _ECX)
+{
+	if (gState.inFriction)
+	{
+		double elapsedTime = GetTimerElapsedS(thisPtr);
+		if (elapsedTime < TARGET_FRAME_TIME)
+		{
+			return TARGET_FRAME_TIME;
+		}
+		return elapsedTime;
+	}
+	return GetTimerElapsedS(thisPtr);
+}
 
 static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
 {
@@ -1233,6 +1341,43 @@ static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source,
 #pragma endregion
 
 #pragma region Client Patches
+
+static void ApplyHighFPSFixesClientPatch()
+{
+	if (!HighFPSFixes) return;
+	
+	DWORD targetMemoryLocation_SurfaceJumpImpulse = ScanModuleSignature(gState.GameClient, "C7 44 24 1C 00 00 00 00 C7 44 24 10 00 00 00 00 EB", "SurfaceJumpImpulse");
+	DWORD targetMemoryLocation_HeightOffset = ScanModuleSignature(gState.GameClient, "D9 E1 D9 54 24 1C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85", "HeightOffset");
+	DWORD targetMemoryLocation_UpdateOnGround = ScanModuleSignature(gState.GameClient, "83 EC 3C 53 55 56 57 8B F1", "UpdateOnGround");
+	DWORD targetMemoryLocation_UpdateWaveProp = ScanModuleSignature(gState.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
+	DWORD targetMemoryLocation_UpdateNormalFriction = ScanModuleSignature(gState.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
+	DWORD targetMemoryLocation_GetTimerElapsedS = ScanModuleSignature(gState.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
+
+	DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
+	DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
+
+	if (targetMemoryLocation_SurfaceJumpImpulse == 0 ||
+		targetMemoryLocation_HeightOffset == 0 ||
+		targetMemoryLocation_UpdateOnGround == 0 ||
+		targetMemoryLocation_GetMaxRecentVelocityMag == 0 ||
+		targetMemoryLocation_UpdateNormalControlFlags == 0 ||
+		targetMemoryLocation_UpdateNormalFriction == 0 ||
+		targetMemoryLocation_GetTimerElapsedS == 0 ||
+		targetMemoryLocation_UpdateWaveProp == 0) {
+		return;
+	}
+
+	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetMaxRecentVelocityMag + 0xC);
+	int getMaxRecentVelocityMagAddress = (targetMemoryLocation_GetMaxRecentVelocityMag + 0xC) + (callAddr + 0x4);
+	MemoryHelper::MakeNOP(targetMemoryLocation_SurfaceJumpImpulse, 0x10);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84, true);
+	HookHelper::ApplyHook((void*)getMaxRecentVelocityMagAddress, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
+}
 
 static void ApplyXPWidescreenClientPatch()
 {
@@ -1483,7 +1628,7 @@ static void ApplyAutoResolutionClientCheck()
 
 static void ApplyClientFXHook()
 {
-	if (!FixParticleLifetimeCalculation && !FixParticleUpdateThreshold) return;
+	if (!HighFPSFixes) return;
 
 	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "ClientFXHook");
 
@@ -1510,6 +1655,7 @@ static void ApplyClientPatchSet1()
 
 static void ApplyClientPatch()
 {
+	ApplyHighFPSFixesClientPatch();
 	ApplyXPWidescreenClientPatch();
 	ApplySkipSplashScreenClientPatch();
 	ApplyDisableLetterboxClientPatch();
@@ -1621,6 +1767,7 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int _ECX, float* timeStepParams)
 {
 	if (timeStepParams[1] > 60) timeStepParams[1] = 60;
+	gState.lastFrameTime = timeStepParams[0];
 	return StepPhysicsSimulation(thisPtr, timeStepParams);
 }
 
@@ -2028,6 +2175,13 @@ static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
 	return IsFrameComplete(thisPtr);
 }
 
+static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int _ECX, DWORD* a2, unsigned __int8 a3)
+{
+	int res = InitializePresentationParameters(thisPtr, a2, a3);
+	thisPtr[0x65] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
+	return res;
+}
+
 #pragma endregion
 
 #pragma region Patches
@@ -2056,7 +2210,7 @@ static void ApplyFixDirectInputFps()
 
 static void ApplyFixHighFPSPhysics()
 {
-	if (!FixHighFPSPhysics) return;
+	if (!HighFPSFixes) return;
 
 	switch (gState.CurrentFEARGame)
 	{
@@ -2217,6 +2371,27 @@ static void HookIsFrameComplete()
 	}
 }
 
+static void HookVSyncOverride()
+{
+	if (!VsyncOverride) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
+			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x4F8CA0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x58F2B0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x5908D0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
+			break;
+	}
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -2247,6 +2422,7 @@ static void Init()
 
 	// Misc
 	HookIsFrameComplete();
+	HookVSyncOverride();
 	ApplySkipIntroHook();
 	ApplyConsoleVariableHook();
 }
