@@ -2348,8 +2348,7 @@ static void ApplyAutoResolution()
 
 static void HookIsFrameComplete()
 {
-	gState.isUsingFpsLimiter = MaxFPS != 0;
-
+	gState.isUsingFpsLimiter = MaxFPS != 0 && !gState.useVsyncOverride;
 	if (!gState.isUsingFpsLimiter && !XInputControllerSupport) return;
 
 	gState.fpsLimiter.SetTargetFps(MaxFPS);
