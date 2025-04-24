@@ -574,14 +574,14 @@ static void ProcessParticleResult(DWORD* result)
 	}
 }
 
-static DWORD* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int _ECX, int a2, bool a3)
+static DWORD* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int, int a2, bool a3)
 {
 	DWORD* result = AddParticleBatchMarker(thisPtr, a2, a3);
 	ProcessParticleResult(result);
 	return result;
 }
 
-static DWORD* __fastcall EmitParticleBatch_Hook(int thisPtr, int _ECX, float a2, int a3, int* a4)
+static DWORD* __fastcall EmitParticleBatch_Hook(int thisPtr, int, float a2, int a3, int* a4)
 {
 	DWORD* result = EmitParticleBatch(thisPtr, a2, a3, a4);
 	ProcessParticleResult(result);
@@ -768,7 +768,7 @@ static const char* __stdcall LayoutDBGetString_Hook(int a1, unsigned int a2, int
 	return LayoutDBGetString(a1, a2, a3);
 }
 
-static int __fastcall UpdateSlider_Hook(int thisPtr, int _ECX, int index)
+static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
 {
 	if (thisPtr)
 	{
@@ -800,7 +800,7 @@ static int __fastcall UpdateSlider_Hook(int thisPtr, int _ECX, int index)
 	return UpdateSlider(thisPtr, index);
 }
 
-static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
+static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 {
 	ScreenDimsChanged(thisPtr);
 
@@ -849,19 +849,19 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int _ECX)
 }
 
 // Initialize the HUD
-static char __fastcall HUDInit_Hook(int thisPtr, int _ECX)
+static char __fastcall HUDInit_Hook(int thisPtr, int)
 {
 	gState.CHUDMgr = thisPtr;
 	return HUDInit(thisPtr);
 }
 
 // Terminate the HUD
-static void __fastcall HUDTerminate_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDTerminate_Hook(int thisPtr, int)
 {
 	HUDTerminate(thisPtr);
 }
 
-static void __fastcall HUDRender_Hook(int thisPtr, int _ECX, int eHUDRenderLayer)
+static void __fastcall HUDRender_Hook(int thisPtr, int, int eHUDRenderLayer)
 {
 	HUDRender(thisPtr, eHUDRenderLayer);
 	if (gState.updateHUD)
@@ -871,40 +871,40 @@ static void __fastcall HUDRender_Hook(int thisPtr, int _ECX, int eHUDRenderLayer
 	}
 }
 
-static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int _ECX)
+static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int)
 {
 	gState.CHUDWeaponList = thisPtr;
 	return HUDWeaponListInit(thisPtr);
 }
 
-static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int)
 {
 	HUDWeaponListReset(thisPtr);
 }
 
-static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int)
 {
 	HUDWeaponListUpdateTriggerNames(thisPtr);
 }
 
-static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int _ECX)
+static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int)
 {
 	gState.CHUDGrenadeList = thisPtr;
 	return HUDGrenadeListInit(thisPtr);
 }
 
-static void __fastcall HUDPausedInit_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDPausedInit_Hook(int thisPtr, int)
 {
 	gState.CHUDPaused = thisPtr;
 	HUDPausedInit(thisPtr);
 }
 
-static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int)
 {
 	HUDGrenadeListUpdateTriggerNames(thisPtr);
 }
 
-static void __fastcall SetCurrentType_Hook(int thisPtr, int _ECX, int type)
+static void __fastcall SetCurrentType_Hook(int thisPtr, int, int type)
 {
 	gState.pCurrentType = thisPtr;
 	SetCurrentType(thisPtr, type);
@@ -915,7 +915,7 @@ static void __cdecl HUDSwapUpdateTriggerName_Hook()
 	HUDSwapUpdateTriggerName();
 }
 
-static void __fastcall SwitchToScreen_Hook(int thisPtr, int _ECX, int pNewScreen)
+static void __fastcall SwitchToScreen_Hook(int thisPtr, int, int pNewScreen)
 {
 	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
 	int ScreenPerformanceCPU, ScreenPerformanceGPU;
@@ -1001,28 +1001,28 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 	return CreateFX(effectType, fxData, prop);
 }
 
-static bool __fastcall ChangeState_Hook(int thisPtr, int _ECX, int state, int screenId)
+static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
 {
 	gState.isPlaying = state == 1;
 	return ChangeState(thisPtr, state, screenId);
 }
 
-static bool __fastcall IsCommandOn_Hook(int thisPtr, int _ECX, int commandId) 
+static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId) 
 {
 	return (commandId < 117 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
 }
 
-static bool __fastcall OnCommandOn_Hook(int thisPtr, int _ECX, int commandId)
+static bool __fastcall OnCommandOn_Hook(int thisPtr, int, int commandId)
 {
 	return OnCommandOn(thisPtr, commandId);
 }
 
-static bool __fastcall OnCommandOff_Hook(int thisPtr, int _ECX, int commandId)
+static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
 {
 	return OnCommandOff(thisPtr, commandId);
 }
 
-static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int _ECX, int commandId) 
+static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId) 
 {
 	if (g_Controller.isConnected) 
 	{
@@ -1057,19 +1057,19 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int _ECX, int
 	return GetExtremalCommandValue(thisPtr, commandId);
 }
 
-static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int _ECX, void** a2, int a3, int a4, int a5, int a6)
+static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int a6)
 {
 	gState.canActivate = a6 != -1;
 	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, a6);
 }
 
-static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int _ECX)
+static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int)
 {
 	 HUDSwapUpdate(thisPtr);
 	 gState.canSwap = MemoryHelper::ReadMemory<uint8_t>(thisPtr + 0x1C0) != 0;
 }
 
-static int __fastcall SetOperatingTurret_Hook(int thisPtr, int _ECX, int pTurret)
+static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 {
 	gState.isOperatingTurret = pTurret != 0;
 	return SetOperatingTurret(thisPtr, pTurret);
@@ -1165,13 +1165,13 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
 }
 
-static void __fastcall UseCursor_Hook(int thisPtr, int _ECX, bool bUseCursor)
+static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor)
 {
 	if (g_Controller.isConnected && bUseCursor) bUseCursor = false;
 	UseCursor(thisPtr, bUseCursor);
 }
 
-static bool __fastcall OnMouseMove_Hook(int thisPtr, int _ECX, int x, int y)
+static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 {
 	if (g_Controller.isConnected)
 	{
@@ -1181,18 +1181,18 @@ static bool __fastcall OnMouseMove_Hook(int thisPtr, int _ECX, int x, int y)
 	return OnMouseMove(thisPtr, x, y);
 }
 
-static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int _ECX)
+static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int)
 {
 	return MaxWeaponCapacity;
 }
 
-static void __fastcall OnEnterWorld_Hook(int thisPtr, int _ECX)
+static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 {
 	OnEnterWorld(thisPtr);
 	SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
 }
 
-static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int _ECX, int psfxCreateStruct)
+static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, int psfxCreateStruct)
 {
 	// Low
 	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0xC, 512, false);
@@ -1215,7 +1215,7 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 	return LoadGameString(ptr, String);
 }
 
-static void __fastcall UpdateOnGround_Hook(int thisPtr, int _ECX)
+static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 {
 	bool* pJumped = reinterpret_cast<bool*>(thisPtr + 0x78);
 
@@ -1244,7 +1244,7 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int _ECX)
 	}
 }
 
-static void __fastcall UpdateWaveProp_Hook(int thisPtr, int _ECX, float frameDelta)
+static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 {
 	gState.waveUpdateAccumulator += frameDelta;
 
@@ -1255,7 +1255,7 @@ static void __fastcall UpdateWaveProp_Hook(int thisPtr, int _ECX, float frameDel
 	}
 }
 
-static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int _ECX)
+static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 {
 	if (!gState.useVelocitySmoothing)
 	{
@@ -1278,21 +1278,21 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int _ECX)
 	return sorted[gState.VELOCITY_HISTORY_SIZE / 2];
 }
 
-static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int _ECX)
+static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int)
 {
 	gState.useVelocitySmoothing = true;
 	UpdateNormalControlFlags(thisPtr);
 	gState.useVelocitySmoothing = false;
 }
 
-static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int _ECX)
+static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int)
 {
 	gState.inFriction = true;
 	UpdateNormalFriction(thisPtr);
 	gState.inFriction = false;
 }
 
-static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int _ECX)
+static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 {
 	if (gState.inFriction)
 	{
@@ -1306,7 +1306,7 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int _ECX)
 	return GetTimerElapsedS(thisPtr);
 }
 
-static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int _ECX, char* Source, char a3)
+static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int, char* Source, char a3)
 {
 	// Load the DLL
 	char result = LoadClientFXDLL(thisPtr, Source, a3);
@@ -1406,11 +1406,11 @@ static void ApplyPersistentWorldClientPatch()
 {
 	if (!EnablePersistentWorldState) return;
 
-	DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "EnablePersistentWorldState_ShellCasing");
-	DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "EnablePersistentWorldState_DecalSaving");
-	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "EnablePersistentWorldState_Decal");
-	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "EnablePersistentWorldState_FX", 1);
-	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "EnablePersistentWorldState_Shatter");
+	DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "ShellCasing");
+	DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "DecalSaving");
+	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
+	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
+	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
 
 	if (targetMemoryLocation_ShellCasing == 0 ||
 		targetMemoryLocation_DecalSaving == 0 ||
@@ -1455,21 +1455,21 @@ static void ApplyXInputControllerClientPatch()
 {
 	if (!XInputControllerSupport) return;
 
-	DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "Controller_pGameClientShell");
+	DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
 	if (targetMemoryLocation_pGameClientShell == 0) return;
 
 	DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
 	DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
-	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "Controller_GetExtremalCommandValue");	
-	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "Controller_IsCommandOn");
-	DWORD targetMemoryLocation_ChangeState = ScanModuleSignature(gState.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "Controller_ChangeState");
-	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "Controller_HUDActivateObjectSetObject", 1);
-	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "Controller_HUDSwapUpdate");
-	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "Controller_SetOperatingTurret");
-	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "Controller_GetTriggerNameFromCommandID");
-	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "Controller_SwitchToScreen");
-	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "Controller_SetCurrentType");
-	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "Controller_HUDSwapUpdateTriggerName");
+	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");	
+	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
+	DWORD targetMemoryLocation_ChangeState = ScanModuleSignature(gState.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
+	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
+	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
+	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
+	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "GetTriggerNameFromCommandID");
+	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
+	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
+	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1503,8 +1503,8 @@ static void ApplyXInputControllerClientPatch()
 
 	if (!HideMouseCursor) return;
 
-	DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "Controller_UseCursor");
-	DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "Controller_OnMouseMove");
+	DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
+	DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
@@ -1515,18 +1515,18 @@ static void ApplyHUDScalingClientPatch()
 	if (!HUDScaling) return;
 
 	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
-	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDScaling_HUDTerminate");
-	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDScaling_HUDInit", 1);
-	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDScaling_HUDRender");
-	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "HUDScaling_ScreenDimsChanged");
-	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "HUDScaling_LayoutDBGetPosition");
-	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "HUDScaling_GetRectF");
-	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "HUDScaling_UpdateSlider");
-	DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDScaling_HUDWeaponListReset");
-	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDWeaponListInit");
-	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDScaling_HUDGrenadeListInit");
-	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "HUDScaling_InitAdditionalTextureData");
-	DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDScaling_HUDPausedInit");
+	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
+	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
+	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
+	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
+	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
+	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
+	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
+	DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
+	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
+	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
+	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
+	DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
 
 	if (targetMemoryLocation_GameDatabase == 0 ||
 		targetMemoryLocation_HUDTerminate == 0 ||
@@ -1571,8 +1571,8 @@ static void ApplySetWeaponCapacityClientPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity) return;
 
-	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "WeaponCapacity_OnEnterWorld", 1);
-	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "WeaponCapacity_GetWeaponCapacity");
+	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
+	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
 
 	if (targetMemoryLocation_OnEnterWorld == 0 ||
 		targetMemoryLocation_GetWeaponCapacity == 0) {
@@ -1589,7 +1589,7 @@ static void ApplyHighResolutionReflectionsClientPatch()
 {
 	if (!HighResolutionReflections) return;
 
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "HighResolutionReflections_RenderTargetGroupFXInit");
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "RenderTargetGroupFXInit");
 
 	if (targetMemoryLocation == 0) return;
 
@@ -1607,7 +1607,7 @@ static void ApplyAutoResolutionClientCheck()
 {
 	if (!AutoResolution) return; 
 
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoResolution_AutoDetectPerformanceSettings", 2);
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
 
 	if (targetMemoryLocation == 0) return;
 
@@ -1662,13 +1662,13 @@ static void ApplyClientPatch()
 
 #pragma region Server Hooks
 
-static void __fastcall SetWeaponCapacityServer_Hook(int thisPtr, int _ECX, uint8_t nCap)
+static void __fastcall SetWeaponCapacityServer_Hook(int thisPtr, int, uint8_t nCap)
 {
 	nCap = MaxWeaponCapacity;
 	SetWeaponCapacityServer(thisPtr, nCap);
 }
 
-static void __fastcall PlayerInventoryInit_Hook(int thisPtr, int _ECX, int nCap)
+static void __fastcall PlayerInventoryInit_Hook(int thisPtr, int, int nCap)
 {
 	gState.CPlayerInventory = thisPtr;
 	PlayerInventoryInit(thisPtr, nCap);
@@ -1688,7 +1688,7 @@ static void ApplyPersistentWorldServerPatch()
 {
 	if (!EnablePersistentWorldState) return;
 
-	DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "EnablePersistentWorldState_BodyFading");
+	DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "BodyFading");
 
 	if (targetMemoryLocation_BodyFading != 0)
 	{
@@ -1700,8 +1700,8 @@ static void ApplySetWeaponCapacityServerPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity || !gState.appliedCustomMaxWeaponCapacity) return;
 
-	DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "WeaponCapacity_SetWeaponCapacityServer");
-	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "WeaponCapacity_PlayerInventoryInit", 2);
+	DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
+	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
 
 	if (targetMemoryLocation_SetWeaponCapacityServer == 0 ||
 		targetMemoryLocation_PlayerInventoryInit == 0) {
@@ -1754,7 +1754,7 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 	return result;
 }
 
-static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int _ECX, float* timeStepParams)
+static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int, float* timeStepParams)
 {
 	if (timeStepParams[1] > 60) timeStepParams[1] = 60;
 	gState.lastFrameTime = timeStepParams[0];
@@ -1762,7 +1762,7 @@ static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int _ECX, float* t
 }
 
 // Function utilized in the process of loading video files
-static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, char* video_path)
+static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* video_path)
 {
 	// Disable this hook once we get to the menu
 	if (SkipAllIntro || strstr(video_path, "Menu"))
@@ -1817,7 +1817,7 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int* _ECX, 
 	return FindStringCaseInsensitive(thisPtr, video_path);
 }
 
-static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int _ECX, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
+static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
 	if (DeviceType == 0) // Keyboard
 	{
@@ -2021,6 +2021,7 @@ static void PollController()
 		return;
 	}
 
+	// Menu navigation
 	if (!gState.isPlaying)
 	{
 		const ULONGLONG currentTime = GetTickCount64();
@@ -2150,7 +2151,7 @@ static void PollController()
 	}
 }
 
-static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
+static int __fastcall IsFrameComplete_Hook(int thisPtr, int)
 {
 	if (gState.isUsingFpsLimiter)
 	{
@@ -2165,14 +2166,14 @@ static int __fastcall IsFrameComplete_Hook(int thisPtr, int* _ECX)
 	return IsFrameComplete(thisPtr);
 }
 
-static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int _ECX, DWORD* a2, unsigned __int8 a3)
+static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int, DWORD* a2, unsigned __int8 a3)
 {
 	int res = InitializePresentationParameters(thisPtr, a2, a3);
 	thisPtr[0x65] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
 	return res;
 }
 
-static int __fastcall TerminateServer_Hook(int thisPtr, int _ECX)
+static int __fastcall TerminateServer_Hook(int thisPtr, int)
 {
 	for (DWORD address : gState.hookedServerFunctionAddresses)
 	{
@@ -2456,10 +2457,11 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
 	{
 		MH_DisableHook(MH_ALL_HOOKS);
 		Init();
+		gState.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+		return gState.hWnd;
 	}
 
-	gState.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
-	return gState.hWnd;
+	return ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
