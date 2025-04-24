@@ -80,6 +80,7 @@ void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
+HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
 // =============================
 // Constants 
@@ -307,6 +308,7 @@ bool SkipTimegateIntro = false;
 bool SkipDellIntro = false;
 
 // Extra
+bool RedirectSaveFolder = false;
 bool InfiniteFlashlight = false;
 bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
@@ -368,6 +370,7 @@ static void ReadConfig()
 	SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
 
 	// Extra
+	RedirectSaveFolder = IniHelper::ReadInteger("Extra", "RedirectSaveFolder", 0) == 1;
 	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 0) == 1;
 	EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
 	MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
@@ -1082,20 +1085,11 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 		bool useShortNames = false;
 
 		// Left Thumbstick movement
-		if (commandId == 0)
-		{
-			return L"Left Thumbstick Up";
-		}
-		if (commandId == 1)
-		{
-			return L"Left Thumbstick Down";
-		}
+		if (commandId == 0) return L"Left Thumbstick Up";
+		if (commandId == 1) return L"Left Thumbstick Down";
 
 		// Activate Key = Reload Key
-		if (commandId == 87)
-		{
-			commandId = 88;
-		}
+		if (commandId == 87) commandId = 88;
 
 		// HUDWeapon -> Next Weapon
 		if (commandId >= 30 && commandId <= 39)
@@ -1208,6 +1202,11 @@ static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, int psfxCr
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
+	if (g_Controller.isConnected && strcmp(String, "IDS_QUICKSAVE") == 0)
+	{
+		return L"Quick save";
+	}
+
 	if (g_Controller.isConnected && strcmp(String, "ScreenFailure_PressAnyKey") == 0)
 	{
 		return L"Press B to return to the main menu.\nPress any other button to continue.";
@@ -2185,6 +2184,33 @@ static int __fastcall TerminateServer_Hook(int thisPtr, int)
 	return TerminateServer(thisPtr);
 }
 
+static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken, DWORD dwFlags, LPSTR pszPath)
+{
+	int original_csidl = csidl;
+	if (original_csidl == 0x802E)
+	{
+		csidl = 0x8005; // Change to CSIDL_MYDOCUMENTS
+	}
+
+	HRESULT hr = ori_SHGetFolderPathA(hwnd, csidl, hToken, dwFlags, pszPath);
+
+	// Only modify the path if the original csidl was 0x802E and the call succeeded
+	if (SUCCEEDED(hr) && original_csidl == 0x802E)
+	{
+		size_t currentLen = strlen(pszPath);
+		if (currentLen > 0)
+		{
+			if (pszPath[currentLen - 1] != '\\')
+			{
+				strcat_s(pszPath, MAX_PATH, "\\");
+			}
+			strcat_s(pszPath, MAX_PATH, "My Games");
+		}
+	}
+
+	return hr;
+}
+
 #pragma endregion
 
 #pragma region Patches
@@ -2415,6 +2441,13 @@ static void HookTerminateServer()
 	}
 }
 
+static void ApplySaveFolderRedirect()
+{
+	if (!RedirectSaveFolder) return;
+
+	HookHelper::ApplyHookAPI(L"shell32.dll", "SHGetFolderPathA", &SHGetFolderPathA_Hook, (LPVOID*)&ori_SHGetFolderPathA);
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -2449,6 +2482,7 @@ static void Init()
 	HookTerminateServer();
 	ApplySkipIntroHook();
 	ApplyConsoleVariableHook();
+	ApplySaveFolderRedirect();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
