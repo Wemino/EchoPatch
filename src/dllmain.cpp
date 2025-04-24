@@ -59,7 +59,7 @@ uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
 void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
 void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* OnEnterWorld)(int) = nullptr;
-void(__thiscall* DisconnectFromServer)(int) = nullptr;
+int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
 DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
 DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
@@ -154,6 +154,7 @@ struct GlobalState
 	int maxCurrentType = 0;
 	bool hookedLoadString = false;
 
+	bool needServerTermHooking = false;
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
 
@@ -511,6 +512,8 @@ static void ReadConfig()
 
 	// 10 slots max
 	MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
+
+	gState.needServerTermHooking = EnableCustomMaxWeaponCapacity;
 }
 
 #pragma region Helper
@@ -1189,18 +1192,6 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int _ECX)
 	SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
 }
 
-static void __fastcall DisconnectFromServer_Hook(int thisPtr, int _ECX)
-{
-	for (DWORD address : gState.hookedServerFunctionAddresses) 
-	{
-		MH_RemoveHook((void*)address);
-	}
-
-	gState.hookedServerFunctionAddresses.clear();
-
-	DisconnectFromServer(thisPtr);
-}
-
 static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int _ECX, int psfxCreateStruct)
 {
 	// Low
@@ -1580,17 +1571,14 @@ static void ApplySetWeaponCapacityClientPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity) return;
 
-	DWORD targetMemoryLocation_DisconnectFromServer = ScanModuleSignature(gState.GameClient, "81 EC 08 02 00 00 E8", "WeaponCapacity_DisconnectFromServer");
 	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "WeaponCapacity_OnEnterWorld", 1);
 	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "WeaponCapacity_GetWeaponCapacity");
 
-	if (targetMemoryLocation_DisconnectFromServer == 0 ||
-		targetMemoryLocation_OnEnterWorld == 0 ||
+	if (targetMemoryLocation_OnEnterWorld == 0 ||
 		targetMemoryLocation_GetWeaponCapacity == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)targetMemoryLocation_DisconnectFromServer, &DisconnectFromServer_Hook, (LPVOID*)&DisconnectFromServer);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
 
@@ -1726,6 +1714,8 @@ static void ApplySetWeaponCapacityServerPatch()
 
 static void ApplyServerPatch()
 {
+	if (gState.hookedServerFunctionAddresses.size() != 0) return;
+
 	ApplyPersistentWorldServerPatch();
 	ApplySetWeaponCapacityServerPatch();
 }
@@ -2182,6 +2172,18 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int 
 	return res;
 }
 
+static int __fastcall TerminateServer_Hook(int thisPtr, int _ECX)
+{
+	for (DWORD address : gState.hookedServerFunctionAddresses)
+	{
+		MH_RemoveHook((void*)address);
+	}
+
+	gState.hookedServerFunctionAddresses.clear();
+
+	return TerminateServer(thisPtr);
+}
+
 #pragma endregion
 
 #pragma region Patches
@@ -2391,6 +2393,27 @@ static void HookVSyncOverride()
 	}
 }
 
+static void HookTerminateServer()
+{
+	if (!gState.needServerTermHooking) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
+			break;
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x4635E0, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x488B00, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x489860, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
+			break;
+	}
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -2422,6 +2445,7 @@ static void Init()
 	// Misc
 	HookIsFrameComplete();
 	HookVSyncOverride();
+	HookTerminateServer();
 	ApplySkipIntroHook();
 	ApplyConsoleVariableHook();
 }
