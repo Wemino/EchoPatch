@@ -36,10 +36,10 @@ bool(__thiscall* HUDGrenadeListInit)(int) = nullptr;
 int(__thiscall* ScreenDimsChanged)(int) = nullptr;
 DWORD* (__stdcall* LayoutDBGetPosition)(DWORD*, int, char*, int) = nullptr;
 float* (__stdcall* GetRectF)(DWORD*, int, char*, int) = nullptr;
-int(__stdcall* LayoutDBGetRecord)(int, char*) = nullptr;
-int(__stdcall* LayoutDBGetInt32)(int, unsigned int, int) = nullptr;
-float(__stdcall* LayoutDBGetFloat)(int, unsigned int, float) = nullptr;
-const char*(__stdcall* LayoutDBGetString)(int, unsigned int, int) = nullptr;
+int(__stdcall* DBGetRecord)(int, char*) = nullptr;
+int(__stdcall* DBGetInt32)(int, unsigned int, int) = nullptr;
+float(__stdcall* DBGetFloat)(int, unsigned int, float) = nullptr;
+const char*(__stdcall* DBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__thiscall* IsFrameComplete)(int) = nullptr;
@@ -79,6 +79,8 @@ void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
+void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
+bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -129,6 +131,7 @@ struct GlobalState
 	int screenWidth = 0;
 	int screenHeight = 0;
 	bool isInAutoDetect = false;
+	bool isSettingOption = false;
 
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
@@ -294,7 +297,7 @@ bool EnablePersistentWorldState = false;
 bool HUDScaling = false;
 float HUDCustomScalingFactor = 0;
 float SmallTextCustomScalingFactor = 0;
-bool AutoResolution = false;
+int AutoResolution = 0;
 bool DisableLetterbox = false;
 
 // SkipIntro
@@ -356,7 +359,7 @@ static void ReadConfig()
 	HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
 	HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
 	SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
-	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1) == 1;
+	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1);
 	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
 
 	// SkipIntro
@@ -377,7 +380,7 @@ static void ReadConfig()
 	ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
 	// Get screen resolution
-	if (AutoResolution)
+	if (AutoResolution != 0)
 	{
 		auto [screenWidth, screenHeight] = SystemHelper::GetScreenResolution();
 		gState.screenWidth = screenWidth;
@@ -671,11 +674,11 @@ static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, in
 	return result;
 }
 
-// Override 'LayoutDBGetInt32' and other related functions to return specific values
-static int __stdcall LayoutDBGetRecord_Hook(int Record, char* Attribute)
+// Override 'DBGetInt32' and other related functions to return specific values
+static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 {
 	if (!Record)
-		return LayoutDBGetRecord(Record, Attribute);
+		return DBGetRecord(Record, Attribute);
 
 	char* hudRecordString = *(char**)Record;
 
@@ -740,35 +743,35 @@ static int __stdcall LayoutDBGetRecord_Hook(int Record, char* Attribute)
 		}
 	}
 
-	return LayoutDBGetRecord(Record, Attribute);
+	return DBGetRecord(Record, Attribute);
 }
 
-// Executed right after 'LayoutDBGetRecord'
-static int __stdcall LayoutDBGetInt32_Hook(int a1, unsigned int a2, int a3)
+// Executed right after 'DBGetRecord'
+static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
 {
 	if (gState.updateLayoutReturnValue)
 	{
 		gState.updateLayoutReturnValue = false;
 		return gState.int32ToUpdate;
 	}
-	return LayoutDBGetInt32(a1, a2, a3);
+	return DBGetInt32(a1, a2, a3);
 }
 
-// Executed right after 'LayoutDBGetRecord'
-static float __stdcall LayoutDBGetFloat_Hook(int a1, unsigned int a2, float a3)
+// Executed right after 'DBGetRecord'
+static float __stdcall DBGetFloat_Hook(int a1, unsigned int a2, float a3)
 {
 	if (gState.updateLayoutReturnValue)
 	{
 		gState.updateLayoutReturnValue = false;
 		return gState.floatToUpdate;
 	}
-	return LayoutDBGetFloat(a1, a2, a3);
+	return DBGetFloat(a1, a2, a3);
 }
 
-// Executed right after 'LayoutDBGetRecord'
-static const char* __stdcall LayoutDBGetString_Hook(int a1, unsigned int a2, int a3)
+// Executed right after 'DBGetRecord'
+static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
 {
-	return LayoutDBGetString(a1, a2, a3);
+	return DBGetString(a1, a2, a3);
 }
 
 static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
@@ -1186,6 +1189,27 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 	SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
 }
 
+static void __fastcall SetOption_Hook(int thisPtr, int, int a2, int a3, int a4, int a5)
+{
+	gState.isSettingOption = true;
+	SetOption(thisPtr, a2, a3, a4, a5);
+	gState.isSettingOption = false;
+}
+
+static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const char* pszVar, float a3, int a4)
+{
+	if (gState.isSettingOption && strcmp(pszVar, "Performance_ScreenHeight") == 0)
+	{
+		return false;
+	}
+	else if (gState.isSettingOption && strcmp(pszVar, "Performance_ScreenWidth") == 0)
+	{
+		return false;
+	}
+
+	SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
+}
+
 static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, int psfxCreateStruct)
 {
 	// Low
@@ -1513,7 +1537,6 @@ static void ApplyHUDScalingClientPatch()
 {
 	if (!HUDScaling) return;
 
-	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
 	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
 	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
@@ -1527,8 +1550,7 @@ static void ApplyHUDScalingClientPatch()
 	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
 	DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
 
-	if (targetMemoryLocation_GameDatabase == 0 ||
-		targetMemoryLocation_HUDTerminate == 0 ||
+	if (targetMemoryLocation_HUDTerminate == 0 ||
 		targetMemoryLocation_HUDInit == 0 ||
 		targetMemoryLocation_HUDRender == 0 ||
 		targetMemoryLocation_ScreenDimsChanged == 0 ||
@@ -1542,15 +1564,6 @@ static void ApplyHUDScalingClientPatch()
 		targetMemoryLocation_HUDPausedInit == 0) {
 		return;
 	}
-
-	int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
-	int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
-	int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
-
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &LayoutDBGetRecord_Hook, (LPVOID*)&LayoutDBGetRecord);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &LayoutDBGetInt32_Hook, (LPVOID*)&LayoutDBGetInt32);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &LayoutDBGetFloat_Hook, (LPVOID*)&LayoutDBGetFloat);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &LayoutDBGetString_Hook, (LPVOID*)&LayoutDBGetString);
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
@@ -1606,11 +1619,19 @@ static void ApplyAutoResolutionClientCheck()
 {
 	if (!AutoResolution) return; 
 
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
+	DWORD targetMemoryLocation_AutoDetectPerformanceSettings = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
+	DWORD targetMemoryLocation_SetQueuedConsoleVariable = ScanModuleSignature(gState.GameClient, "83 EC 10 56 8B F1 8B 46 ?? 8B 4E ?? 8D 54 24 18", "SetQueuedConsoleVariable");
+	DWORD targetMemoryLocation_SetOption = ScanModuleSignature(gState.GameClient, "51 8B 44 24 14 85 C0 89 0C 24", "SetOption");
 
-	if (targetMemoryLocation == 0) return;
+	if (targetMemoryLocation_AutoDetectPerformanceSettings == 0 ||
+		targetMemoryLocation_SetQueuedConsoleVariable == 0 ||
+		targetMemoryLocation_SetOption == 0) {
+		return;
+	}
 
-	HookHelper::ApplyHook((void*)targetMemoryLocation, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AutoDetectPerformanceSettings, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetQueuedConsoleVariable, &SetQueuedConsoleVariable_Hook, (LPVOID*)&SetQueuedConsoleVariable);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
 }
 
 static void ApplyClientFXHook()
@@ -1622,6 +1643,24 @@ static void ApplyClientFXHook()
 	if (targetMemoryLocation == 0) return;
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+}
+
+static void ApplyGameDatabaseHook()
+{
+	if (!HUDScaling) return;
+
+	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+
+	if (targetMemoryLocation_GameDatabase == 0) return;
+
+	int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
+	int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
+	int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
+
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &DBGetRecord_Hook, (LPVOID*)&DBGetRecord);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &DBGetInt32_Hook, (LPVOID*)&DBGetInt32);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &DBGetFloat_Hook, (LPVOID*)&DBGetFloat);
+	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &DBGetString_Hook, (LPVOID*)&DBGetString);
 }
 
 static void ApplyClientPatchSet1()
@@ -1654,6 +1693,7 @@ static void ApplyClientPatch()
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientCheck();
 	ApplyClientFXHook();
+	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
 }
 
@@ -1899,7 +1939,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		}
 	}
 
-	if (gState.isInAutoDetect && AutoResolution)
+	if (gState.isInAutoDetect && AutoResolution != 0)
 	{
 		if (strcmp(pszVarName, "Performance_ScreenHeight") == 0)
 		{
@@ -2211,6 +2251,15 @@ static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken,
 	return hr;
 }
 
+int(__cdecl* SetRenderMode)(int) = nullptr;
+
+static int __cdecl SetRenderMode_Hook(int rMode)
+{
+	MemoryHelper::WriteMemory<int>(rMode + 0x84, gState.screenWidth, false);
+	MemoryHelper::WriteMemory<int>(rMode + 0x88, gState.screenHeight, false);
+	return SetRenderMode(rMode);
+}
+
 #pragma endregion
 
 #pragma region Patches
@@ -2355,7 +2404,7 @@ static void ApplyConsoleVariableHook()
 
 static void ApplyAutoResolution()
 {
-	if (!AutoResolution) return;
+	if (AutoResolution == 0) return;
 
 	switch (gState.CurrentFEARGame)
 	{
@@ -2448,6 +2497,25 @@ static void ApplySaveFolderRedirect()
 	HookHelper::ApplyHookAPI(L"shell32.dll", "SHGetFolderPathA", &SHGetFolderPathA_Hook, (LPVOID*)&ori_SHGetFolderPathA);
 }
 
+static void ApplyForceRenderMode()
+{
+	if (AutoResolution != 2) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+		case FEARMP:
+			HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
+			break;
+		case FEARXP:
+			HookHelper::ApplyHook((void*)0x411710, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
+			break;
+		case FEARXP2:
+			HookHelper::ApplyHook((void*)0x4119B0, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
+			break;
+	}
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -2483,6 +2551,7 @@ static void Init()
 	ApplySkipIntroHook();
 	ApplyConsoleVariableHook();
 	ApplySaveFolderRedirect();
+	ApplyForceRenderMode();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)

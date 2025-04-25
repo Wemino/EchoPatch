@@ -664,9 +664,31 @@ namespace HookHelper
 		return true;
 	}
 
-	static void ApplyHook(void* addr, LPVOID hookFunc, LPVOID* originalFunc)
+	// For that weird no-cd version
+	static bool EnsureExecutable(void* addr)
+	{
+		MEMORY_BASIC_INFORMATION mbi;
+		if (!VirtualQuery(addr, &mbi, sizeof(mbi))) return false;
+
+		// Check if it already has any execution rights
+		if (mbi.Protect & (PAGE_EXECUTE | PAGE_EXECUTE_READ | PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) return true;
+
+		// Add EXECUTE flag if needed
+		DWORD oldProtect;
+		return VirtualProtect(mbi.BaseAddress, mbi.RegionSize, PAGE_EXECUTE_READWRITE, &oldProtect);
+	}
+
+	static void ApplyHook(void* addr, LPVOID hookFunc, LPVOID* originalFunc, bool checkRegion = false)
 	{
 		if (!InitializeMinHook()) return;
+
+		if (checkRegion && !EnsureExecutable(addr))
+		{
+			char msg[0x100];
+			sprintf_s(msg, "Could not make address %p executable.", addr);
+			MessageBoxA(NULL, msg, "Error", MB_ICONERROR);
+			return;
+		}
 
 		MH_STATUS status = MH_CreateHook(addr, hookFunc, originalFunc);
 		if (status != MH_OK)
@@ -683,7 +705,6 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to enable hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
-			return;
 		}
 	}
 
@@ -706,7 +727,6 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to enable hook for API: %s\nError: %s", apiName, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
-			return;
 		}
 	}
 
