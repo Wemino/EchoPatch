@@ -2266,21 +2266,26 @@ static int __cdecl SetRenderMode_Hook(int rMode)
 static void ApplyFixDirectInputFps()
 {
 	// root cause documented by Methanhydrat: https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/
+	// fix SetWindowsHookExA input lag from: https://github.com/Vityacv/fearservmod
 	if (!DisableRedundantHIDInit) return;
 
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
 			MemoryHelper::MakeNOP(0x4840DD, 22, true);
+			MemoryHelper::MakeNOP(0x484057, 29, true);
 			break;
 		case FEARMP:
 			MemoryHelper::MakeNOP(0x4841FD, 22, true);
+			MemoryHelper::MakeNOP(0x484177, 29, true);
 			break;
 		case FEARXP:
 			MemoryHelper::MakeNOP(0x4B895D, 22, true);
+			MemoryHelper::MakeNOP(0x4B88D7, 29, true);
 			break;
 		case FEARXP2:
 			MemoryHelper::MakeNOP(0x4B99AD, 22, true);
+			MemoryHelper::MakeNOP(0x4B9927, 29, true);
 			break;
 	}
 }
