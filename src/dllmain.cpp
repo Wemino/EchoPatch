@@ -81,6 +81,7 @@ double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
 bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
+int(__cdecl* SetRenderMode)(int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -2251,8 +2252,6 @@ static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken,
 	return hr;
 }
 
-int(__cdecl* SetRenderMode)(int) = nullptr;
-
 static int __cdecl SetRenderMode_Hook(int rMode)
 {
 	MemoryHelper::WriteMemory<int>(rMode + 0x84, gState.screenWidth, false);
@@ -2293,7 +2292,7 @@ static void ApplyFixHighFPSPhysics()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x495CD0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
+			HookHelper::ApplyHook((void*)0x495CD0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x495DF0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
@@ -2314,7 +2313,7 @@ static void ApplyFixKeyboardInputLanguage()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+			HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x481F30, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
@@ -2352,7 +2351,7 @@ static void ApplyClientHook()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
+			HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x47D850, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
@@ -2371,7 +2370,7 @@ static void ApplySkipIntroHook()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
+			HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x510DD0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
@@ -2391,7 +2390,7 @@ static void ApplyConsoleVariableHook()
 	{
 		case FEAR:
 		case FEARMP:
-			HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat);
+			HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat, true);
 			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x410120, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat);
@@ -2434,7 +2433,7 @@ static void HookIsFrameComplete()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
+			HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x40FC30, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
@@ -2455,7 +2454,7 @@ static void HookVSyncOverride()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
+			HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x4F8CA0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
@@ -2476,7 +2475,7 @@ static void HookTerminateServer()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
+			HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x4635E0, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
@@ -2505,7 +2504,7 @@ static void ApplyForceRenderMode()
 	{
 		case FEAR:
 		case FEARMP:
-			HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
+			HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode, true);
 			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x411710, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
