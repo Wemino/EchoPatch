@@ -607,22 +607,22 @@ static void ApplyHighFPSFixesClientFXPatch()
 {
 	if (!HighFPSFixes) return;
 
-	DWORD ParticleUpdateThreshold = ScanModuleSignature(gState.GameClientFX, "D9 44 24 04 ?? D8 1D", "FixParticleUpdateThreshold");
-	DWORD AddParticleBatchMarker = ScanModuleSignature(gState.GameClientFX, "83 C1 10 E8 ?? ?? ?? ?? 85 C0 74 24 8A 4C 24 08", "FixParticleLifetime_AddParticleBatchMarker");
-	DWORD EmitParticleBatch = ScanModuleSignature(gState.GameClientFX, "CC CC CC CC 81 EC C0 00 00 00", "FixParticleLifetime_EmitParticleBatch");
+	DWORD targetMemoryLocation_ParticleUpdateThreshold = ScanModuleSignature(gState.GameClientFX, "D9 44 24 04 ?? D8 1D", "FixParticleUpdateThreshold");
+	DWORD targetMemoryLocation_AddParticleBatchMarker = ScanModuleSignature(gState.GameClientFX, "83 C1 10 E8 ?? ?? ?? ?? 85 C0 74 24 8A 4C 24 08", "FixParticleLifetime_AddParticleBatchMarker");
+	DWORD targetMemoryLocation_EmitParticleBatch = ScanModuleSignature(gState.GameClientFX, "CC CC CC CC 81 EC C0 00 00 00", "FixParticleLifetime_EmitParticleBatch");
 
-	if (ParticleUpdateThreshold == 0 ||
-		AddParticleBatchMarker == 0 ||
-		EmitParticleBatch == 0) {
+	if (targetMemoryLocation_ParticleUpdateThreshold == 0 ||
+		targetMemoryLocation_AddParticleBatchMarker == 0 ||
+		targetMemoryLocation_EmitParticleBatch == 0) {
 		return;
 	}
 
-	MemoryHelper::MakeNOP(ParticleUpdateThreshold, 0x4);
-	MemoryHelper::MakeNOP(ParticleUpdateThreshold + 0x5, 0x6);
-	MemoryHelper::MakeNOP(ParticleUpdateThreshold + 0xD, 0x7);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold, 0x4);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0x5, 0x6);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0xD, 0x7);
 
-	HookHelper::ApplyHook((void*)AddParticleBatchMarker, &AddParticleBatchMarker_Hook, (LPVOID*)&AddParticleBatchMarker);
-	HookHelper::ApplyHook((void*)(EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AddParticleBatchMarker, &AddParticleBatchMarker_Hook, (LPVOID*)&AddParticleBatchMarker);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
 }
 
 static void ApplyClientFXPatch()
@@ -1380,37 +1380,37 @@ static void ApplyHighFPSFixesClientPatch()
 {
 	if (!HighFPSFixes) return;
 	
-	DWORD SurfaceJumpImpulse = ScanModuleSignature(gState.GameClient, "C7 44 24 1C 00 00 00 00 C7 44 24 10 00 00 00 00 EB", "SurfaceJumpImpulse");
-	DWORD HeightOffset = ScanModuleSignature(gState.GameClient, "D9 E1 D9 54 24 1C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85", "HeightOffset");
-	DWORD UpdateOnGround = ScanModuleSignature(gState.GameClient, "83 EC 3C 53 55 56 57 8B F1", "UpdateOnGround");
-	DWORD UpdateWaveProp = ScanModuleSignature(gState.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
-	DWORD UpdateNormalFriction = ScanModuleSignature(gState.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
-	DWORD GetTimerElapsedS = ScanModuleSignature(gState.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
+	DWORD targetMemoryLocation_SurfaceJumpImpulse = ScanModuleSignature(gState.GameClient, "C7 44 24 1C 00 00 00 00 C7 44 24 10 00 00 00 00 EB", "SurfaceJumpImpulse");
+	DWORD targetMemoryLocation_HeightOffset = ScanModuleSignature(gState.GameClient, "D9 E1 D9 54 24 1C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85", "HeightOffset");
+	DWORD targetMemoryLocation_UpdateOnGround = ScanModuleSignature(gState.GameClient, "83 EC 3C 53 55 56 57 8B F1", "UpdateOnGround");
+	DWORD targetMemoryLocation_UpdateWaveProp = ScanModuleSignature(gState.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
+	DWORD targetMemoryLocation_UpdateNormalFriction = ScanModuleSignature(gState.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
+	DWORD targetMemoryLocation_GetTimerElapsedS = ScanModuleSignature(gState.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
 
-	DWORD GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
-	DWORD UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
+	DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
+	DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
 
-	if (SurfaceJumpImpulse == 0 ||
-		HeightOffset == 0 ||
-		UpdateOnGround == 0 ||
-		GetMaxRecentVelocityMag == 0 ||
-		UpdateNormalControlFlags == 0 ||
-		UpdateNormalFriction == 0 ||
-		GetTimerElapsedS == 0 ||
-		UpdateWaveProp == 0) {
+	if (targetMemoryLocation_SurfaceJumpImpulse == 0 ||
+		targetMemoryLocation_HeightOffset == 0 ||
+		targetMemoryLocation_UpdateOnGround == 0 ||
+		targetMemoryLocation_GetMaxRecentVelocityMag == 0 ||
+		targetMemoryLocation_UpdateNormalControlFlags == 0 ||
+		targetMemoryLocation_UpdateNormalFriction == 0 ||
+		targetMemoryLocation_GetTimerElapsedS == 0 ||
+		targetMemoryLocation_UpdateWaveProp == 0) {
 		return;
 	}
 
-	int callAddr = MemoryHelper::ReadMemory<int>(GetMaxRecentVelocityMag + 0xC);
-	int getMaxRecentVelocityMagAddress = (GetMaxRecentVelocityMag + 0xC) + (callAddr + 0x4);
-	MemoryHelper::MakeNOP(SurfaceJumpImpulse, 0x10);
-	MemoryHelper::WriteMemory<uint8_t>(HeightOffset + 0x12, 0x84, true);
+	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetMaxRecentVelocityMag + 0xC);
+	int getMaxRecentVelocityMagAddress = (targetMemoryLocation_GetMaxRecentVelocityMag + 0xC) + (callAddr + 0x4);
+	MemoryHelper::MakeNOP(targetMemoryLocation_SurfaceJumpImpulse, 0x10);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84, true);
 	HookHelper::ApplyHook((void*)getMaxRecentVelocityMagAddress, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
-	HookHelper::ApplyHook((void*)UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
-	HookHelper::ApplyHook((void*)UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
-	HookHelper::ApplyHook((void*)UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
-	HookHelper::ApplyHook((void*)UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
-	HookHelper::ApplyHook((void*)(GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
 }
 
 static void ApplyXPWidescreenClientPatch()
@@ -1449,170 +1449,170 @@ static void ApplyPersistentWorldClientPatch()
 {
 	if (!EnablePersistentWorldState) return;
 
-	DWORD ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "ShellCasing");
-	DWORD DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "DecalSaving");
-	DWORD Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
-	DWORD FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
-	DWORD Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
+	DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(gState.GameClient, "D9 86 88 00 00 00 D8 64 24", "ShellCasing");
+	DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(gState.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "DecalSaving");
+	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
+	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
+	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
 
-	if (ShellCasing == 0 ||
-		DecalSaving == 0 ||
-		Decal == 0 ||
-		FX == 0 ||
-		Shatter == 0) {
+	if (targetMemoryLocation_ShellCasing == 0 ||
+		targetMemoryLocation_DecalSaving == 0 ||
+		targetMemoryLocation_Decal == 0 ||
+		targetMemoryLocation_FX == 0 ||
+		targetMemoryLocation_Shatter == 0) {
 		return;
 	}
 
-	MemoryHelper::MakeNOP(ShellCasing + 0x6, 4, true);
-	MemoryHelper::MakeNOP(DecalSaving + 0xF, 13, true);
-	MemoryHelper::WriteMemory<uint8_t>(Decal + 0x5, 0x74, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
 
-	int callAddr = MemoryHelper::ReadMemory<int>(Shatter + 0x3);
-	int shatterLiftetimeAddress = (Shatter + 0x3) + (callAddr + 0x4);
+	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
+	int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
 	HookHelper::ApplyHook((void*)shatterLiftetimeAddress, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
-	HookHelper::ApplyHook((void*)FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
 
 static void ApplyInfiniteFlashlightClientPatch()
 {
 	if (!InfiniteFlashlight) return;
-	DWORD Update = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
-	DWORD UpdateBar = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
-	DWORD UpdateLayout = ScanModuleSignature(gState.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
-	DWORD Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+	DWORD targetMemoryLocation_Update = ScanModuleSignature(gState.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
+	DWORD targetMemoryLocation_UpdateBar = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
+	DWORD targetMemoryLocation_UpdateLayout = ScanModuleSignature(gState.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
+	DWORD targetMemoryLocation_Battery = ScanModuleSignature(gState.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
 
-	if (Update == 0 ||
-		UpdateBar == 0 ||
-		UpdateLayout == 0 ||
-		Battery == 0) {
+	if (targetMemoryLocation_Update == 0 ||
+		targetMemoryLocation_UpdateBar == 0 ||
+		targetMemoryLocation_UpdateLayout == 0 ||
+		targetMemoryLocation_Battery == 0) {
 		return;
 	}
 
-	MemoryHelper::WriteMemory<uint8_t>(Update - 0x31, 0xC3, true);
-	MemoryHelper::WriteMemory<uint8_t>(UpdateLayout - 0x36, 0xC3, true);
-	MemoryHelper::WriteMemory<uint8_t>(UpdateBar, 0xC3, true);
-	MemoryHelper::MakeNOP(Battery + 0xA, 6, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3, true);
+	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
 }
 
 static void ApplyXInputControllerClientPatch()
 {
 	if (!XInputControllerSupport) return;
 
-	DWORD pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
-	if (pGameClientShell == 0) return;
+	DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(gState.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
+	if (targetMemoryLocation_pGameClientShell == 0) return;
 
-	DWORD OnCommandOn = pGameClientShell + MemoryHelper::ReadMemory<int>(pGameClientShell + 0x21) + 0x25;
-	DWORD OnCommandOff = pGameClientShell + MemoryHelper::ReadMemory<int>(pGameClientShell + 0x28) + 0x2C;
-	DWORD GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");	
-	DWORD IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
-	DWORD ChangeState = ScanModuleSignature(gState.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
-	DWORD HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
-	DWORD HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
-	DWORD SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
-	DWORD GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "GetTriggerNameFromCommandID");
-	DWORD SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
-	DWORD SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
-	DWORD HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
+	DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
+	DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
+	DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(gState.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");	
+	DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(gState.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
+	DWORD targetMemoryLocation_ChangeState = ScanModuleSignature(gState.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
+	DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(gState.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
+	DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
+	DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(gState.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
+	DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(gState.GameClient, "81 EC 44 08 00 00", "GetTriggerNameFromCommandID");
+	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
+	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
+	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
 
-	if (OnCommandOn == 0 ||
-		OnCommandOff == 0 ||
-		GetExtremalCommandValue == 0 ||
-		IsCommandOn == 0 ||
-		ChangeState == 0 ||
-		HUDActivateObjectSetObject == 0 ||
-		HUDSwapUpdate == 0 ||
-		SetOperatingTurret == 0 ||
-		GetTriggerNameFromCommandID == 0 ||
-		SwitchToScreen == 0 ||
-		SetCurrentType == 0 ||
-		HUDSwapUpdateTriggerName == 0) {
+	if (targetMemoryLocation_OnCommandOn == 0 ||
+		targetMemoryLocation_OnCommandOff == 0 ||
+		targetMemoryLocation_GetExtremalCommandValue == 0 ||
+		targetMemoryLocation_IsCommandOn == 0 ||
+		targetMemoryLocation_ChangeState == 0 ||
+		targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
+		targetMemoryLocation_HUDSwapUpdate == 0 ||
+		targetMemoryLocation_SetOperatingTurret == 0 ||
+		targetMemoryLocation_GetTriggerNameFromCommandID == 0 ||
+		targetMemoryLocation_SwitchToScreen == 0 ||
+		targetMemoryLocation_SetCurrentType == 0 ||
+		targetMemoryLocation_HUDSwapUpdateTriggerName == 0) {
 		return;
 	}
 
-	gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(pGameClientShell + 0x1A));
+	gState.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
 
-	HookHelper::ApplyHook((void*)(GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
-	HookHelper::ApplyHook((void*)IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
-	HookHelper::ApplyHook((void*)OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
-	HookHelper::ApplyHook((void*)OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
-	HookHelper::ApplyHook((void*)SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
-	HookHelper::ApplyHook((void*)GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
-	HookHelper::ApplyHook((void*)(ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
-	HookHelper::ApplyHook((void*)HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
-	HookHelper::ApplyHook((void*)HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
-	HookHelper::ApplyHook((void*)SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
-	HookHelper::ApplyHook((void*)SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
-	HookHelper::ApplyHook((void*)HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
 
 	if (!HideMouseCursor) return;
 
-	DWORD UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
-	DWORD OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
+	DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(gState.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
+	DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(gState.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
 
-	HookHelper::ApplyHook((void*)OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
-	HookHelper::ApplyHook((void*)UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
 }
 
 static void ApplyHUDScalingClientPatch()
 {
 	if (!HUDScaling) return;
 
-	DWORD HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
-	DWORD HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
-	DWORD HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
-	DWORD ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
-	DWORD LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
-	DWORD GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
-	DWORD UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
-	DWORD HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
-	DWORD HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
-	DWORD HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
-	DWORD InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
-	DWORD HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
+	DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(gState.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
+	DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(gState.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
+	DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(gState.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
+	DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(gState.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
+	DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(gState.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
+	DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(gState.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
+	DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
+	DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(gState.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
+	DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(gState.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
+	DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(gState.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
+	DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(gState.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
+	DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(gState.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
 
-	if (HUDTerminate == 0 ||
-		HUDInit == 0 ||
-		HUDRender == 0 ||
-		ScreenDimsChanged == 0 ||
-		LayoutDBGetPosition == 0 ||
-		GetRectF == 0 ||
-		UpdateSlider == 0 ||
-		HUDWeaponListReset == 0 ||
-		HUDWeaponListInit == 0 ||
-		HUDGrenadeListInit == 0 ||
-		InitAdditionalTextureData == 0 ||
-		HUDPausedInit == 0) {
+	if (targetMemoryLocation_HUDTerminate == 0 ||
+		targetMemoryLocation_HUDInit == 0 ||
+		targetMemoryLocation_HUDRender == 0 ||
+		targetMemoryLocation_ScreenDimsChanged == 0 ||
+		targetMemoryLocation_LayoutDBGetPosition == 0 ||
+		targetMemoryLocation_GetRectF == 0 ||
+		targetMemoryLocation_UpdateSlider == 0 ||
+		targetMemoryLocation_HUDWeaponListReset == 0 ||
+		targetMemoryLocation_HUDWeaponListInit == 0 ||
+		targetMemoryLocation_HUDGrenadeListInit == 0 ||
+		targetMemoryLocation_InitAdditionalTextureData == 0 ||
+		targetMemoryLocation_HUDPausedInit == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-	HookHelper::ApplyHook((void*)HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
-	HookHelper::ApplyHook((void*)HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
-	HookHelper::ApplyHook((void*)ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-	HookHelper::ApplyHook((void*)LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-	HookHelper::ApplyHook((void*)(GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
-	HookHelper::ApplyHook((void*)UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-	HookHelper::ApplyHook((void*)HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
-	HookHelper::ApplyHook((void*)HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
-	HookHelper::ApplyHook((void*)HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
-	HookHelper::ApplyHook((void*)(InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
-	HookHelper::ApplyHook((void*)HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
 }
 
 static void ApplySetWeaponCapacityClientPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity) return;
 
-	DWORD OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
-	DWORD GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
+	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
+	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
 
-	if (OnEnterWorld == 0 ||
-		GetWeaponCapacity == 0) {
+	if (targetMemoryLocation_OnEnterWorld == 0 ||
+		targetMemoryLocation_GetWeaponCapacity == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
-	HookHelper::ApplyHook((void*)(GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
 
 	gState.appliedCustomMaxWeaponCapacity = true;
 }
@@ -1639,35 +1639,35 @@ static void ApplyAutoResolutionClientCheck()
 {
 	if (!AutoResolution) return; 
 
-	DWORD AutoDetectPerformanceSettings = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
-	DWORD SetQueuedConsoleVariable = ScanModuleSignature(gState.GameClient, "83 EC 10 56 8B F1 8B 46 ?? 8B 4E ?? 8D 54 24 18", "SetQueuedConsoleVariable");
-	DWORD SetOption = ScanModuleSignature(gState.GameClient, "51 8B 44 24 14 85 C0 89 0C 24", "SetOption");
+	DWORD targetMemoryLocation_AutoDetectPerformanceSettings = ScanModuleSignature(gState.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
+	DWORD targetMemoryLocation_SetQueuedConsoleVariable = ScanModuleSignature(gState.GameClient, "83 EC 10 56 8B F1 8B 46 ?? 8B 4E ?? 8D 54 24 18", "SetQueuedConsoleVariable");
+	DWORD targetMemoryLocation_SetOption = ScanModuleSignature(gState.GameClient, "51 8B 44 24 14 85 C0 89 0C 24", "SetOption");
 
-	if (AutoDetectPerformanceSettings == 0 ||
-		SetQueuedConsoleVariable == 0 ||
-		SetOption == 0) {
+	if (targetMemoryLocation_AutoDetectPerformanceSettings == 0 ||
+		targetMemoryLocation_SetQueuedConsoleVariable == 0 ||
+		targetMemoryLocation_SetOption == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)AutoDetectPerformanceSettings, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
-	HookHelper::ApplyHook((void*)SetQueuedConsoleVariable, &SetQueuedConsoleVariable_Hook, (LPVOID*)&SetQueuedConsoleVariable);
-	HookHelper::ApplyHook((void*)SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AutoDetectPerformanceSettings, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetQueuedConsoleVariable, &SetQueuedConsoleVariable_Hook, (LPVOID*)&SetQueuedConsoleVariable);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
 }
 
 static void ApplyKeyboardInputLanguageClientCheck()
 {
 	if (!FixKeyboardInputLanguage) return;
 
-	DWORD LoadUserProfile = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
-	DWORD RestoreDefaults = ScanModuleSignature(gState.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
+	DWORD targetMemoryLocation_LoadUserProfile = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
+	DWORD targetMemoryLocation_RestoreDefaults = ScanModuleSignature(gState.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
 
-	if (LoadUserProfile == 0 ||
-		RestoreDefaults == 0) {
+	if (targetMemoryLocation_LoadUserProfile == 0 ||
+		targetMemoryLocation_RestoreDefaults == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
-	HookHelper::ApplyHook((void*)RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
 }
 
 static void ApplyClientFXHook()
@@ -1685,11 +1685,11 @@ static void ApplyGameDatabaseHook()
 {
 	if (!HUDScaling) return;
 
-	DWORD GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 
-	if (GameDatabase == 0) return;
+	if (targetMemoryLocation_GameDatabase == 0) return;
 
-	int pDB = MemoryHelper::ReadMemory<int>(GameDatabase + 0xB);
+	int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
 	int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
 	int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
 
@@ -1703,16 +1703,16 @@ static void ApplyClientPatchSet1()
 {
 	if (!HUDScaling && !XInputControllerSupport) return;
 
-	DWORD HUDWeaponListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
-	DWORD HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+	DWORD targetMemoryLocation_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
+	DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(gState.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
 
-	if (HUDWeaponListUpdateTriggerNames == 0 ||
-		HUDGrenadeListUpdateTriggerNames == 0) {
+	if (targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
+		targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0) {
 		return;
 	}
 
-	HookHelper::ApplyHook((void*)(HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
-	HookHelper::ApplyHook((void*)(HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
 }
 
 static void ApplyClientPatch()
@@ -1764,11 +1764,11 @@ static void ApplyPersistentWorldServerPatch()
 {
 	if (!EnablePersistentWorldState) return;
 
-	DWORD BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "BodyFading");
+	DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(gState.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "BodyFading");
 
-	if (BodyFading != 0)
+	if (targetMemoryLocation_BodyFading != 0)
 	{
-		MemoryHelper::WriteMemory<uint8_t>(BodyFading + 0x22, 0x75, true);
+		MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75, true);
 	}
 }
 
@@ -1776,16 +1776,16 @@ static void ApplySetWeaponCapacityServerPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity || !gState.appliedCustomMaxWeaponCapacity) return;
 
-	DWORD SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
-	DWORD PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
+	DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(gState.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
+	DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(gState.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
 
-	if (SetWeaponCapacityServer == 0 ||
-		PlayerInventoryInit == 0) {
+	if (targetMemoryLocation_SetWeaponCapacityServer == 0 ||
+		targetMemoryLocation_PlayerInventoryInit == 0) {
 		return;
 	}
 
-	ApplyTrackedHook(SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
-	ApplyTrackedHook(PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
+	ApplyTrackedHook(targetMemoryLocation_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
+	ApplyTrackedHook(targetMemoryLocation_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
 }
 
 static void ApplyServerPatch()
