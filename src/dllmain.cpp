@@ -82,6 +82,8 @@ int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int
 void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
 bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
+void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
+bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -133,6 +135,8 @@ struct GlobalState
 	int screenHeight = 0;
 	bool isInAutoDetect = false;
 	bool isSettingOption = false;
+
+	bool isLoadingDefault = false;
 
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
@@ -1211,6 +1215,21 @@ static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const cha
 	SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
 }
 
+static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults, bool bLoadDisplaySettings)
+{
+	gState.isLoadingDefault = bLoadDefaults;
+	LoadUserProfile(thisPtr, bLoadDefaults, bLoadDisplaySettings);
+	gState.isLoadingDefault = false;
+}
+
+static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
+{
+	gState.isLoadingDefault = true;
+	bool res = RestoreDefaults(thisPtr, nFlags);
+	gState.isLoadingDefault = false;
+	return res;
+}
+
 static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, int psfxCreateStruct)
 {
 	// Low
@@ -1635,6 +1654,22 @@ static void ApplyAutoResolutionClientCheck()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
 }
 
+static void ApplyKeyboardInputLanguageClientCheck()
+{
+	if (!FixKeyboardInputLanguage) return;
+
+	DWORD targetMemoryLocation_LoadUserProfile = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
+	DWORD targetMemoryLocation_RestoreDefaults = ScanModuleSignature(gState.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
+
+	if (targetMemoryLocation_LoadUserProfile == 0 ||
+		targetMemoryLocation_RestoreDefaults == 0) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
+}
+
 static void ApplyClientFXHook()
 {
 	if (!HighFPSFixes) return;
@@ -1693,6 +1728,7 @@ static void ApplyClientPatch()
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientCheck();
+	ApplyKeyboardInputLanguageClientCheck();
 	ApplyClientFXHook();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
@@ -1859,21 +1895,39 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* 
 
 static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
-	if (DeviceType == 0) // Keyboard
+	if (gState.isLoadingDefault && DeviceType == 0) // Keyboard
 	{
 		// Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
 		static const std::unordered_map<std::wstring, unsigned int> keyMap = 
 		{
+			{L"W", 0x11},
+			{L"S", 0x1F},
+			{L"A", 0x1E},
+			{L"D", 0x20},
 			{L"Left", 0xCB},
 			{L"Right", 0xCD},
 			{L"Right Ctrl", 0x9D},
 			{L"Space", 0x39},
+			{L"C", 0x2E},
+			{L"Q", 0x10},
+			{L"E", 0x12},
+			{L"G", 0x22},
+			{L"F", 0x21},
+			{L"R", 0x13},
 			{L"Shift", 0x2A},
 			{L"Ctrl", 0x1D},
+			{L"X", 0x2D},
 			{L"Tab", 0x0F},
+			{L"M", 0x32},
+			{L"T", 0x14},
+			{L"Y", 0x15},
+			{L"V", 0x2F},
 			{L"Up", 0xC8},
 			{L"Down", 0xD0},
 			{L"End", 0xCF},
+			{L"B", 0x30},
+			{L"Z", 0x2C},
+			{L"H", 0x23}
 		};
 
 		auto it = keyMap.find(KeyName);
