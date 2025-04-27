@@ -273,9 +273,30 @@ bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool CheckLAAPatch = false;
 
+// Graphics
+float MaxFPS = 0;
+bool VsyncOverride = false;
+bool HighResolutionReflections = false;
+bool NoLODBias = false;
+bool ReducedMipMapBias = false;
+bool EnablePersistentWorldState = false;
+
+// Display
+bool HUDScaling = false;
+float HUDCustomScalingFactor = 0;
+float SmallTextCustomScalingFactor = 0;
+int AutoResolution = 0;
+bool DisableLetterbox = false;
+
 // Controller
 bool XInputControllerSupport = false;
 bool HideMouseCursor = false;
+float GPadAimSensitivity = 0.0f;
+float GPadAimEdgeThreshold = 0.0f;
+float GPadAimEdgeAccelTime = 0.0f;
+float GPadAimEdgeDelayTime = 0.0f;
+float GPadAimEdgeMultiplier = 0.0f;
+float GPadAimAspectRatio = 0.0f;
 int GAMEPAD_A = 0;
 int GAMEPAD_B = 0;
 int GAMEPAD_X = 0;
@@ -291,21 +312,6 @@ int GAMEPAD_DPAD_RIGHT = 0;
 int GAMEPAD_LEFT_TRIGGER = 0;
 int GAMEPAD_RIGHT_TRIGGER = 0;
 int GAMEPAD_BACK = 0;
-
-// Graphics
-float MaxFPS = 0;
-bool VsyncOverride = false;
-bool HighResolutionReflections = false;
-bool NoLODBias = false;
-bool ReducedMipMapBias = false;
-bool EnablePersistentWorldState = false;
-
-// Display
-bool HUDScaling = false;
-float HUDCustomScalingFactor = 0;
-float SmallTextCustomScalingFactor = 0;
-int AutoResolution = 0;
-bool DisableLetterbox = false;
 
 // SkipIntro
 bool SkipSplashScreen = false;
@@ -335,9 +341,30 @@ static void ReadConfig()
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
 	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 
+	// Graphics
+	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
+	VsyncOverride = IniHelper::ReadInteger("Graphics", "VsyncOverride", 1) == 1;
+	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
+	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
+	ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
+	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
+
+	// Display
+	HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
+	HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
+	SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
+	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1);
+	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
+
 	// Controller
 	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
 	HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 1) == 1;
+	GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
+	GPadAimEdgeThreshold = IniHelper::ReadFloat("Controller", "GPadAimEdgeThreshold", 0.75f);
+	GPadAimEdgeAccelTime = IniHelper::ReadFloat("Controller", "GPadAimEdgeAccelTime", 1.0f);
+	GPadAimEdgeDelayTime = IniHelper::ReadFloat("Controller", "GPadAimEdgeDelayTime", 0.25f);
+	GPadAimEdgeMultiplier = IniHelper::ReadFloat("Controller", "GPadAimEdgeMultiplier", 1.6f);
+	GPadAimAspectRatio = IniHelper::ReadFloat("Controller", "GPadAimAspectRatio", 1.0f);
 	GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
 	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 19);
 	GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
@@ -353,21 +380,6 @@ static void ReadConfig()
 	GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 81);
 	GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
 	GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
-
-	// Graphics
-	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
-	VsyncOverride = IniHelper::ReadFloat("Graphics", "VsyncOverride", 1) == 1;
-	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
-	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
-	ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
-	EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
-
-	// Display
-	HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
-	HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
-	SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
-	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1);
-	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
 
 	// SkipIntro
 	SkipSplashScreen = IniHelper::ReadInteger("SkipIntro", "SkipSplashScreen", 1) == 1;
@@ -1398,7 +1410,6 @@ static void ApplyHighFPSFixesClientPatch()
 	DWORD targetMemoryLocation_UpdateWaveProp = ScanModuleSignature(gState.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
 	DWORD targetMemoryLocation_UpdateNormalFriction = ScanModuleSignature(gState.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
 	DWORD targetMemoryLocation_GetTimerElapsedS = ScanModuleSignature(gState.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
-
 	DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
 	DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
 
@@ -1992,6 +2003,34 @@ static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue
 		}
 	}
 
+	if (XInputControllerSupport)
+	{
+		if (strcmp(pszVarName, "GPadAimSensitivity") == 0)
+		{
+			fValue = GPadAimSensitivity;
+		}
+		else if (strcmp(pszVarName, "GPadAimEdgeThreshold") == 0)
+		{
+			fValue = GPadAimEdgeThreshold;
+		}
+		else if (strcmp(pszVarName, "GPadAimEdgeAccelTime") == 0)
+		{
+			fValue = GPadAimEdgeAccelTime;
+		}
+		else if (strcmp(pszVarName, "GPadAimEdgeDelayTime") == 0)
+		{
+			fValue = GPadAimEdgeDelayTime;
+		}
+		else if (strcmp(pszVarName, "GPadAimEdgeMultiplier") == 0)
+		{
+			fValue = GPadAimEdgeMultiplier;
+		}
+		else if (strcmp(pszVarName, "GPadAimAspectRatio") == 0)
+		{
+			fValue = GPadAimAspectRatio;
+		}
+	}
+
 	if (EnablePersistentWorldState)
 	{
 		if (strcmp(pszVarName, "BodyLifetime") == 0)
@@ -2244,7 +2283,7 @@ static void PollController()
 		}
 	}
 
-	// Hook 'LoadString' to override 'ScreenFailure_PressAnyKey'
+	// Hook 'LoadString' to override menu strings
 	if (!gState.hookedLoadString)
 	{
 		gState.hookedLoadString = true;
