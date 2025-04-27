@@ -235,18 +235,18 @@ ControllerState g_Controller;
 std::pair<WORD, int> g_buttonMappings[] =
 {
 	{ XINPUT_GAMEPAD_A, 15 }, // Jump
-	{ XINPUT_GAMEPAD_B, 19 }, // Melee
-	{ XINPUT_GAMEPAD_X, 88 }, // Reload
-	{ XINPUT_GAMEPAD_Y, 70 }, // Medkit
-	{ XINPUT_GAMEPAD_LEFT_THUMB, 14 }, // Crouch
-	{ XINPUT_GAMEPAD_RIGHT_THUMB, 71 }, // Zoom
-	{ XINPUT_GAMEPAD_LEFT_SHOULDER, 106 }, // SlowMo
-	{ XINPUT_GAMEPAD_RIGHT_SHOULDER, 77 }, // Next Weapon
-	{ XINPUT_GAMEPAD_DPAD_UP, 73 }, // Next Grenade
-	{ XINPUT_GAMEPAD_DPAD_DOWN, 114 }, // Flashlight
+	{ XINPUT_GAMEPAD_B, 14 }, // Crouch
+	{ XINPUT_GAMEPAD_X, 88 }, // Reload/Activate
+	{ XINPUT_GAMEPAD_Y, 106 }, // SlowMo
+	{ XINPUT_GAMEPAD_LEFT_THUMB, 70 }, // Medkit
+	{ XINPUT_GAMEPAD_RIGHT_THUMB, 114 }, // Flashlight
+	{ XINPUT_GAMEPAD_LEFT_SHOULDER, 81 }, // Throw Grenade
+	{ XINPUT_GAMEPAD_RIGHT_SHOULDER, 19 }, // Melee
+	{ XINPUT_GAMEPAD_DPAD_UP, 77 }, // Next Weapon
+	{ XINPUT_GAMEPAD_DPAD_DOWN, 73 }, // Next Grenade
 	{ XINPUT_GAMEPAD_DPAD_LEFT, 20 }, // Lean Left
 	{ XINPUT_GAMEPAD_DPAD_RIGHT, 21 }, // Lean Right
-	{ XINPUT_GAMEPAD_LEFT_TRIGGER, 81 }, // Throw Grenade
+	{ XINPUT_GAMEPAD_LEFT_TRIGGER, 71 }, // Aim
 	{ XINPUT_GAMEPAD_RIGHT_TRIGGER, 17 }, // Fire
 	{ XINPUT_GAMEPAD_BACK, 78 }, // Mission Status
 	{ XINPUT_GAMEPAD_START, -1 }, // Menu
@@ -366,18 +366,18 @@ static void ReadConfig()
 	GPadAimEdgeMultiplier = IniHelper::ReadFloat("Controller", "GPadAimEdgeMultiplier", 1.6f);
 	GPadAimAspectRatio = IniHelper::ReadFloat("Controller", "GPadAimAspectRatio", 1.0f);
 	GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
-	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 19);
+	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 14);
 	GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
-	GAMEPAD_Y = IniHelper::ReadInteger("Controller", "GAMEPAD_Y", 70);
-	GAMEPAD_LEFT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_THUMB", 14);
-	GAMEPAD_RIGHT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_THUMB", 71);
-	GAMEPAD_LEFT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER", 106);
-	GAMEPAD_RIGHT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER", 77);
-	GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 73);
-	GAMEPAD_DPAD_DOWN = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN", 114);
+	GAMEPAD_Y = IniHelper::ReadInteger("Controller", "GAMEPAD_Y", 106);
+	GAMEPAD_LEFT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_THUMB", 70);
+	GAMEPAD_RIGHT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_THUMB", 114);
+	GAMEPAD_LEFT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER", 81);
+	GAMEPAD_RIGHT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER", 19);
+	GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 77);
+	GAMEPAD_DPAD_DOWN = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN", 73);
 	GAMEPAD_DPAD_LEFT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT", 20);
 	GAMEPAD_DPAD_RIGHT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT", 21);
-	GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 81);
+	GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 71);
 	GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
 	GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
 
