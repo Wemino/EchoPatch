@@ -50,6 +50,7 @@ bool(__thiscall* IsCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOff)(int, int) = nullptr;
 double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
+double(__thiscall* GetZoomMag)(int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t*(__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
@@ -158,6 +159,7 @@ struct GlobalState
 	bool canActivate = false;
 	bool canSwap = false;
 	bool isOperatingTurret = false;
+	double zoomMag = 0;
 	int pCurrentType = 0;
 	int currentType = 0;
 	int maxCurrentType = 0;
@@ -1033,14 +1035,20 @@ static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
 	return OnCommandOff(thisPtr, commandId);
 }
 
-static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId) 
+static double __fastcall GetZoomMag_Hook(int thisPtr)
 {
-	if (g_Controller.isConnected) 
+	gState.zoomMag = GetZoomMag(thisPtr);
+	return gState.zoomMag;
+}
+
+static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
+{
+	if (g_Controller.isConnected)
 	{
 		const int DEAD_ZONE = 7849;
 		const auto& gamepad = g_Controller.state.Gamepad;
 
-		switch (commandId) 
+		switch (commandId)
 		{
 			case 2: // Forward
 			{
@@ -1055,12 +1063,16 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 			case 22: // Pitch
 			{
 				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
-				return -gamepad.sThumbRY / 32768.0;
+				double pitchValue = -gamepad.sThumbRY / 32768.0;
+				if (gState.zoomMag > 1.3) pitchValue *= (gState.zoomMag / 1.3);
+				return pitchValue;
 			}
 			case 23: // Yaw
 			{
 				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
-				return gamepad.sThumbRX / 32768.0;
+				double yawValue = gamepad.sThumbRX / 32768.0;
+				if (gState.zoomMag > 1.3) yawValue *= (gState.zoomMag / 1.3);
+				return yawValue;
 			}
 		}
 	}
@@ -1513,6 +1525,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(gState.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
 	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
 	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
+	DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(gState.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1525,7 +1538,8 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_GetTriggerNameFromCommandID == 0 ||
 		targetMemoryLocation_SwitchToScreen == 0 ||
 		targetMemoryLocation_SetCurrentType == 0 ||
-		targetMemoryLocation_HUDSwapUpdateTriggerName == 0) {
+		targetMemoryLocation_HUDSwapUpdateTriggerName == 0 ||
+		targetMemoryLocation_GetZoomMag == 0) {
 		return;
 	}
 
@@ -1543,6 +1557,10 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
+
+	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetZoomMag + 0xD);
+	int getZoomMagAddress = (targetMemoryLocation_GetZoomMag + 0xD) + (callAddr + 0x4);
+	HookHelper::ApplyHook((void*)getZoomMagAddress, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
 
 	if (!HideMouseCursor) return;
 
