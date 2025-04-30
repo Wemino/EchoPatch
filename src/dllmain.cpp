@@ -297,6 +297,7 @@ float GPadAimEdgeAccelTime = 0.0f;
 float GPadAimEdgeDelayTime = 0.0f;
 float GPadAimEdgeMultiplier = 0.0f;
 float GPadAimAspectRatio = 0.0f;
+float GPadZoomMagThreshold = 0.0f;
 int GAMEPAD_A = 0;
 int GAMEPAD_B = 0;
 int GAMEPAD_X = 0;
@@ -365,6 +366,7 @@ static void ReadConfig()
 	GPadAimEdgeDelayTime = IniHelper::ReadFloat("Controller", "GPadAimEdgeDelayTime", 0.25f);
 	GPadAimEdgeMultiplier = IniHelper::ReadFloat("Controller", "GPadAimEdgeMultiplier", 1.6f);
 	GPadAimAspectRatio = IniHelper::ReadFloat("Controller", "GPadAimAspectRatio", 1.0f);
+	GPadZoomMagThreshold = IniHelper::ReadFloat("Controller", "GPadZoomMagThreshold", 1.3f);
 	GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
 	GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 14);
 	GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
@@ -1076,14 +1078,14 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 			{
 				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
 				double pitchValue = -gamepad.sThumbRY / 32768.0;
-				if (gState.zoomMag > 1.3) pitchValue *= (gState.zoomMag / 1.3);
+				if (gState.zoomMag > GPadZoomMagThreshold) pitchValue *= (gState.zoomMag / GPadZoomMagThreshold);
 				return pitchValue;
 			}
 			case 23: // Yaw
 			{
 				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
 				double yawValue = gamepad.sThumbRX / 32768.0;
-				if (gState.zoomMag > 1.3) yawValue *= (gState.zoomMag / 1.3);
+				if (gState.zoomMag > GPadZoomMagThreshold) yawValue *= (gState.zoomMag / GPadZoomMagThreshold);
 				return yawValue;
 			}
 		}
