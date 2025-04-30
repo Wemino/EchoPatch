@@ -2640,16 +2640,16 @@ static void ApplyDisableJoystick()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			MemoryHelper::MakeNOP(0x484166, 10);
+			MemoryHelper::MakeNOP(0x484166, 25);
 			break;
 		case FEARMP:
-			MemoryHelper::MakeNOP(0x484286, 10);
+			MemoryHelper::MakeNOP(0x484286, 25);
 			break;
 		case FEARXP:
-			MemoryHelper::MakeNOP(0x4B89E6, 10);
+			MemoryHelper::MakeNOP(0x4B89E6, 25);
 			break;
 		case FEARXP2:
-			MemoryHelper::MakeNOP(0x4B9A36, 10);
+			MemoryHelper::MakeNOP(0x4B9A36, 25);
 			break;
 	}
 }
