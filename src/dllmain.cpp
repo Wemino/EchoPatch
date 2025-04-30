@@ -2633,6 +2633,27 @@ static void ApplyForceRenderMode()
 	}
 }
 
+static void ApplyDisableJoystick()
+{
+	if (!XInputControllerSupport) return;
+
+	switch (gState.CurrentFEARGame)
+	{
+		case FEAR:
+			MemoryHelper::MakeNOP(0x484166, 10);
+			break;
+		case FEARMP:
+			MemoryHelper::MakeNOP(0x484286, 10);
+			break;
+		case FEARXP:
+			MemoryHelper::MakeNOP(0x4B89E6, 10);
+			break;
+		case FEARXP2:
+			MemoryHelper::MakeNOP(0x4B9A36, 10);
+			break;
+	}
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -2669,6 +2690,7 @@ static void Init()
 	ApplyConsoleVariableHook();
 	ApplySaveFolderRedirect();
 	ApplyForceRenderMode();
+	ApplyDisableJoystick();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
