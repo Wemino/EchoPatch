@@ -85,6 +85,7 @@ bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullp
 int(__cdecl* SetRenderMode)(int) = nullptr;
 void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
 bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
+void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -332,6 +333,7 @@ bool RedirectSaveFolder = false;
 bool InfiniteFlashlight = false;
 bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
+bool DisableHipFireAccuracyPenalty = false;
 bool ShowErrors = false;
 
 static void ReadConfig()
@@ -402,6 +404,7 @@ static void ReadConfig()
 	InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 0) == 1;
 	EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
 	MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
+	DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
 	ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
 	// Get screen resolution
@@ -1379,6 +1382,12 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 	return GetTimerElapsedS(thisPtr);
 }
 
+static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
+{
+	AccuracyMgrUpdate(thisPtr);
+	*thisPtr = 0.0f;
+}
+
 static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int, char* Source, char a3)
 {
 	// Load the DLL
@@ -1729,6 +1738,17 @@ static void ApplyClientFXHook()
 	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
 }
 
+static void ApplyDisableHipFireAccuracyPenalty()
+{
+	if (!DisableHipFireAccuracyPenalty) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC ?? A1 ?? ?? ?? ?? 8B 40 28 56 57 6A 00 8B F1", "DisableHipFireAccuracyPenalty");
+
+	if (targetMemoryLocation == 0) return;
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation, &AccuracyMgrUpdate_Hook, (LPVOID*)&AccuracyMgrUpdate);
+}
+
 static void ApplyGameDatabaseHook()
 {
 	if (!HUDScaling) return;
@@ -1779,6 +1799,7 @@ static void ApplyClientPatch()
 	ApplyAutoResolutionClientCheck();
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyClientFXHook();
+	ApplyDisableHipFireAccuracyPenalty();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
 }
