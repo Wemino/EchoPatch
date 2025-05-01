@@ -139,6 +139,8 @@ struct GlobalState
 
 	bool isLoadingDefault = false;
 
+	float overrideSensitivity = 0.25f;
+
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
@@ -289,6 +291,7 @@ int AutoResolution = 0;
 bool DisableLetterbox = false;
 
 // Controller
+float MouseAimMultiplier = 0.0f;
 bool XInputControllerSupport = false;
 bool HideMouseCursor = false;
 float GPadAimSensitivity = 0.0f;
@@ -358,6 +361,7 @@ static void ReadConfig()
 	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
 
 	// Controller
+	MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
 	XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
 	HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 1) == 1;
 	GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
@@ -1438,6 +1442,19 @@ static void ApplyHighFPSFixesClientPatch()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
 }
 
+static void ApplyMouseAimMultiplierClientPatch()
+{
+	if (MouseAimMultiplier == 1.0f) return;
+
+	DWORD targetMemoryLocation_MouseAimMultiplier = ScanModuleSignature(gState.GameClient, "89 4C 24 14 DB 44 24 14 8D 44 24 20 6A 01 50 D8 0D", "MouseAimMultiplier");
+
+	if (targetMemoryLocation_MouseAimMultiplier == 0) return;
+
+	gState.overrideSensitivity = gState.overrideSensitivity * MouseAimMultiplier;
+
+	MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&gState.overrideSensitivity), true);
+}
+
 static void ApplyXPWidescreenClientPatch()
 {
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
@@ -1749,6 +1766,7 @@ static void ApplyClientPatchSet1()
 static void ApplyClientPatch()
 {
 	ApplyHighFPSFixesClientPatch();
+	ApplyMouseAimMultiplierClientPatch();
 	ApplyXPWidescreenClientPatch();
 	ApplySkipSplashScreenClientPatch();
 	ApplyDisableLetterboxClientPatch();
