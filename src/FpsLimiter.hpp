@@ -1,7 +1,7 @@
 class FpsLimiter
 {
 public:
-    FpsLimiter(float targetFps = 120.0f) : initialized(false)
+    FpsLimiter(float targetFps = 240.0f) : initialized(false)
     {
         timeBeginPeriod(1);
 
