@@ -61,7 +61,7 @@ void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
 void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* OnEnterWorld)(int) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
-bool(__thiscall* RenderTargetGroupFXInit)(int, int) = nullptr;
+bool(__thiscall* RenderTargetGroupFXInit)(int, DWORD*) = nullptr;
 DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
 DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
 int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
@@ -1263,17 +1263,17 @@ static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
 	return res;
 }
 
-static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, int psfxCreateStruct)
+static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, DWORD* psfxCreateStruct)
 {
 	// Low
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0xC, 512, false);
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x10, 512, false);
+	psfxCreateStruct[3] *= 4;
+	psfxCreateStruct[4] *= 4;
 	// Medium
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x14, 1024, false);
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x18, 1024, false);
+	psfxCreateStruct[5] *= 4;
+	psfxCreateStruct[6] *= 4;
 	// High
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x1C, 2048, false);
-	MemoryHelper::WriteMemory<int>(psfxCreateStruct + 0x20, 2048, false);
+	psfxCreateStruct[7] *= 4;
+	psfxCreateStruct[8] *= 4;
 	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
 }
 
