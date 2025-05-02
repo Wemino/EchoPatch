@@ -1245,7 +1245,7 @@ static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const cha
 		return false;
 	}
 
-	SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
+	return SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
 }
 
 static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults, bool bLoadDisplaySettings)
