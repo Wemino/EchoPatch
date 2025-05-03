@@ -1,5 +1,5 @@
 <p align="center">
- <img src="assets/EchoPatch_Logo.png"">
+ <img style="width:75%" src="assets/EchoPatch_Logo.png"">
 </p>
 
 Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements.
