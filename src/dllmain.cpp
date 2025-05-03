@@ -278,7 +278,7 @@ bool CheckLAAPatch = false;
 
 // Graphics
 float MaxFPS = 0;
-bool VsyncOverride = false;
+bool DynamicVsync = false;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
 bool ReducedMipMapBias = false;
@@ -349,7 +349,7 @@ static void ReadConfig()
 
 	// Graphics
 	MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
-	VsyncOverride = IniHelper::ReadInteger("Graphics", "VsyncOverride", 1) == 1;
+	DynamicVsync = IniHelper::ReadInteger("Graphics", "DynamicVsync", 1) == 1;
 	HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
 	NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
 	ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
@@ -416,7 +416,7 @@ static void ReadConfig()
 	}
 
 	// Use VSync?
-	if (VsyncOverride)
+	if (DynamicVsync)
 	{
 		DWORD displayFrequency = SystemHelper::GetCurrentDisplayFrequency();
 		gState.useVsyncOverride = (MaxFPS >= displayFrequency || MaxFPS == 0.0f);
@@ -2606,7 +2606,7 @@ static void HookIsFrameComplete()
 
 static void HookVSyncOverride()
 {
-	if (!VsyncOverride) return;
+	if (!DynamicVsync) return;
 
 	switch (gState.CurrentFEARGame)
 	{
