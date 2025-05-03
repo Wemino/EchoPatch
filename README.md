@@ -1,9 +1,8 @@
-# EchoPatch
 <p align="center">
- <img style="width:70%" src="assets/EchoPatch_Logo.png"">
+ <img src="assets/EchoPatch_Logo.png"">
 </p>
 
-Modernizes F.E.A.R. and its expansions with HUD scaling and a variety of enhancements.
+Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements.
 
 ## How to Install
 > [!NOTE]
@@ -96,28 +95,29 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 
 - **dinput8 Chaining Support** - Allows chaining another `dinput8.dll` file by loading `dinput8_hook.dll`, enabling compatibility with additional mods.
 
-- **XInput Controller Support** - Enables full compatibility with XInput-based controllers, controls are the same as the Xbox 360 port: 
+- **XInput Controller Support** - Enables full compatibility with XInput-based controllers: 
 
 <div align="center">
  
-| Controller Input       | Action                        |
-|------------------------|------------------------------|
-| **Left Analog Stick** | Move                          |
-| **Right Analog Stick** | Aim                          |
-| **Left Analog Stick** (Press) | Crouch               |
-| **Right Analog Stick** (Press) | Zoom                |
-| **A**                 | Jump                          |
-| **B**                 | Melee                         |
-| **X**                 | Reload / Interact / Pick Up |
-| **Y**                 | Use Health Kit               |
-| **RT (Right Trigger)** | Use Weapon                 |
-| **LT (Left Trigger)** | Throw Grenade                |
-| **RB (Right Bumper)** | Switch Weapon                |
-| **LB (Left Bumper)** | Toggle Slow-Motion           |
-| **D-Pad Up**         | Next Grenade Type            |
-| **D-Pad Down**       | Toggle Flashlight On/Off     |
-| **D-Pad Left**       | Lean Left                    |
-| **D-Pad Right**      | Lean Right                   |
+| Controller Input                 | Action                         |
+|----------------------------------|--------------------------------|
+| **Left Analog Stick**            | Move                           |
+| **Right Analog Stick**           | Aim                            |
+| **Left Analog Stick** (Press)    | Use Health Kit                 |
+| **Right Analog Stick** (Press)   | Toggle Flashlight On/Off       |
+| **A Button**                     | Jump                           |
+| **B Button**                     | Crouch                         |
+| **X Button**                     | Reload / Interact / Pick Up    |
+| **Y Button**                     | Toggle Slow-Motion             |
+| **Right Trigger (RT)**           | Fire                           |
+| **Left Trigger (LT)**            | Zoom                           |
+| **Right Bumper (RB)**            | Melee                          |
+| **Left Bumper (LB)**             | Throw Grenade                  |
+| **D-Pad Up**                     | Next Weapon                    |
+| **D-Pad Down**                   | Next Grenade                   |
+| **D-Pad Left**                   | Lean Left                      |
+| **D-Pad Right**                  | Lean Right                     |
+| **Back Button**                  | Mission Status                 |
 
 (Customizable under the ini section of `[Controller]`)
 </div>
@@ -126,4 +126,5 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
 - [mINI](https://github.com/metayeti/mINI) for INI file handling.
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for finding the root cause of the FPS drop issue.
+- [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
