@@ -98,8 +98,8 @@ const int FEARXP_TIMESTAMP = 0x450B3629;
 const int FEARXP_TIMESTAMP2 = 0x450DA808;
 const int FEARXP2_TIMESTAMP = 0x46FC10A3;
 
-constexpr float BASE_WIDTH = 960.0f;
-constexpr float BASE_HEIGHT = 720.0f;
+constexpr float BASE_WIDTH = 1024.0f;
+constexpr float BASE_HEIGHT = 768.0f;
 constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
 
 #define XINPUT_GAMEPAD_LEFT_TRIGGER   0x400
@@ -843,9 +843,6 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 	gState.currentHeight = MemoryHelper::ReadMemory<int>(thisPtr + 0x1C, false);
 
 	// Calculate the new scaling factor
-	float originalAspect = BASE_WIDTH / BASE_HEIGHT;
-	float currentAspect = static_cast<float>(gState.currentWidth) / static_cast<float>(gState.currentHeight);
-
 	gState.scalingFactor = std::sqrt((gState.currentWidth * gState.currentHeight) / (BASE_WIDTH * BASE_HEIGHT));
 
 	// Don't downscale the HUD
