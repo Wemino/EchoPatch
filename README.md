@@ -1,32 +1,30 @@
 <p align="center">
- <img style="width:75%" src="assets/EchoPatch_Logo.png"">
+  <img src="assets/EchoPatch_Logo.png" style="max-width:75%">
 </p>
 
 Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements.
 
 ## How to Install
-> [!NOTE]
-> Compatible with F.E.A.R. Ultimate Shooter Edition (Steam) and F.E.A.R. Platinum (GOG).
-> 
-> All features are compatible with Extraction Point and Perseus Mandate.
-> 
-> **Download**: [EchoPatch.zip](https://github.com/Wemino/EchoPatch/releases/latest/download/EchoPatch.zip)
+> [!NOTE]  
+> Compatible with F.E.A.R. Ultimate Shooter Edition (Steam) and F.E.A.R. Platinum (GOG).  
+> All features are compatible with Extraction Point and Perseus Mandate.  
 >
+> **Download**: [EchoPatch.zip](https://github.com/Wemino/EchoPatch/releases/latest/download/EchoPatch.zip)  
 > Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.
 
-> [!NOTE]
-> The GOG version defaults to a 60 FPS cap.
->
-> To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.
->
+> [!WARNING]
+> The GOG version defaults to a 60 FPS cap.  
+> To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
 > This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
 
-## Features
- - **HUD Scaling** - This feature dynamically scales HUD elements (such as texts, the crosshair, and icons) relative to the screen resolution. The base resolution is 960x720, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
+---
 
-The `HUDCustomScalingFactor` setting in `EchoPatch.ini` can be adjusted to customize the overall scaling of HUD elements.
+# Features
 
-The `SmallTextCustomScalingFactor` setting allows for independent scaling of smaller text elements, such as subtitles.
+## HUD Scaling
+- Dynamically scales HUD elements (texts, crosshair, icons) relative to screen resolution.  
+- Adjust `HUDCustomScalingFactor` in `EchoPatch.ini` to customize overall HUD scaling.
+- Adjust `SmallTextCustomScalingFactor` for independent scaling of smaller text (e.g., subtitles).
 
 <div align="center">
   <table>
@@ -41,64 +39,44 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
   </table>
 </div>
 
-- **Fix High FPS issues** - Addresses instability in physics, effects, and gameplay mechanics at high framerates, resolving issues such as erratic ragdoll behavior, unstable visual effects, and movement inaccuracies.
+> **Note**: Base resolution is 960×720, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
-- **Framerate Limiter** - The game engine struggles with very low delta times at high framerates. Since it lacks a framerate cap, this can cause the game to run too fast. This feature lets you set a maximum framerate to prevent that. To adjust the limit, edit `MaxFPS` in `EchoPatch.ini`. A maximum value of 240 when `HighFPSFixes` is enabled is recommended.
+## Fix High FPS Issues
+Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
+- Ragdoll physics instability above 60 FPS.
+- Water physics instability above 120 FPS.
+- Frozen FX effects above 120 FPS.
+- Oversized particles above 120 FPS.
+- Overly dampened velocity when jumping out of water above 60 FPS.
+- Velocity dampening when jumping and landing above 120 FPS.
+- Walking animation prematurely reverting to idle, causing camera stutter above 120 FPS.
+- Inability to perform a jump kick above 120 FPS.
+- Excessive sliding on sloped surfaces above 60 FPS.
 
-- **FPS Drop Fix** - Stop the game from initializing all HID devices, which leads to framerate drops over time. The difference with Methanhydrat's `dinput8.dll` fix is that, rather than intercepting and canceling the problematic call, the call will simply never be executed. This method is specifically effective for F.E.A.R. and does not apply to the other games affected by this issue.
+## Framerate Limiter
+Prevents the game from running too fast by capping the maximum framerate.  
+- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it.  
+- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing and shadow flickering. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
-- **Fix Keyboard Input Initialization** - Fixes key mapping issues in non-English systems by correctly initializing keyboard input settings, preventing keys from showing as "[unassigned]" in the controls mapping.
+## FPS Drop Fix
+Stops the game from initializing all HID devices to prevent framerate drops over time, rather than intercepting the call as in other fixes.
 
-- **LAA Patcher** - Apply a Large Address Aware (LAA) patch when necessary, enabling the use of up to 4GB of memory instead of the default 2GB, which can resolve loading issues. Disabled by default, set `CheckLAAPatch` to 1 to enable. Note: If you are using the Steam version, please run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling this feature.
+## Input Lag Fix
+Disabled the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
 
-- **Persistent World State** - Enables persistent world state by keeping certain objects in the world instead of allowing them to despawn. Examples include: bodies, blood stains, debris, bullet holes, shell casings, glass shards...
+## Fix Keyboard Input Initialization
+Corrects key mapping on non-English systems to prevent “[unassigned]” entries in controls mapping.
 
-- **HD Reflections** - Increases the resolution quality of reflective surfaces (e.g., water reflections) and improves the clarity of security monitor video feeds.
+## Widescreen Resolution Support for Extraction Point
+Removes 4:3 restriction so all widescreen resolutions are available.
 
-- **No Model LOD Bias** - Forces the highest quality models to be rendered at all distances.
+## LAA Patcher
+Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues.  
+Disabled by default because it modifies the executable on disk, set `CheckLAAPatch = 1` in `EchoPatch.ini` to enable.  
+> **Note**: For the Steam version, run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling.
 
-- **No Mipmap Bias** - Forces the highest quality textures to be rendered at all distances. Disabled by default, set `NoMipMapBias` to 1 to enable. (may cause visual artifacts such as shimmering)
-<div align="center">
-  <table>
-    <tr>
-      <td width="100%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/MipMapBias.png"></td>
-    </tr>
-    <tr>
-      <td align="center">MipMapBias settings: On vs. Off at 1920x1080</td>
-    </tr>
-  </table>
-</div>
+## XInput Controller Support
 
-- **Disable Letterboxing** - Disable the letterbox during cutscenes when `DisableLetterbox` is set to 1 in `EchoPatch.ini`.
-<div align="center">
-  <table>
-    <tr>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_On.png"></td>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_Off.png"></td>
-    </tr>
-    <tr>
-      <td align="center">Vanilla</td>
-      <td align="center">EchoPatch (Letterbox Disabled)</td>
-    </tr>
-  </table>
-</div>
-
-- **Widescreen Resolution Support for Extraction Point** – In the Extraction Point expansion, only 4:3 aspect ratio resolutions are shown in the resolution list. This restriction has been removed.
-
-- **Auto Resolution** - Automatically sets the game window size to match the screen resolution on the first launch.
-
-- **Skip Splashscreen** - Bypasses developer splash screen immediately on launch when `SkipSplashScreen` is set to 1 in `EchoPatch.ini`.
-
-- **Skip Movies** - Skips all corporate intro videos while keeping the sound for the menu when `SkipAllIntro` is set to 1 in `EchoPatch.ini`. Additionally, individual videos can be skipped instead of all; refer to the `SkipIntro` section in `EchoPatch.ini`.
-
-- **Infinite Flashlight** - Removes the flashlight battery limit and hides the HUD indicator. Disabled by default, can be enabled by setting `InfiniteFlashlight = 1` in `EchoPatch.ini`.
-
-- **dinput8 Chaining Support** - Allows chaining another `dinput8.dll` file by loading `dinput8_hook.dll`, enabling compatibility with additional mods.
-
-- **XInput Controller Support** - Enables full compatibility with XInput-based controllers: 
-
-<div align="center">
- 
 | Controller Input                 | Action                         |
 |----------------------------------|--------------------------------|
 | **Left Analog Stick**            | Move                           |
@@ -119,12 +97,89 @@ The `SmallTextCustomScalingFactor` setting allows for independent scaling of sma
 | **D-Pad Right**                  | Lean Right                     |
 | **Back Button**                  | Mission Status                 |
 
-(Customizable under the ini section of `[Controller]`)
+Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
+> **Note**: When XInput support is enabled, DirectInput controller support is disabled.  
+> **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.
+
+## Mouse Aim Multiplier
+Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
+Set `MouseAimMultiplier` in `EchoPatch.ini` (default `1.0`).
+
+## Persistent World State
+Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
+
+## HD Reflections & Displays
+Improves resolution quality of reflective surfaces and displays.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/HD_Render_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/HD_Render_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">HD Display</td>
+    </tr>
+  </table>
 </div>
 
+## No Model LOD Bias
+Renders the highest quality models at all distances by disabling LOD bias.
+
+## Reduced Mipmap Bias
+Improves texture sharpness at a distance by reducing mipmap bias.
+
+## Disable Letterboxing
+Disables cutscene letterboxing when `DisableLetterbox = 1` in `EchoPatch.ini`.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_On.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_Off.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">Letterbox Disabled</td>
+    </tr>
+  </table>
+</div>
+
+## Auto Resolution
+Automatically sets the game window to match your screen resolution on first launch (or every launch if `AutoResolution = 2`).
+
+## Skip Splashscreen
+Bypasses developer splash on launch when `SkipSplashScreen = 1`.
+
+## Skip Movies
+Skips intro videos (menu sound retained) when `SkipAllIntro = 1`.  
+Individual videos can be skipped via the `SkipIntro` section in `EchoPatch.ini`.
+
+## Save Folder Redirection
+Redirects the save folder from `%PUBLIC%\Documents\` to `%USERPROFILE%\Documents\My Games\`.  
+Disabled by default, set `RedirectSaveFolder = 1` in `EchoPatch.ini` to enable.
+
+## Infinite Flashlight
+Removes battery limit and hides HUD indicator.  
+Enable with `InfiniteFlashlight = 1`.
+
+## Weapon Capacity Editor
+Customize max weapon capacity via `MaxWeaponCapacity` (0–10).  
+Enable with `EnableCustomMaxWeaponCapacity = 1`.  
+
+<img src="assets/WeaponCapacity.png" style="max-width:75%">
+
+> **Note:** Weapon capacity is tied to the save data. Lowering the capacity will not take effect on an existing save. Start a new save file to apply a reduced limit.
+
+## dinput8 Chaining Support
+Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility.
+
+---
+
 ## Credits
-- [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.
-- [mINI](https://github.com/metayeti/mINI) for INI file handling.
-- [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for finding the root cause of the FPS drop issue.
+- [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.  
+- [mINI](https://github.com/metayeti/mINI) for INI file handling.  
+- [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
