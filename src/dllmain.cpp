@@ -86,6 +86,7 @@ int(__cdecl* SetRenderMode)(int) = nullptr;
 void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
 bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
 void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
+BYTE*(__thiscall* AimMgrCtor)(BYTE*) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -171,6 +172,8 @@ struct GlobalState
 	bool needServerTermHooking = false;
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
+
+	BYTE* pAimMgr = 0;
 
 	static constexpr int VELOCITY_HISTORY_SIZE = 5;
 	std::array<double, VELOCITY_HISTORY_SIZE> velocityHistory = {};
@@ -274,6 +277,7 @@ bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
+bool WeaponFixes = false;
 bool CheckLAAPatch = false;
 
 // Graphics
@@ -345,6 +349,7 @@ static void ReadConfig()
 	HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
 	DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
 	FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
+	WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
 	CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 
 	// Graphics
@@ -1221,7 +1226,22 @@ static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int)
 static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 {
 	OnEnterWorld(thisPtr);
-	SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
+
+	if (WeaponFixes && gState.pAimMgr[1] == 0)
+	{
+		gState.pAimMgr[1] = 1;
+	}
+
+	if (EnableCustomMaxWeaponCapacity)
+	{
+		SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
+	}
+}
+
+static BYTE* __fastcall AimMgrCtor_Hook(BYTE* thisPtr, int)
+{
+	gState.pAimMgr = thisPtr;
+	return AimMgrCtor(thisPtr);
 }
 
 static void __fastcall SetOption_Hook(int thisPtr, int, int a2, int a3, int a4, int a5)
@@ -1657,15 +1677,10 @@ static void ApplySetWeaponCapacityClientPatch()
 {
 	if (!EnableCustomMaxWeaponCapacity) return;
 
-	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
 	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
 
-	if (targetMemoryLocation_OnEnterWorld == 0 ||
-		targetMemoryLocation_GetWeaponCapacity == 0) {
-		return;
-	}
+	if (targetMemoryLocation_GetWeaponCapacity == 0) return;
 
-	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
 
 	gState.appliedCustomMaxWeaponCapacity = true;
@@ -1724,6 +1739,17 @@ static void ApplyKeyboardInputLanguageClientCheck()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
 }
 
+static void ApplyWeaponFixesClientPatch()
+{
+	if (!WeaponFixes) return;
+
+	DWORD targetMemoryLocation_AimMgrCtor = ScanModuleSignature(gState.GameClient, "8B C1 C6 00 00 C6 40 01 01 C3", "AimMgrCtor");
+
+	if (targetMemoryLocation_AimMgrCtor == 0) return;
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AimMgrCtor, &AimMgrCtor_Hook, (LPVOID*)&AimMgrCtor);
+}
+
 static void ApplyClientFXHook()
 {
 	if (!HighFPSFixes) return;
@@ -1780,6 +1806,17 @@ static void ApplyClientPatchSet1()
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
 }
 
+static void ApplyClientPatchSet2()
+{
+	if (!WeaponFixes && !EnableCustomMaxWeaponCapacity) return;
+
+	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
+
+	if (targetMemoryLocation_OnEnterWorld == 0) return;
+
+	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+}
+
 static void ApplyClientPatch()
 {
 	ApplyHighFPSFixesClientPatch();
@@ -1795,10 +1832,12 @@ static void ApplyClientPatch()
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientCheck();
 	ApplyKeyboardInputLanguageClientCheck();
+	ApplyWeaponFixesClientPatch();
 	ApplyClientFXHook();
 	ApplyDisableHipFireAccuracyPenalty();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
+	ApplyClientPatchSet2();
 }
 
 #pragma endregion
