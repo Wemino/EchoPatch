@@ -106,9 +106,11 @@ namespace MemoryHelper
 		DWORD sizeOfImage = ntHeaders->OptionalHeader.SizeOfImage;
 		DWORD64 baseAddress = reinterpret_cast<DWORD64>(hModule);
 
-		// Convert pattern to byte array
+		// Convert pattern to byte array and mask
 		std::vector<uint8_t> patternBytes;
 		std::vector<bool> mask;
+		patternBytes.reserve(signature.size() / 2);
+		mask.reserve(signature.size() / 2);
 
 		for (size_t i = 0; i < signature.length(); ++i)
 		{
@@ -119,7 +121,6 @@ namespace MemoryHelper
 			{
 				patternBytes.push_back(0);
 				mask.push_back(true);
-
 				if (i + 1 < signature.length() && signature[i + 1] == '?')
 				{
 					i++;
@@ -127,7 +128,15 @@ namespace MemoryHelper
 			}
 			else
 			{
-				patternBytes.push_back(static_cast<uint8_t>(std::strtol(signature.data() + i, nullptr, 16)));
+				// fast hex parse
+				auto hexChar = [](char c) noexcept -> uint8_t {
+					if (c >= '0' && c <= '9') return c - '0';
+					if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+					if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+					return 0;
+					};
+				uint8_t byte = (hexChar(signature[i]) << 4) | hexChar(signature[i + 1]);
+				patternBytes.push_back(byte);
 				mask.push_back(false);
 				i++;
 			}
@@ -136,19 +145,40 @@ namespace MemoryHelper
 		size_t patternSize = patternBytes.size();
 		BYTE* data = reinterpret_cast<BYTE*>(baseAddress);
 
-		for (DWORD64 i = 0; i <= sizeOfImage - patternSize; ++i)
+		// Find first non-wildcard byte for quick scans
+		size_t firstCheck = 0;
+		while (firstCheck < patternSize && mask[firstCheck])
+			firstCheck++;
+
+		if (firstCheck == patternSize)
+			return baseAddress; // all wildcards -> match at start
+
+		uint8_t firstByte = patternBytes[firstCheck];
+		BYTE* scanEnd = data + sizeOfImage - patternSize;
+		BYTE* cur = data;
+
+		while (cur <= scanEnd)
 		{
-			size_t j = 0;
+			// find next occurrence of first significant byte
+			cur = reinterpret_cast<BYTE*>(std::memchr(cur + firstCheck, firstByte, (scanEnd + firstCheck) - cur));
+			if (!cur) break;
+			cur -= firstCheck;
 
-			while (j < patternSize && (mask[j] || data[i + j] == patternBytes[j]))
+			// verify full pattern
+			bool found = true;
+			for (size_t j = 0; j < patternSize; ++j)
 			{
-				j++;
+				if (!mask[j] && data[(cur - data) + j] != patternBytes[j])
+				{
+					found = false;
+					break;
+				}
 			}
 
-			if (j == patternSize)
-			{
-				return baseAddress + i;
-			}
+			if (found)
+				return reinterpret_cast<DWORD64>(cur);
+
+			cur++;
 		}
 
 		return 0;
