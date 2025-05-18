@@ -41,7 +41,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
   </table>
 </div>
 
-> **Note**: Base resolution is 960×720, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
+> **Note**: Base resolution is 1024×768, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
 ## Fix High FPS Issues
 Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
