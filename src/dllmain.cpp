@@ -22,11 +22,11 @@
 // Original Function Pointers
 // =============================
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
-char(__thiscall* LoadClientFXDLL)(int, char*, char) = nullptr;
+bool(__thiscall* LoadFxDll)(int, char*, char) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 void(__thiscall* HUDTerminate)(int) = nullptr;
-char(__thiscall* HUDInit)(int) = nullptr;
+bool(__thiscall* HUDInit)(int) = nullptr;
 void(__thiscall* HUDRender)(int, int) = nullptr;
 int(__thiscall* HUDWeaponListReset)(int) = nullptr;
 int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
@@ -76,6 +76,7 @@ void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
 void(__thiscall* UpdateOnGround)(int) = nullptr;
 void(__thiscall* UpdateWaveProp)(int, float) = nullptr;
 double(__thiscall* GetMaxRecentVelocityMag)(int) = nullptr;
+void(__cdecl* PolyGridFXCollisionHandlerCB)(int, int, int*, int*, float, BYTE*, int) = nullptr;
 void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
@@ -87,6 +88,13 @@ void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
 bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
 void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
 BYTE*(__thiscall* AimMgrCtor)(BYTE*) = nullptr;
+void(__thiscall* AnimationClearLock)(DWORD) = nullptr;
+void(__thiscall* UpdateWeaponModel)(DWORD*) = nullptr;
+void(__thiscall* SetAnimProp)(DWORD*, int, int) = nullptr;
+bool(__thiscall* InitAnimations)(DWORD*) = nullptr;
+void(__thiscall* NextWeapon)(DWORD*) = nullptr;
+void(__thiscall* PreviousWeapon)(DWORD*) = nullptr;
+unsigned __int8(__thiscall* GetWeaponSlot)(int, int) = nullptr;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
@@ -121,6 +129,16 @@ struct GlobalState
 {
 	FEARGAME CurrentFEARGame;
 	HWND hWnd = 0;
+
+	bool IsOriginalGame() const
+	{
+		return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP;
+	}
+
+	bool IsExpansion() const
+	{
+		return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2;
+	}
 
 	int currentWidth = 0;
 	int currentHeight = 0;
@@ -168,12 +186,21 @@ struct GlobalState
 	int currentType = 0;
 	int maxCurrentType = 0;
 	bool hookedLoadString = false;
+	int screenPerformanceCPU = 0;
+	int screenPerformanceGPU = 0;
 
 	bool needServerTermHooking = false;
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
 
 	BYTE* pAimMgr = 0;
+	int kAP_ACT_Fire_Id = 0;
+	bool isEnteringWorld = false;
+	int actionAnimationThreshold = 0;
+	bool fireAnimationInterceptionDisabled = false;
+	int pUpperAnimationContext = 0;
+	bool requestNextWeapon = false;
+	bool requestPreviousWeapon = false;
 
 	static constexpr int VELOCITY_HISTORY_SIZE = 5;
 	std::array<double, VELOCITY_HISTORY_SIZE> velocityHistory = {};
@@ -185,6 +212,8 @@ struct GlobalState
 	float waveUpdateAccumulator = 0.0f;
 	float lastFrameTime = 0;
 	bool useVsyncOverride = false;
+	LARGE_INTEGER polyGridSplashFreq;
+	std::unordered_map<uint64_t, double> polyGridLastSplashTime;
 
 	struct DataEntry
 	{
@@ -294,6 +323,8 @@ float HUDCustomScalingFactor = 0;
 float SmallTextCustomScalingFactor = 0;
 int AutoResolution = 0;
 bool DisableLetterbox = false;
+bool ForceWindowed = false;
+bool FixWindowStyle = false;
 
 // Controller
 float MouseAimMultiplier = 0.0f;
@@ -342,7 +373,7 @@ bool ShowErrors = false;
 
 static void ReadConfig()
 {
-	IniHelper::Init(gState.CurrentFEARGame == FEARXP || gState.CurrentFEARGame == FEARXP2);
+	IniHelper::Init(gState.IsExpansion());
 
 	// Fixes
 	DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
@@ -366,6 +397,8 @@ static void ReadConfig()
 	SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
 	AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1);
 	DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
+	ForceWindowed = IniHelper::ReadInteger("Display", "ForceWindowed", 0) == 1;
+	FixWindowStyle = IniHelper::ReadInteger("Display", "FixWindowStyle", 1) == 1;
 
 	// Controller
 	MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
@@ -428,11 +461,11 @@ static void ReadConfig()
 	}
 
 	// Check if we should skip everything directly
-	if (!SkipAllIntro && gState.CurrentFEARGame == FEAR || gState.CurrentFEARGame == FEARMP)
+	if (!SkipAllIntro && gState.IsOriginalGame())
 	{
 		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipWBGamesIntro && SkipNvidiaIntro;
 	}
-	else if (!SkipAllIntro && gState.CurrentFEARGame == FEARXP || gState.CurrentFEARGame == FEARXP2)
+	else if (!SkipAllIntro && gState.IsExpansion())
 	{
 		SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
 	}
@@ -885,7 +918,7 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 }
 
 // Initialize the HUD
-static char __fastcall HUDInit_Hook(int thisPtr, int)
+static bool __fastcall HUDInit_Hook(int thisPtr, int)
 {
 	gState.CHUDMgr = thisPtr;
 	return HUDInit(thisPtr);
@@ -954,31 +987,13 @@ static void __cdecl HUDSwapUpdateTriggerName_Hook()
 static void __fastcall SwitchToScreen_Hook(int thisPtr, int, int pNewScreen)
 {
 	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
-	int ScreenPerformanceCPU, ScreenPerformanceGPU;
 
-	switch (gState.CurrentFEARGame) 
-	{
-		case FEARXP:
-			ScreenPerformanceCPU = 18;
-			ScreenPerformanceGPU = 19;
-			break;
-		case FEARXP2:
-			ScreenPerformanceCPU = 20;
-			ScreenPerformanceGPU = 21;
-			break;
-		case FEAR:
-		default:
-			ScreenPerformanceCPU = 19;
-			ScreenPerformanceGPU = 20;
-			break;
-	}
-
-	if (currentScreenID == ScreenPerformanceCPU) 
+	if (currentScreenID == gState.screenPerformanceCPU) 
 	{
 		gState.maxCurrentType = 3;
 		gState.currentType = 0;
 	}
-	else if (currentScreenID == ScreenPerformanceGPU) 
+	else if (currentScreenID == gState.screenPerformanceGPU)
 	{
 		gState.maxCurrentType = 2;
 		gState.currentType = 0;
@@ -987,6 +1002,7 @@ static void __fastcall SwitchToScreen_Hook(int thisPtr, int, int pNewScreen)
 	{
 		gState.maxCurrentType = -1;
 	}
+
 	SwitchToScreen(thisPtr, pNewScreen);
 }
 
@@ -1011,12 +1027,25 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 {
 	if (prop)
 	{
-		// Decal & LTBModel
-		if (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544 || *reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C)
+		// Decal
+		if (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544)
 		{
-			MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
-			MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
+			MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
+			MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
 		}
+		// LTBModel
+		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C)
+		{
+			char* fxName = MemoryHelper::ReadMemory<char*>(fxData + 0x74, false);
+
+			// Skip HRocket_Debris
+			if (*reinterpret_cast<uint64_t*>(fxName + 0x2) != 0x65445F74656B636F)
+			{
+				MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
+				MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
+			}
+		}
+		// Sprite
 		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x69727053)
 		{
 			char* fxName = MemoryHelper::ReadMemory<char*>(fxData + 0x74, false);
@@ -1227,8 +1256,9 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 {
 	OnEnterWorld(thisPtr);
 
-	if (WeaponFixes && gState.pAimMgr[1] == 0)
+	if (WeaponFixes)
 	{
+		gState.isEnteringWorld = true;
 		gState.pAimMgr[1] = 1;
 	}
 
@@ -1371,6 +1401,48 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	return sorted[gState.VELOCITY_HISTORY_SIZE / 2];
 }
 
+static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
+{
+	// One-time init of high-res timer
+	if (gState.polyGridSplashFreq.QuadPart == 0)
+	{
+		QueryPerformanceFrequency(&gState.polyGridSplashFreq);
+	}
+
+	// Get current time in seconds
+	LARGE_INTEGER curr; QueryPerformanceCounter(&curr);
+	double now = double(curr.QuadPart) / double(gState.polyGridSplashFreq.QuadPart);
+
+	// Build an order-independent 64-bit key for this body
+	uint32_t lo = uint32_t(std::min(hBody1, hBody2)), hi = uint32_t(std::max(hBody1, hBody2));
+	uint64_t key = (uint64_t(lo) << 32) | hi;
+
+	// Lookup last splash timestamp
+	auto it = gState.polyGridLastSplashTime.find(key);
+	double last = (it != gState.polyGridLastSplashTime.end() ? it->second : -1.0);
+
+	// If first splash or interval elapsed, forward & record
+	if (last < 0.0 || (now - last) >= TARGET_FRAME_TIME)
+	{
+		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
+		gState.polyGridLastSplashTime[key] = now;
+
+		// Evict oldest if we exceed 50 cached pairs
+		if (gState.polyGridLastSplashTime.size() > 50)
+		{
+			auto evict = gState.polyGridLastSplashTime.begin();
+			for (auto i = std::next(evict); i != gState.polyGridLastSplashTime.end(); i++)
+			{
+				if (i->second < evict->second)
+				{
+					evict = i;
+				}
+			}
+			gState.polyGridLastSplashTime.erase(evict);
+		}
+	}
+}
+
 static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int)
 {
 	gState.useVelocitySmoothing = true;
@@ -1405,10 +1477,209 @@ static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
 	*thisPtr = 0.0f;
 }
 
-static char __fastcall LoadClientFXDLL_Hook(int thisPtr, int, char* Source, char a3)
+static void __fastcall AnimationClearLock_Hook(DWORD thisPtr, int)
+{
+	AnimationClearLock(thisPtr);
+}
+
+static void __fastcall UpdateWeaponModel_Hook(DWORD* thisPtr, int)
+{
+	if (gState.isEnteringWorld)
+	{
+		thisPtr[11] = -1;
+		gState.isEnteringWorld = false;
+	}
+
+	UpdateWeaponModel(thisPtr);
+}
+
+static void __fastcall SetAnimProp_Hook(DWORD* thisPtr, int, int eAnimPropGroup, int eAnimProp)
+{
+	if (gState.fireAnimationInterceptionDisabled || eAnimPropGroup != 0)
+	{
+		SetAnimProp(thisPtr, eAnimPropGroup, eAnimProp);
+		return;
+	}
+
+	gState.actionAnimationThreshold++;
+
+	if (gState.actionAnimationThreshold <= 10)
+	{
+		if (eAnimProp == gState.kAP_ACT_Fire_Id && gState.pUpperAnimationContext != 0) 
+		{
+			AnimationClearLock(gState.pUpperAnimationContext);
+			gState.fireAnimationInterceptionDisabled = true;
+		}
+	}
+	else
+	{
+		gState.fireAnimationInterceptionDisabled = true;
+	}
+
+	SetAnimProp(thisPtr, eAnimPropGroup, eAnimProp);
+}
+
+static bool __fastcall InitAnimations_Hook(DWORD* thisPtr, int)
+{
+	gState.actionAnimationThreshold = 0;
+	gState.fireAnimationInterceptionDisabled = false;
+	bool res = InitAnimations(thisPtr);
+	gState.pUpperAnimationContext = thisPtr[2];
+	return res;
+}
+
+static void __fastcall NextWeapon_Hook(DWORD* thisPtr, int)
+{
+	gState.requestNextWeapon = true;
+	NextWeapon(thisPtr);
+	gState.requestNextWeapon = false;
+}
+
+static void __fastcall PreviousWeapon_Hook(DWORD* thisPtr, int)
+{
+	gState.requestPreviousWeapon = true;
+	PreviousWeapon(thisPtr);
+	gState.requestPreviousWeapon = false;
+}
+
+static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
+{
+	// If we're not switching weapons, just call the original
+	if (!gState.requestNextWeapon && !gState.requestPreviousWeapon)
+	{
+		return GetWeaponSlot(thisPtr, weaponHandle);
+	}
+
+	// Read the total number of slots and the pointer to the slot array
+	uint8_t slotCount = *reinterpret_cast<uint8_t*>(thisPtr + 0x40);
+	uint32_t* slotArray = *reinterpret_cast<uint32_t**>(thisPtr + 0xB4);
+
+	// Find the index of the currently held weapon in the slot array
+	int currentSlot = -1;
+	for (int i = 0; i < slotCount; ++i)
+	{
+		if (slotArray[i] == static_cast<uint32_t>(weaponHandle))
+		{
+			currentSlot = i;
+			break;
+		}
+	}
+
+	// Not holding a weapon?
+	if (currentSlot < 0)
+	{
+		if (gState.requestNextWeapon)
+		{
+			// Position just before the first non-empty slot
+			for (int i = 0; i < slotCount; i++)
+			{
+				if (slotArray[i] != 0)
+					return static_cast<uint8_t>(i - 1);
+			}
+		}
+
+		if (gState.requestPreviousWeapon)
+		{
+			// Position just after the last non-empty slot
+			for (int i = slotCount - 1; i >= 0; i--)
+			{
+				if (slotArray[i] != 0)
+					return static_cast<uint8_t>(i + 1);
+			}
+		}
+
+		// No weapons at all
+		return 0xFF;
+	}
+
+	// NextWeapon()
+	if (gState.requestNextWeapon)
+	{
+		int nextIndex = currentSlot + 1;
+
+		// Skip over empty slots
+		while (nextIndex < slotCount && slotArray[nextIndex] == 0)
+		{
+			nextIndex++;
+		}
+
+		// If we've run past the end, handle wrapping for original game
+		if (nextIndex >= slotCount)
+		{
+			if (gState.IsOriginalGame())
+			{
+				// find first real slot
+				int firstReal = -1;
+				for (int j = 0; j < slotCount; j++)
+				{
+					if (slotArray[j] != 0)
+					{
+						firstReal = j;
+						break;
+					}
+				}
+				if (firstReal >= 0)
+					return static_cast<uint8_t>(firstReal - 1);
+			}
+			// For XP/XP2 or if no real slots found, let the engine handle wrapping
+			return static_cast<uint8_t>(currentSlot);
+		}
+
+		// If we've landed on a real slot, return the previous index for selection
+		if (slotArray[nextIndex] != 0)
+		{
+			return static_cast<uint8_t>(nextIndex - 1);
+		}
+	}
+
+	// PreviousWeapon()
+	if (gState.requestPreviousWeapon)
+	{
+		int prevIndex = currentSlot - 1;
+
+		// Skip over empty slots
+		while (prevIndex >= 0 && slotArray[prevIndex] == 0)
+		{
+			prevIndex--;
+		}
+
+		// If we've run before the beginning, handle wrapping for original game
+		if (prevIndex < 0)
+		{
+			if (gState.IsOriginalGame())
+			{
+				// find last real slot
+				int lastReal = -1;
+				for (int j = slotCount - 1; j >= 0; j--)
+				{
+					if (slotArray[j] != 0)
+					{
+						lastReal = j;
+						break;
+					}
+				}
+				if (lastReal >= 0)
+					return static_cast<uint8_t>(lastReal + 1);
+			}
+			// For XP/XP2 or if no real slots found, let the engine handle wrapping
+			return static_cast<uint8_t>(slotCount);
+		}
+
+		// If we've landed on a real slot, return the next index for selection
+		if (slotArray[prevIndex] != 0)
+		{
+			return static_cast<uint8_t>(prevIndex + 1);
+		}
+	}
+
+	// Fallback: return the actual current slot index
+	return static_cast<uint8_t>(currentSlot);
+}
+
+static bool __fastcall LoadFxDll_Hook(int thisPtr, int, char* Source, char a3)
 {
 	// Load the DLL
-	char result = LoadClientFXDLL(thisPtr, Source, a3);
+	char result = LoadFxDll(thisPtr, Source, a3);
 
 	// Get the path
 	char* clientFXPath = ((char*)thisPtr + 0x24);
@@ -1444,6 +1715,7 @@ static void ApplyHighFPSFixesClientPatch()
 	DWORD targetMemoryLocation_GetTimerElapsedS = ScanModuleSignature(gState.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
 	DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
 	DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
+	DWORD targetMemoryLocation_PolyGridFXCollisionHandlerCB = ScanModuleSignature(gState.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
 
 	if (targetMemoryLocation_SurfaceJumpImpulse == 0 ||
 		targetMemoryLocation_HeightOffset == 0 ||
@@ -1452,7 +1724,8 @@ static void ApplyHighFPSFixesClientPatch()
 		targetMemoryLocation_UpdateNormalControlFlags == 0 ||
 		targetMemoryLocation_UpdateNormalFriction == 0 ||
 		targetMemoryLocation_GetTimerElapsedS == 0 ||
-		targetMemoryLocation_UpdateWaveProp == 0) {
+		targetMemoryLocation_UpdateWaveProp == 0 ||
+		targetMemoryLocation_PolyGridFXCollisionHandlerCB == 0) {
 		return;
 	}
 
@@ -1466,6 +1739,7 @@ static void ApplyHighFPSFixesClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
 	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
+	HookHelper::ApplyHook((void*)(targetMemoryLocation_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
 }
 
 static void ApplyMouseAimMultiplierClientPatch()
@@ -1582,6 +1856,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(gState.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
 	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
 	DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(gState.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
+	DWORD targetMemoryLocation_PerformanceScreenId = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1595,7 +1870,8 @@ static void ApplyXInputControllerClientPatch()
 		targetMemoryLocation_SwitchToScreen == 0 ||
 		targetMemoryLocation_SetCurrentType == 0 ||
 		targetMemoryLocation_HUDSwapUpdateTriggerName == 0 ||
-		targetMemoryLocation_GetZoomMag == 0) {
+		targetMemoryLocation_GetZoomMag == 0 ||
+		targetMemoryLocation_PerformanceScreenId == 0) {
 		return;
 	}
 
@@ -1617,6 +1893,9 @@ static void ApplyXInputControllerClientPatch()
 	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetZoomMag + 0xD);
 	int getZoomMagAddress = (targetMemoryLocation_GetZoomMag + 0xD) + (callAddr + 0x4);
 	HookHelper::ApplyHook((void*)getZoomMagAddress, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
+
+	gState.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0xD);
+	gState.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0x25);
 
 	if (!HideMouseCursor) return;
 
@@ -1744,10 +2023,43 @@ static void ApplyWeaponFixesClientPatch()
 	if (!WeaponFixes) return;
 
 	DWORD targetMemoryLocation_AimMgrCtor = ScanModuleSignature(gState.GameClient, "8B C1 C6 00 00 C6 40 01 01 C3", "AimMgrCtor");
+	DWORD targetMemoryLocation_UpdateWeaponModel = ScanModuleSignature(gState.GameClient, "83 EC 44 56 8B F1 57 8B 7E 08 85 FF", "UpdateWeaponModel");
+	DWORD targetMemoryLocation_AnimationClearLock = ScanModuleSignature(gState.GameClient, "E8 BB FF FF FF C7 41 34 FF FF FF FF C7 81 58 01", "AnimationClearLock");
+	DWORD targetMemoryLocation_SetAnimProp = ScanModuleSignature(gState.GameClient, "8B 44 24 04 83 F8 FF 74 ?? 83 F8 12 7D ?? 8B 54 24 08 89 04", "SetAnimProp");
+	DWORD targetMemoryLocation_InitAnimations = ScanModuleSignature(gState.GameClient, "6A 08 6A 7A 8B CF FF ?? 24 8B ?? 6A 08", "InitAnimations", 3);
+	DWORD targetMemoryLocation_GetWeaponSlot = ScanModuleSignature(gState.GameClient, "8A 51 40 32 C0 84 D2 76 23 56 8B B1 B4 00 00 00 57", "GetWeaponSlot");
+	DWORD targetMemoryLocation_NextWeapon = ScanModuleSignature(gState.GameClient, "84 C0 0F 84 ?? 00 00 00 8B CE E8", "NextWeapon");
+	DWORD targetMemoryLocation_PreviousWeapon = ScanModuleSignature(gState.GameClient, "8D BE ?? 57 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 1F 8B CE E8", "PreviousWeapon");
+	DWORD targetMemoryLocation_kAP_ACT_Fire_Id = ScanModuleSignature(gState.GameClient, "84 C0 75 1E 6A 00 68 ?? 00 00 00 6A 00 8B CF", "kAP_ACT_Fire_Id");
 
-	if (targetMemoryLocation_AimMgrCtor == 0) return;
+	if (targetMemoryLocation_AimMgrCtor == 0 ||
+		targetMemoryLocation_UpdateWeaponModel == 0 ||
+		targetMemoryLocation_AnimationClearLock == 0 ||
+		targetMemoryLocation_SetAnimProp == 0 ||
+		targetMemoryLocation_InitAnimations == 0 ||
+		targetMemoryLocation_GetWeaponSlot == 0 ||
+		targetMemoryLocation_NextWeapon == 0 ||
+		targetMemoryLocation_PreviousWeapon == 0 ||
+		targetMemoryLocation_kAP_ACT_Fire_Id == 0) {
+		return;
+	}
 
 	HookHelper::ApplyHook((void*)targetMemoryLocation_AimMgrCtor, &AimMgrCtor_Hook, (LPVOID*)&AimMgrCtor);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWeaponModel, &UpdateWeaponModel_Hook, (LPVOID*)&UpdateWeaponModel);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_AnimationClearLock, &AnimationClearLock_Hook, (LPVOID*)&AnimationClearLock);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_SetAnimProp, &SetAnimProp_Hook, (LPVOID*)&SetAnimProp);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_InitAnimations, &InitAnimations_Hook, (LPVOID*)&InitAnimations);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_GetWeaponSlot, &GetWeaponSlot_Hook, (LPVOID*)&GetWeaponSlot);
+
+	int callNextAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_NextWeapon + 0xB);
+	int nextWeaponAddress = (targetMemoryLocation_NextWeapon + 0xB) + (callNextAddr + 0x4);
+	HookHelper::ApplyHook((void*)nextWeaponAddress, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
+
+	int callPrevAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_PreviousWeapon + 0x14);
+	int prevWeaponAddress = (targetMemoryLocation_PreviousWeapon + 0x14) + (callPrevAddr + 0x4);
+	HookHelper::ApplyHook((void*)prevWeaponAddress, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
+
+	gState.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(targetMemoryLocation_kAP_ACT_Fire_Id + 0x7);
 }
 
 static void ApplyClientFXHook()
@@ -1758,7 +2070,7 @@ static void ApplyClientFXHook()
 
 	if (targetMemoryLocation == 0) return;
 
-	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadClientFXDLL_Hook, (LPVOID*)&LoadClientFXDLL);
+	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadFxDll_Hook, (LPVOID*)&LoadFxDll);
 }
 
 static void ApplyDisableHipFireAccuracyPenalty()
@@ -2001,10 +2313,10 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* 
 
 static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
-	if (gState.isLoadingDefault && DeviceType == 0) // Keyboard
+	if (gState.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
 	{
 		// Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
-		static const std::unordered_map<std::wstring, unsigned int> keyMap = 
+		static const std::unordered_map<std::wstring, unsigned int> keyMap =
 		{
 			{L"W", 0x11},
 			{L"S", 0x1F},
@@ -2040,21 +2352,47 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 		if (it != keyMap.end())
 		{
 			// Get pointer to keyboard the DIK table
-			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC, false);
-			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10, false);
-			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14, false);
+			unsigned int dikCode = it->second;
+			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
+			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
+			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
 
 			// Iterate through the table
 			while (tableStart < tableEnd)
 			{
 				// If the corresponding DirectInput Key Id is found
-				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1, false) == it->second)
+				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
 				{
 					// Write and return the index for that DIK Id
-					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C, false);
+					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
 					return 0;
 				}
+				tableStart += 0x20;
+			}
+		}
+	}
+	else if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1 && iswalpha(KeyName[0])) // Handle alphabet keys by converting to VK and then to scan code (DIK)
+	{
+		wchar_t keyChar = towupper(KeyName[0]);
+		HKL layout = GetKeyboardLayout(0);
+		SHORT vkScan = VkKeyScanExW(keyChar, layout);
 
+		if (vkScan != -1)
+		{
+			BYTE vk = LOBYTE(vkScan);
+			UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
+
+			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
+			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
+			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
+
+			while (tableStart < tableEnd)
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == scanCode)
+				{
+					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
+					return 0;
+				}
 				tableStart += 0x20;
 			}
 		}
@@ -2063,8 +2401,14 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 	return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
 }
 
-static int __stdcall SetConsoleVariableFloat_Hook(char* pszVarName, float fValue)
+static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float fValue)
 {
+	if (ForceWindowed && strcmp(pszVarName, "StreamResources") == 0)
+	{
+		SetConsoleVariableFloat("Windowed", 1.0f);
+		ForceWindowed = false;
+	}
+
 	if (NoLODBias)
 	{
 		if (strcmp(pszVarName, "ModelLODDistanceScale") == 0)
@@ -2397,7 +2741,7 @@ static int __fastcall IsFrameComplete_Hook(int thisPtr, int)
 static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int, DWORD* a2, unsigned __int8 a3)
 {
 	int res = InitializePresentationParameters(thisPtr, a2, a3);
-	thisPtr[0x65] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
+	thisPtr[101] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
 	return res;
 }
 
@@ -2774,6 +3118,12 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
 	{
 		MH_DisableHook(MH_ALL_HOOKS);
 		Init();
+
+		if (FixWindowStyle)
+		{
+			dwStyle = WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+		}
+
 		gState.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
 		return gState.hWnd;
 	}
@@ -2787,6 +3137,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		case DLL_PROCESS_ATTACH:
 		{
+			DisableThreadLibraryCalls(hModule);
+
 			uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
 			IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)(base);
 			IMAGE_NT_HEADERS* nt = (IMAGE_NT_HEADERS*)(base + dos->e_lfanew);
