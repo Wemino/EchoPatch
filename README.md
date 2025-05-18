@@ -17,6 +17,8 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
 > This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
 
+> [!NOTE]  
+> This project does **not** address OS compatibility issues. For modern Windows support, consider using [dxwrapper](https://github.com/elishacloud/dxwrapper).
 ---
 
 # Features
@@ -45,6 +47,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
 - Ragdoll physics instability above 60 FPS.
 - Water physics instability above 120 FPS.
+- Excessive water splash effect repetitions above 60 FPS.
 - Frozen FX effects above 120 FPS.
 - Oversized particles above 120 FPS.
 - Overly dampened velocity when jumping out of water above 60 FPS.
@@ -52,6 +55,15 @@ Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
 - Walking animation prematurely reverting to idle, causing camera stutter above 120 FPS.
 - Inability to perform a jump kick above 120 FPS.
 - Excessive sliding on sloped surfaces above 60 FPS.
+
+## Weapon Fixes
+Addresses several weapon-related issues:
+- Aim disabled when loading a save during a cutscene  
+- Automatic weapons stuck in firing animation when loading a save made mid-fire  
+- Weapon cycling not working when there’s an empty slot between two weapons  
+- Weapon models not refreshing after loading a save with the same weapon equipped  
+
+> **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
