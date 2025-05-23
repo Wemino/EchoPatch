@@ -16,21 +16,76 @@
 #pragma comment(lib, "libMinHook.x86.lib")
 #pragma comment(lib, "Xinput.lib")
 
-// Disclaimer: The following code is chaotic and will be cleaned up at a later time
+// ======================
+// Core Functions
+// ======================
 
-// =============================
-// Original Function Pointers
-// =============================
+// General
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
-bool(__thiscall* LoadFxDll)(int, char*, char) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
+
+// FixKeyboardInputLanguage
+int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
+
+// HighFPSFixes
+int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
+
+// DynamicVsync
+int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
+
+// MaxFPS & XInputControllerSupport
+int(__thiscall* IsFrameComplete)(int) = nullptr;
+
+// AutoResolution
+int(__cdecl* SetRenderMode)(int) = nullptr;
+
+// SkipIntro
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
+
+// EnableCustomMaxWeaponCapacity
+int(__thiscall* TerminateServer)(int) = nullptr;
+
+
+// ======================
+// Client Functions
+// ======================
+
+// HighFPSFixes
+bool(__thiscall* LoadFxDll)(int, char*, char) = nullptr;
+void(__thiscall* UpdateOnGround)(int) = nullptr;
+void(__thiscall* UpdateWaveProp)(int, float) = nullptr;
+double(__thiscall* GetMaxRecentVelocityMag)(int) = nullptr;
+void(__cdecl* PolyGridFXCollisionHandlerCB)(int, int, int*, int*, float, BYTE*, int) = nullptr;
+void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
+void(__thiscall* UpdateNormalFriction)(int) = nullptr;
+double(__thiscall* GetTimerElapsedS)(int) = nullptr;
+
+// FixKeyboardInputLanguage
+void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
+bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
+
+// WeaponFixes
+BYTE* (__thiscall* AimMgrCtor)(BYTE*) = nullptr;
+void(__thiscall* AnimationClearLock)(DWORD) = nullptr;
+void(__thiscall* UpdateWeaponModel)(DWORD*) = nullptr;
+void(__thiscall* SetAnimProp)(DWORD*, int, int) = nullptr;
+bool(__thiscall* InitAnimations)(DWORD*) = nullptr;
+void(__thiscall* NextWeapon)(DWORD*) = nullptr;
+void(__thiscall* PreviousWeapon)(DWORD*) = nullptr;
+unsigned __int8(__thiscall* GetWeaponSlot)(int, int) = nullptr;
+
+// HighResolutionReflections
+bool(__thiscall* RenderTargetGroupFXInit)(int, DWORD*) = nullptr;
+
+// EnablePersistentWorldState
+float(__stdcall* GetShatterLifetime)(int) = nullptr;
+int(__stdcall* CreateFX)(char*, int, int) = nullptr;
+
+// HUDScaling
 void(__thiscall* HUDTerminate)(int) = nullptr;
 bool(__thiscall* HUDInit)(int) = nullptr;
 void(__thiscall* HUDRender)(int, int) = nullptr;
 int(__thiscall* HUDWeaponListReset)(int) = nullptr;
-int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
-int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
 bool(__thiscall* HUDWeaponListInit)(int) = nullptr;
 bool(__thiscall* HUDGrenadeListInit)(int) = nullptr;
 int(__thiscall* ScreenDimsChanged)(int) = nullptr;
@@ -39,13 +94,17 @@ float* (__stdcall* GetRectF)(DWORD*, int, char*, int) = nullptr;
 int(__stdcall* DBGetRecord)(int, char*) = nullptr;
 int(__stdcall* DBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* DBGetFloat)(int, unsigned int, float) = nullptr;
-const char*(__stdcall* DBGetString)(int, unsigned int, int) = nullptr;
+const char* (__stdcall* DBGetString)(int, unsigned int, int) = nullptr;
 int(__thiscall* UpdateSlider)(int, int) = nullptr;
-float(__stdcall* GetShatterLifetime)(int) = nullptr;
-int(__thiscall* IsFrameComplete)(int) = nullptr;
-int(__stdcall* CreateFX)(char*, int, int) = nullptr;
-int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
-bool(__thiscall* ChangeState)(int, int, int) = nullptr;
+void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
+void(__thiscall* HUDPausedInit)(int) = nullptr;
+
+// AutoResolution
+void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
+void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
+bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
+
+// XInputControllerSupport
 bool(__thiscall* IsCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOff)(int, int) = nullptr;
@@ -53,66 +112,67 @@ double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
 double(__thiscall* GetZoomMag)(int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
-const wchar_t*(__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
+const wchar_t* (__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
+bool(__thiscall* ChangeState)(int, int, int) = nullptr;
 void(__thiscall* UseCursor)(int, bool) = nullptr;
 bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
-uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
-void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
-void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
-void(__thiscall* OnEnterWorld)(int) = nullptr;
-int(__thiscall* TerminateServer)(int) = nullptr;
-bool(__thiscall* RenderTargetGroupFXInit)(int, DWORD*) = nullptr;
-DWORD*(__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
-DWORD*(__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
-int(__thiscall* StepPhysicsSimulation)(int, float*) = nullptr;
-void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
-void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
-void(__thiscall* HUDPausedInit)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
-const wchar_t*(__stdcall* LoadGameString)(int, char*) = nullptr;
 void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
-void(__thiscall* UpdateOnGround)(int) = nullptr;
-void(__thiscall* UpdateWaveProp)(int, float) = nullptr;
-double(__thiscall* GetMaxRecentVelocityMag)(int) = nullptr;
-void(__cdecl* PolyGridFXCollisionHandlerCB)(int, int, int*, int*, float, BYTE*, int) = nullptr;
-void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
-void(__thiscall* UpdateNormalFriction)(int) = nullptr;
-double(__thiscall* GetTimerElapsedS)(int) = nullptr;
-int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
-void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
-bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
-int(__cdecl* SetRenderMode)(int) = nullptr;
-void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
-bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
+const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
+
+// // EnableCustomMaxWeaponCapacity
+uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
+
+// DisableHipFireAccuracyPenalty
 void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
-BYTE*(__thiscall* AimMgrCtor)(BYTE*) = nullptr;
-void(__thiscall* AnimationClearLock)(DWORD) = nullptr;
-void(__thiscall* UpdateWeaponModel)(DWORD*) = nullptr;
-void(__thiscall* SetAnimProp)(DWORD*, int, int) = nullptr;
-bool(__thiscall* InitAnimations)(DWORD*) = nullptr;
-void(__thiscall* NextWeapon)(DWORD*) = nullptr;
-void(__thiscall* PreviousWeapon)(DWORD*) = nullptr;
-unsigned __int8(__thiscall* GetWeaponSlot)(int, int) = nullptr;
+
+// XInputControllerSupport & HUDScaling
+int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
+int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
+
+// EnableCustomMaxWeaponCapacity & WeaponFixes
+void(__thiscall* OnEnterWorld)(int) = nullptr;
+
+
+// ======================
+// Server Functions
+// ======================
+
+// EnableCustomMaxWeaponCapacity
+void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
+void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
+
+
+// ======================
+// ClientFX Functions
+// ======================
+
+// HighFPSFixes
+float* (__thiscall* AddParticleBatchMarker)(int, int, bool) = nullptr;
+float* (__thiscall* EmitParticleBatch)(int, float, int, int*) = nullptr;
+
+// ======================
+// WinAPI Functions
+// ======================
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 
-// =============================
+// ======================
 // Constants 
-// =============================
-const int FEAR_TIMESTAMP = 0x44EF6AE6;
-const int FEARMP_TIMESTAMP = 0x44EF6ADB;
-const int FEARXP_TIMESTAMP = 0x450B3629;
-const int FEARXP_TIMESTAMP2 = 0x450DA808;
-const int FEARXP2_TIMESTAMP = 0x46FC10A3;
+// ======================
+const DWORD FEAR_TIMESTAMP = 0x44EF6AE6;
+const DWORD FEARMP_TIMESTAMP = 0x44EF6ADB;
+const DWORD FEARXP_TIMESTAMP = 0x450B3629;
+const DWORD FEARXP_TIMESTAMP2 = 0x450DA808;
+const DWORD FEARXP2_TIMESTAMP = 0x46FC10A3;
 
-constexpr float BASE_WIDTH = 1024.0f;
-constexpr float BASE_HEIGHT = 768.0f;
+constexpr float BASE_AREA = 1024.0f * 768.0f;
 constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
 
-#define XINPUT_GAMEPAD_LEFT_TRIGGER   0x400
-#define XINPUT_GAMEPAD_RIGHT_TRIGGER  0x800
+constexpr auto XINPUT_GAMEPAD_LEFT_TRIGGER = 0x400;
+constexpr auto XINPUT_GAMEPAD_RIGHT_TRIGGER = 0x800;
 
 enum FEARGAME
 {
@@ -127,57 +187,90 @@ enum FEARGAME
 // =============================
 struct GlobalState
 {
+	// ======================
+	// Game Identification
+	// ======================
 	FEARGAME CurrentFEARGame;
+	bool IsOriginalGame() const { return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP; }
+	bool IsExpansion() const { return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2; }
+
+	// ======================
+	// Window/Display
+	// ======================
 	HWND hWnd = 0;
-
-	bool IsOriginalGame() const
-	{
-		return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP;
-	}
-
-	bool IsExpansion() const
-	{
-		return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2;
-	}
-
 	int currentWidth = 0;
 	int currentHeight = 0;
+	int screenWidth = 0;
+	int screenHeight = 0;
+	bool useVsyncOverride = false;
+
+	// ======================
+	// HUD Scaling
+	// ======================
 	float scalingFactor = 0;
 	float scalingFactorText = 0;
 	float scalingFactorCrosshair = 0;
 	float crosshairSize = 0;
+	bool updateHUD = false;
+	bool crosshairSliderUpdated = false;
+
+	// ======================
+	// HUD Elements
+	// ======================
 	int CHUDMgr = 0;
 	int CHUDPaused = 0;
 	int CHUDWeaponList = 0;
 	int CHUDGrenadeList = 0;
-	bool updateHUD = false;
 
-	int screenWidth = 0;
-	int screenHeight = 0;
+	// ======================
+	// Resolution Settings
+	// ======================
 	bool isInAutoDetect = false;
 	bool isSettingOption = false;
 
+	// ======================
+	// User Profile
+	// ======================
 	bool isLoadingDefault = false;
 
+	// ======================
+	// Input Settings
+	// ======================
 	float overrideSensitivity = 0.25f;
 
+	// ======================
+	// Module Handles
+	// ======================
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 	HMODULE GameClientFX = NULL;
 
+	// ======================
+	// FPS Limiter
+	// ======================
 	bool isUsingFpsLimiter = false;
 	FpsLimiter fpsLimiter{ 240.0f };
 
+	// ======================
+	// HUD Update State
+	// ======================
 	bool updateLayoutReturnValue = false;
 	bool slowMoBarUpdated = false;
 	int healthAdditionalIntIndex = 0;
 	int int32ToUpdate = 0;
 	float floatToUpdate = 0;
-	bool crosshairSliderUpdated = false;
 
+	// ======================
+	// Game State
+	// ======================
 	int g_pGameClientShell = 0;
 	bool isPlaying = true;
+	bool isEnteringWorld = false;
+
+	// ======================
+	// Controller State
+	// ======================
 	bool canActivate = false;
 	bool canSwap = false;
 	bool isOperatingTurret = false;
@@ -189,21 +282,29 @@ struct GlobalState
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
 
+	// ======================
+	// Server State
+	// ======================
 	bool needServerTermHooking = false;
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
+	std::list<DWORD> hookedServerFunctionAddresses;
 
+	// ======================
+	// Weapon/Animation
+	// ======================
 	BYTE* pAimMgr = 0;
 	int kAP_ACT_Fire_Id = 0;
-	bool isEnteringWorld = false;
 	int actionAnimationThreshold = 0;
 	bool fireAnimationInterceptionDisabled = false;
 	int pUpperAnimationContext = 0;
 	bool requestNextWeapon = false;
 	bool requestPreviousWeapon = false;
 
-	static constexpr int VELOCITY_HISTORY_SIZE = 5;
-	std::array<double, VELOCITY_HISTORY_SIZE> velocityHistory = {};
+	// ======================
+	// Physics/Velocity
+	// ======================
+	std::array<double, 5> velocityHistory = {};
 	int velocityHistoryPosition = -1;
 	bool useVelocitySmoothing = false;
 	bool inFriction = false;
@@ -211,25 +312,31 @@ struct GlobalState
 	bool previousJumpState = false;
 	float waveUpdateAccumulator = 0.0f;
 	float lastFrameTime = 0;
-	bool useVsyncOverride = false;
+
+	// ======================
+	// PolyGrid Timing
+	// ======================
 	LARGE_INTEGER polyGridSplashFreq;
 	std::unordered_map<uint64_t, double> polyGridLastSplashTime;
 
-	struct DataEntry
+	// ======================
+	// Static Data
+	// ======================
+	struct DataEntry 
 	{
 		int TextSize;
 		int ScaleType;
 	};
 
-	static std::unordered_map<std::string, DataEntry> textDataMap;
-	static std::unordered_map<std::string, std::unordered_set<std::string>> hudScalingRules;
+	struct HudScalingRule 
+	{
+		std::vector<std::string_view> attributes;
+		float* scalingFactorPtr;
+	};
 
-	std::list<DWORD> hookedServerFunctionAddresses;
+	static inline std::unordered_map<std::string_view, DataEntry> textDataMap;
+	static inline std::unordered_map<std::string_view, HudScalingRule> hudScalingRules;
 };
-
-// Initialize static members
-std::unordered_map<std::string, GlobalState::DataEntry> GlobalState::textDataMap;
-std::unordered_map<std::string, std::unordered_set<std::string>> GlobalState::hudScalingRules;
 
 // Global instance
 GlobalState gState;
@@ -265,7 +372,7 @@ struct ControllerState
 	ButtonState rightShoulderState;
 };
 
-ControllerState g_Controller;
+ControllerState gController;
 
 std::pair<WORD, int> g_buttonMappings[] =
 {
@@ -567,95 +674,78 @@ static void ReadConfig()
 		// HUD
 		gState.hudScalingRules = 
 		{
-			{"HUDHealth",            {"AdditionalPoint", "IconSize", "IconOffset", "TextOffset"}},
-			{"HUDDialogue",          {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDGrenadeList",       {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDWeapon",            {"AdditionalPoint", "IconSize", "TextOffset"}},
-			{"HUDArmor",             {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDSwap",              {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGear",              {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDGrenade",           {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDAmmo",              {"IconSize", "IconOffset", "TextOffset"}},
-			{"HUDFlashlight",        {"IconSize", "IconOffset"}},
-			{"HUDSlowMo2",           {"IconSize", "IconOffset"}},
-			{"HUDActivateObject",    {"TextOffset"}}
+			{"HUDHealth",            {{"AdditionalPoint", "IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDDialogue",          {{"AdditionalPoint", "IconSize", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDGrenadeList",       {{"AdditionalPoint", "IconSize", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDWeapon",            {{"AdditionalPoint", "IconSize", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDArmor",             {{"IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDSwap",              {{"IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactorText}},
+			{"HUDGear",              {{"IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDGrenade",           {{"IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDAmmo",              {{"IconSize", "IconOffset", "TextOffset"}, &gState.scalingFactor}},
+			{"HUDFlashlight",        {{"IconSize", "IconOffset"}, &gState.scalingFactor}},
+			{"HUDSlowMo2",           {{"IconSize", "IconOffset"}, &gState.scalingFactor}},
+			{"HUDActivateObject",    {{"TextOffset"}, &gState.scalingFactor}},
 		};
+
+		// Make sure to sort the attributes of each rule after setting them up
+		for (auto& [key, rule] : gState.hudScalingRules) 
+		{
+			std::sort(rule.attributes.begin(), rule.attributes.end());
+		}
 	}
 
 	// 10 slots max
 	MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
 
+	// If we need to hook the function used to unload the server
 	gState.needServerTermHooking = EnableCustomMaxWeaponCapacity;
 }
 
 #pragma region Helper
 
-static DWORD ScanModuleSignature(HMODULE module, std::string_view signature, const char* patchName, int functionStartCheckCount = -1, bool showError = true)
+static DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, const char* PatchName, int FunctionStartCheckCount = -1, bool ShowError = true)
 {
-	DWORD targetMemoryLocation = MemoryHelper::PatternScan(module, signature);
+	DWORD Address = MemoryHelper::FindSignatureAddress(Module, Signature, FunctionStartCheckCount);
 
-	if (targetMemoryLocation == 0)
+	if (Address == 0 && ShowErrors && ShowError)
 	{
-		if (ShowErrors && showError)
-		{
-			std::string errorMessage = "Error: Unable to find signature for patch: ";
-			errorMessage += patchName;
-			MessageBoxA(NULL, errorMessage.c_str(), "EchoPatch", MB_ICONERROR);
-		}
-		return 0;
+		std::string ErrorMessage = "Error: Unable to find signature for patch: ";
+		ErrorMessage += PatchName;
+		MessageBoxA(NULL, ErrorMessage.c_str(), "EchoPatch", MB_ICONERROR);
 	}
 
-	if (functionStartCheckCount >= 0)
-	{
-		DWORD addr = targetMemoryLocation;
-		for (int i = 0; i < 0x1000; i++)
-		{
-			bool valid = true;
-			for (int j = 1; j <= functionStartCheckCount; j++)
-			{
-				if (MemoryHelper::ReadMemory<uint8_t>(addr - j) != 0xCC)
-				{
-					valid = false;
-					break;
-				}
-			}
-			if (valid)
-			{
-				break;
-			}
-
-			addr--;
-		}
-		targetMemoryLocation = addr;
-	}
-
-	return targetMemoryLocation;
+	return Address;
 }
 
 #pragma endregion
 
 #pragma region ClientFX Hooks
 
-static void ProcessParticleResult(DWORD* result)
+// ======================
+// HighFPSFixes
+// ======================
+
+static void ProcessParticleResult(float* result)
 {
 	// If m_fLifetime == -1
-	if (result && result[6] == 0xBF800000)
+	if (result && result[6] == -1)
 	{
 		// Prevent an issue inside GetParticleSizeAndColor
 		result[6] = 0;
 	}
 }
 
-static DWORD* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int, int a2, bool a3)
+static float* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int, int a2, bool a3)
 {
-	DWORD* result = AddParticleBatchMarker(thisPtr, a2, a3);
+	float* result = AddParticleBatchMarker(thisPtr, a2, a3);
 	ProcessParticleResult(result);
 	return result;
 }
 
-static DWORD* __fastcall EmitParticleBatch_Hook(int thisPtr, int, float a2, int a3, int* a4)
+static float* __fastcall EmitParticleBatch_Hook(int thisPtr, int, float a2, int a3, int* a4)
 {
-	DWORD* result = EmitParticleBatch(thisPtr, a2, a3, a4);
+	float* result = EmitParticleBatch(thisPtr, a2, a3, a4);
 	ProcessParticleResult(result);
 	return result;
 }
@@ -678,6 +768,7 @@ static void ApplyHighFPSFixesClientFXPatch()
 		return;
 	}
 
+	// Disable frametime check for FX updates
 	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold, 0x4);
 	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0x5, 0x6);
 	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0xD, 0x7);
@@ -695,647 +786,31 @@ static void ApplyClientFXPatch()
 
 #pragma region Client Hooks
 
-// Scale HUD position or dimension
-static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* Attribute, int a4)
+// ======================
+// HighFPSFixes
+// ======================
+
+static bool __fastcall LoadFxDll_Hook(int thisPtr, int, char* Source, char a3)
 {
-	if (!Record)
-		return LayoutDBGetPosition(a1, Record, Attribute, a4);
+	// Load the DLL
+	char result = LoadFxDll(thisPtr, Source, a3);
 
-	DWORD* result = LayoutDBGetPosition(a1, Record, Attribute, a4);
-	char* hudRecordString = *(char**)Record;
+	// Get the path
+	char* clientFXPath = ((char*)thisPtr + 0x24);
 
-	std::string hudElement(hudRecordString);
-	std::string attribute(Attribute);
+	// Get the handle
+	wchar_t wFileName[MAX_PATH];
+	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
+	HMODULE clientFxDll = GetModuleHandleW(wFileName);
 
-	// Check if this HUD element and attribute require scaling
-	auto hudEntry = gState.hudScalingRules.find(hudElement);
-	if (hudEntry != gState.hudScalingRules.end() && hudEntry->second.count(attribute))
+	if (clientFxDll)
 	{
-		float scalingFactor = (hudElement == "HUDSwap") ? gState.scalingFactorText : gState.scalingFactor;
+		gState.GameClientFX = clientFxDll;
 
-		result[0] = static_cast<DWORD>((int)result[0] * scalingFactor);
-		result[1] = static_cast<DWORD>((int)result[1] * scalingFactor);
+		ApplyClientFXPatch();
 	}
 
 	return result;
-}
-
-// Increase the length of the bar used for the flashlight and slowmo
-static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, int a4)
-{
-	if (!Record)
-		return GetRectF(a1, Record, Attribute, a4);
-
-	float* result = GetRectF(a1, Record, Attribute, a4);
-	char* hudRecordString = *(char**)Record;
-
-	if (strcmp(Attribute, "AdditionalRect") == 0 && (strcmp(hudRecordString, "HUDSlowMo2") == 0 || strcmp(hudRecordString, "HUDFlashlight") == 0))
-	{
-		result[0] *= gState.scalingFactor;
-		result[1] *= gState.scalingFactor;
-		result[2] *= gState.scalingFactor;
-		result[3] *= gState.scalingFactor;
-	}
-
-	return result;
-}
-
-// Override 'DBGetInt32' and other related functions to return specific values
-static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
-{
-	if (!Record)
-		return DBGetRecord(Record, Attribute);
-
-	char* hudRecordString = *(char**)Record;
-
-	if (strcmp(Attribute, "TextSize") == 0)
-	{
-		auto textDt = gState.textDataMap.find(hudRecordString);
-
-		if (textDt != gState.textDataMap.end())
-		{
-			gState.updateLayoutReturnValue = true;
-
-			int scalingMode = textDt->second.ScaleType;
-			float scaledSize = textDt->second.TextSize * gState.scalingFactor;
-
-			switch (scalingMode)
-			{
-				case 1: // Fit the text in the HUD
-					scaledSize = std::round(scaledSize * 0.95f);
-					break;
-				case 2: // Small texts
-					scaledSize = textDt->second.TextSize * gState.scalingFactorText;
-					break;
-			}
-
-			gState.int32ToUpdate = static_cast<int32_t>(scaledSize);
-		}
-	}
-
-	// Update the rectangle's length
-	if (strcmp(Attribute, "AdditionalFloat") == 0)
-	{
-		float originalValue = 0.0f;
-
-		if (!gState.slowMoBarUpdated && strcmp(hudRecordString, "HUDSlowMo2") == 0)
-		{
-			originalValue = 10.0f;
-			gState.slowMoBarUpdated = true;
-		}
-		else if (strcmp(hudRecordString, "HUDFlashlight") == 0)
-		{
-			originalValue = 6.0f;
-		}
-
-		if (originalValue != 0.0f)
-		{
-			gState.updateLayoutReturnValue = true;
-			gState.floatToUpdate = originalValue * gState.scalingFactor;
-		}
-	}
-
-	// Medkit prompt when health drops below 50
-	if (strcmp(hudRecordString, "HUDHealth") == 0 && strcmp(Attribute, "AdditionalInt") == 0)
-	{
-		if (gState.healthAdditionalIntIndex == 2)
-		{
-			gState.updateLayoutReturnValue = true;
-			gState.int32ToUpdate = 14 * gState.scalingFactor;
-		}
-		else
-		{
-			gState.healthAdditionalIntIndex++;
-		}
-	}
-
-	return DBGetRecord(Record, Attribute);
-}
-
-// Executed right after 'DBGetRecord'
-static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
-{
-	if (gState.updateLayoutReturnValue)
-	{
-		gState.updateLayoutReturnValue = false;
-		return gState.int32ToUpdate;
-	}
-	return DBGetInt32(a1, a2, a3);
-}
-
-// Executed right after 'DBGetRecord'
-static float __stdcall DBGetFloat_Hook(int a1, unsigned int a2, float a3)
-{
-	if (gState.updateLayoutReturnValue)
-	{
-		gState.updateLayoutReturnValue = false;
-		return gState.floatToUpdate;
-	}
-	return DBGetFloat(a1, a2, a3);
-}
-
-// Executed right after 'DBGetRecord'
-static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
-{
-	return DBGetString(a1, a2, a3);
-}
-
-static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
-{
-	if (thisPtr)
-	{
-		char* sliderName = MemoryHelper::ReadMemory<char*>(thisPtr + 0x8, false);
-
-		// If 'ScreenCrosshair_Size_Help' is next
-		if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
-		{
-			gState.crosshairSliderUpdated = false;
-		}
-
-		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
-		if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !gState.crosshairSliderUpdated && gState.scalingFactorCrosshair > 1.0f)
-		{
-			float unscaledIndex = index / gState.scalingFactorCrosshair;
-
-			// scs.nIncrement = 2
-			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
-
-			// Clamp to the range [4, 16].
-			newIndex = std::clamp(newIndex, 4, 16);
-
-			index = newIndex;
-
-			// Only needed on the first time
-			gState.crosshairSliderUpdated = true;
-		}
-	}
-	return UpdateSlider(thisPtr, index);
-}
-
-static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
-{
-	ScreenDimsChanged(thisPtr);
-
-	// Get the current resolution
-	gState.currentWidth = MemoryHelper::ReadMemory<int>(thisPtr + 0x18, false);
-	gState.currentHeight = MemoryHelper::ReadMemory<int>(thisPtr + 0x1C, false);
-
-	// Calculate the new scaling factor
-	gState.scalingFactor = std::sqrt((gState.currentWidth * gState.currentHeight) / (BASE_WIDTH * BASE_HEIGHT));
-
-	// Don't downscale the HUD
-	if (gState.scalingFactor < 1.0f) gState.scalingFactor = 1.0f;
-
-	// Do not change the scaling of the crosshair
-	gState.scalingFactorCrosshair = gState.scalingFactor;
-
-	// Apply custom scaling for the text
-	gState.scalingFactorText = gState.scalingFactor * SmallTextCustomScalingFactor;
-
-	// Apply custom scaling to calculated scaling
-	gState.scalingFactor *= HUDCustomScalingFactor;
-
-	// Reset slow-mo bar update flag and HUDHealth.AdditionalInt index
-	gState.slowMoBarUpdated = false;
-	gState.healthAdditionalIntIndex = 0;
-
-	// If the resolution is updated
-	if (gState.CHUDMgr != 0)
-	{
-		// Reinitialize the HUD
-		HUDTerminate(gState.CHUDMgr);
-		HUDInit(gState.CHUDMgr);
-		HUDWeaponListReset(gState.CHUDWeaponList);
-		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
-		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
-		HUDPausedInit(gState.CHUDPaused);
-		gState.updateHUD = true;
-
-		// Update the size of the crosshair
-		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * gState.scalingFactorCrosshair);
-		SetConsoleVariableFloat("PerturbScale", 0.5f * gState.scalingFactorCrosshair);
-	}
-}
-
-// Initialize the HUD
-static bool __fastcall HUDInit_Hook(int thisPtr, int)
-{
-	gState.CHUDMgr = thisPtr;
-	return HUDInit(thisPtr);
-}
-
-// Terminate the HUD
-static void __fastcall HUDTerminate_Hook(int thisPtr, int)
-{
-	HUDTerminate(thisPtr);
-}
-
-static void __fastcall HUDRender_Hook(int thisPtr, int, int eHUDRenderLayer)
-{
-	HUDRender(thisPtr, eHUDRenderLayer);
-	if (gState.updateHUD)
-	{
-		MemoryHelper::WriteMemory<int>(thisPtr + 0x14, -1, false);
-		gState.updateHUD = false;
-	}
-}
-
-static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int)
-{
-	gState.CHUDWeaponList = thisPtr;
-	return HUDWeaponListInit(thisPtr);
-}
-
-static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int)
-{
-	HUDWeaponListReset(thisPtr);
-}
-
-static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int)
-{
-	HUDWeaponListUpdateTriggerNames(thisPtr);
-}
-
-static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int)
-{
-	gState.CHUDGrenadeList = thisPtr;
-	return HUDGrenadeListInit(thisPtr);
-}
-
-static void __fastcall HUDPausedInit_Hook(int thisPtr, int)
-{
-	gState.CHUDPaused = thisPtr;
-	HUDPausedInit(thisPtr);
-}
-
-static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int)
-{
-	HUDGrenadeListUpdateTriggerNames(thisPtr);
-}
-
-static void __fastcall SetCurrentType_Hook(int thisPtr, int, int type)
-{
-	gState.pCurrentType = thisPtr;
-	SetCurrentType(thisPtr, type);
-}
-
-static void __cdecl HUDSwapUpdateTriggerName_Hook()
-{
-	HUDSwapUpdateTriggerName();
-}
-
-static void __fastcall SwitchToScreen_Hook(int thisPtr, int, int pNewScreen)
-{
-	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
-
-	if (currentScreenID == gState.screenPerformanceCPU) 
-	{
-		gState.maxCurrentType = 3;
-		gState.currentType = 0;
-	}
-	else if (currentScreenID == gState.screenPerformanceGPU)
-	{
-		gState.maxCurrentType = 2;
-		gState.currentType = 0;
-	}
-	else 
-	{
-		gState.maxCurrentType = -1;
-	}
-
-	SwitchToScreen(thisPtr, pNewScreen);
-}
-
-
-static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
-{
-	vPos[0] = static_cast<DWORD>((int)vPos[0] * gState.scalingFactor);
-	vPos[1] = static_cast<DWORD>((int)vPos[1] * gState.scalingFactor);
-
-	vSize[0] = static_cast<DWORD>((int)vSize[0] * gState.scalingFactor);
-	vSize[1] = static_cast<DWORD>((int)vSize[1] * gState.scalingFactor);
-
-	InitAdditionalTextureData(a1, a2, a3, vPos, vSize, a6);
-}
-
-static float __stdcall GetShatterLifetime_Hook(int shatterType)
-{
-	return FLT_MAX;
-}
-
-static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
-{
-	if (prop)
-	{
-		// Decal
-		if (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544)
-		{
-			MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
-			MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
-		}
-		// LTBModel
-		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C)
-		{
-			char* fxName = MemoryHelper::ReadMemory<char*>(fxData + 0x74, false);
-
-			// Skip HRocket_Debris
-			if (*reinterpret_cast<uint64_t*>(fxName + 0x2) != 0x65445F74656B636F)
-			{
-				MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
-				MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
-			}
-		}
-		// Sprite
-		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x69727053)
-		{
-			char* fxName = MemoryHelper::ReadMemory<char*>(fxData + 0x74, false);
-
-			if (*reinterpret_cast<uint64_t*>(fxName) == 0x75625F656E6F7453 // Stone_bullethole
-			 || *reinterpret_cast<uint64_t*>(fxName) == 0x455F736972626544 // Debris_Electronic_Chunk
-			 || *reinterpret_cast<uint64_t*>(fxName) == 0x575F736972626544 // Debris_Wood_Chunk
-			 || *reinterpret_cast<uint64_t*>(fxName) == 0x4D5F736972626544 // Debris_Mug_Chunk
-			 || *reinterpret_cast<uint64_t*>(fxName) == 0x565F736972626544 // Debris_Vase1_Chunk
-			 || *reinterpret_cast<uint64_t*>(fxName + 0x4) == 0x3674616C70735F68) // Flesh_splat6
-			{
-				MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
-				MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
-			}
-		}
-	}
-
-	return CreateFX(effectType, fxData, prop);
-}
-
-static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
-{
-	gState.isPlaying = state == 1;
-	return ChangeState(thisPtr, state, screenId);
-}
-
-static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId) 
-{
-	return (commandId < 117 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
-}
-
-static bool __fastcall OnCommandOn_Hook(int thisPtr, int, int commandId)
-{
-	return OnCommandOn(thisPtr, commandId);
-}
-
-static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
-{
-	return OnCommandOff(thisPtr, commandId);
-}
-
-static double __fastcall GetZoomMag_Hook(int thisPtr)
-{
-	gState.zoomMag = GetZoomMag(thisPtr);
-	return gState.zoomMag;
-}
-
-static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
-{
-	if (g_Controller.isConnected)
-	{
-		const int DEAD_ZONE = 7849;
-		const auto& gamepad = g_Controller.state.Gamepad;
-
-		switch (commandId)
-		{
-			case 2: // Forward
-			{
-				if (abs(gamepad.sThumbLY) < DEAD_ZONE) return 0.0;
-				return gamepad.sThumbLY / 32768.0;
-			}
-			case 5: // Strafe
-			{
-				if (abs(gamepad.sThumbLX) < DEAD_ZONE) return 0.0;
-				return gamepad.sThumbLX / 32768.0;
-			}
-			case 22: // Pitch
-			{
-				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
-				double pitchValue = -gamepad.sThumbRY / 32768.0;
-				if (gState.zoomMag > GPadZoomMagThreshold) pitchValue *= (gState.zoomMag / GPadZoomMagThreshold);
-				return pitchValue;
-			}
-			case 23: // Yaw
-			{
-				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
-				double yawValue = gamepad.sThumbRX / 32768.0;
-				if (gState.zoomMag > GPadZoomMagThreshold) yawValue *= (gState.zoomMag / GPadZoomMagThreshold);
-				return yawValue;
-			}
-		}
-	}
-
-	return GetExtremalCommandValue(thisPtr, commandId);
-}
-
-static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int a6)
-{
-	gState.canActivate = a6 != -1;
-	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, a6);
-}
-
-static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int)
-{
-	 HUDSwapUpdate(thisPtr);
-	 gState.canSwap = MemoryHelper::ReadMemory<uint8_t>(thisPtr + 0x1C0) != 0;
-}
-
-static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
-{
-	gState.isOperatingTurret = pTurret != 0;
-	return SetOperatingTurret(thisPtr, pTurret);
-}
-
-static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int* ECX, int commandId)
-{
-	if (g_Controller.isConnected)
-	{
-		bool useShortNames = false;
-
-		// Left Thumbstick movement
-		if (commandId == 0) return L"Left Thumbstick Up";
-		if (commandId == 1) return L"Left Thumbstick Down";
-
-		// Activate Key = Reload Key
-		if (commandId == 87) commandId = 88;
-
-		// HUDWeapon -> Next Weapon
-		if (commandId >= 30 && commandId <= 39)
-		{
-			commandId = 77;
-			useShortNames = true;
-		}
-
-		// HUDGrenadeList -> Next Grenade
-		if (commandId >= 40 && commandId <= 45)
-		{
-			commandId = 73;
-			useShortNames = true;
-		}
-
-		for (size_t i = 0; i < sizeof(g_buttonMappings) / sizeof(g_buttonMappings[0]); i++)
-		{
-			if (g_buttonMappings[i].second == commandId)
-			{
-				if (useShortNames) 
-				{
-					switch (g_buttonMappings[i].first)
-					{
-						case XINPUT_GAMEPAD_A: return L"A";
-						case XINPUT_GAMEPAD_B: return L"B";
-						case XINPUT_GAMEPAD_X: return L"X";
-						case XINPUT_GAMEPAD_Y: return L"Y";
-						case XINPUT_GAMEPAD_LEFT_THUMB: return L"L3";
-						case XINPUT_GAMEPAD_RIGHT_THUMB: return L"R3";
-						case XINPUT_GAMEPAD_LEFT_SHOULDER: return L"LB";
-						case XINPUT_GAMEPAD_RIGHT_SHOULDER: return L"RB";
-						case XINPUT_GAMEPAD_DPAD_UP: return L"D-Up";
-						case XINPUT_GAMEPAD_DPAD_DOWN: return L"D-Down";
-						case XINPUT_GAMEPAD_DPAD_LEFT: return L"D-Left";
-						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Right";
-						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"LT";
-						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"RT";
-						case XINPUT_GAMEPAD_BACK: return L"Back";
-						default: break;
-					}
-				}
-				else 
-				{
-					switch (g_buttonMappings[i].first)
-					{
-						case XINPUT_GAMEPAD_A: return L"A Button";
-						case XINPUT_GAMEPAD_B: return L"B Button";
-						case XINPUT_GAMEPAD_X: return L"X Button";
-						case XINPUT_GAMEPAD_Y: return L"Y Button";
-						case XINPUT_GAMEPAD_LEFT_THUMB: return L"Left Thumbstick";
-						case XINPUT_GAMEPAD_RIGHT_THUMB: return L"Right Thumbstick";
-						case XINPUT_GAMEPAD_LEFT_SHOULDER: return L"Left Bumper";
-						case XINPUT_GAMEPAD_RIGHT_SHOULDER: return L"Right Bumper";
-						case XINPUT_GAMEPAD_DPAD_UP: return L"D-Pad Up";
-						case XINPUT_GAMEPAD_DPAD_DOWN: return L"D-Pad Down";
-						case XINPUT_GAMEPAD_DPAD_LEFT: return L"D-Pad Left";
-						case XINPUT_GAMEPAD_DPAD_RIGHT: return L"D-Pad Right";
-						case XINPUT_GAMEPAD_LEFT_TRIGGER: return L"Left Trigger";
-						case XINPUT_GAMEPAD_RIGHT_TRIGGER: return L"Right Trigger";
-						case XINPUT_GAMEPAD_BACK: return L"Back Button";
-						default: break;
-					}
-				}
-			}
-		}
-	}
-	return GetTriggerNameFromCommandID(thisPtr, commandId);
-}
-
-static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor)
-{
-	if (g_Controller.isConnected && bUseCursor) bUseCursor = false;
-	UseCursor(thisPtr, bUseCursor);
-}
-
-static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
-{
-	if (g_Controller.isConnected)
-	{
-		x = 0;
-		y = 0;
-	}
-	return OnMouseMove(thisPtr, x, y);
-}
-
-static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int)
-{
-	return MaxWeaponCapacity;
-}
-
-static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
-{
-	OnEnterWorld(thisPtr);
-
-	if (WeaponFixes)
-	{
-		gState.isEnteringWorld = true;
-		gState.pAimMgr[1] = 1;
-	}
-
-	if (EnableCustomMaxWeaponCapacity)
-	{
-		SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
-	}
-}
-
-static BYTE* __fastcall AimMgrCtor_Hook(BYTE* thisPtr, int)
-{
-	gState.pAimMgr = thisPtr;
-	return AimMgrCtor(thisPtr);
-}
-
-static void __fastcall SetOption_Hook(int thisPtr, int, int a2, int a3, int a4, int a5)
-{
-	gState.isSettingOption = true;
-	SetOption(thisPtr, a2, a3, a4, a5);
-	gState.isSettingOption = false;
-}
-
-static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const char* pszVar, float a3, int a4)
-{
-	if (gState.isSettingOption && strcmp(pszVar, "Performance_ScreenHeight") == 0)
-	{
-		return false;
-	}
-	else if (gState.isSettingOption && strcmp(pszVar, "Performance_ScreenWidth") == 0)
-	{
-		return false;
-	}
-
-	return SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
-}
-
-static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults, bool bLoadDisplaySettings)
-{
-	gState.isLoadingDefault = bLoadDefaults;
-	LoadUserProfile(thisPtr, bLoadDefaults, bLoadDisplaySettings);
-	gState.isLoadingDefault = false;
-}
-
-static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
-{
-	gState.isLoadingDefault = true;
-	bool res = RestoreDefaults(thisPtr, nFlags);
-	gState.isLoadingDefault = false;
-	return res;
-}
-
-static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, DWORD* psfxCreateStruct)
-{
-	// Low
-	psfxCreateStruct[3] *= 4;
-	psfxCreateStruct[4] *= 4;
-	// Medium
-	psfxCreateStruct[5] *= 4;
-	psfxCreateStruct[6] *= 4;
-	// High
-	psfxCreateStruct[7] *= 4;
-	psfxCreateStruct[8] *= 4;
-	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
-}
-
-static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
-{
-	if (g_Controller.isConnected && strcmp(String, "IDS_QUICKSAVE") == 0)
-	{
-		return L"Quick save";
-	}
-
-	if (g_Controller.isConnected && strcmp(String, "ScreenFailure_PressAnyKey") == 0)
-	{
-		return L"Press B to return to the main menu.\nPress any other button to continue.";
-	}
-	return LoadGameString(ptr, String);
 }
 
 static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
@@ -1369,6 +844,7 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 
 static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 {
+	// Updates water wave propagation at fixed time intervals for consistent simulation
 	gState.waveUpdateAccumulator += frameDelta;
 
 	while (gState.waveUpdateAccumulator >= TARGET_FRAME_TIME)
@@ -1385,20 +861,36 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	// Get and process raw velocity
-	const double raw = GetMaxRecentVelocityMag(thisPtr);
-	const double timeScale = TARGET_FRAME_TIME / gState.lastFrameTime;
-	const double scaled = raw * timeScale;
+	// Fetch & scale raw velocity
+	double raw = GetMaxRecentVelocityMag(thisPtr);
+	double timeScale = TARGET_FRAME_TIME / gState.lastFrameTime;
+	double scaled = raw * timeScale;
 
-	// Update history buffer
-	gState.velocityHistoryPosition = (gState.velocityHistoryPosition + 1) % gState.VELOCITY_HISTORY_SIZE;
-	gState.velocityHistory[gState.velocityHistoryPosition] = scaled;
+	// Bump the circular buffer
+	auto& hist = gState.velocityHistory;
+	auto& pos = gState.velocityHistoryPosition;
+	pos = (pos + 1) % 5;
+	hist[pos] = scaled;
 
-	// Calculate median
-	std::array<double, gState.VELOCITY_HISTORY_SIZE> sorted = gState.velocityHistory;
-	std::sort(sorted.begin(), sorted.end());
+	// Grab the five samples into locals for a fixed median network
+	double a = hist[0];
+	double b = hist[1];
+	double c = hist[2];
+	double d = hist[3];
+	double e = hist[4];
 
-	return sorted[gState.VELOCITY_HISTORY_SIZE / 2];
+	// Sorting network for 5 items, c ends up as the median
+	if (a > b) std::swap(a, b);
+	if (d > e) std::swap(d, e);
+	if (a > c) std::swap(a, c);
+	if (b > c) std::swap(b, c);
+	if (a > d) std::swap(a, d);
+	if (c > e) std::swap(c, e);
+	if (b > d) std::swap(b, d);
+	if (b > c) std::swap(b, c);
+	if (c > d) std::swap(c, d);
+
+	return c;
 }
 
 static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
@@ -1459,6 +951,7 @@ static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int)
 
 static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 {
+	// When sliding on friction, clamp the reported frame time
 	if (gState.inFriction)
 	{
 		double elapsedTime = GetTimerElapsedS(thisPtr);
@@ -1471,10 +964,33 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 	return GetTimerElapsedS(thisPtr);
 }
 
-static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
+// ========================
+// FixKeyboardInputLanguage
+// ========================
+
+static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults, bool bLoadDisplaySettings)
 {
-	AccuracyMgrUpdate(thisPtr);
-	*thisPtr = 0.0f;
+	gState.isLoadingDefault = bLoadDefaults;
+	LoadUserProfile(thisPtr, bLoadDefaults, bLoadDisplaySettings);
+	gState.isLoadingDefault = false;
+}
+
+static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
+{
+	gState.isLoadingDefault = true;
+	bool res = RestoreDefaults(thisPtr, nFlags);
+	gState.isLoadingDefault = false;
+	return res;
+}
+
+// ======================
+// WeaponFixes
+// ======================
+
+static BYTE* __fastcall AimMgrCtor_Hook(BYTE* thisPtr, int)
+{
+	gState.pAimMgr = thisPtr;
+	return AimMgrCtor(thisPtr);
 }
 
 static void __fastcall AnimationClearLock_Hook(DWORD thisPtr, int)
@@ -1486,6 +1002,7 @@ static void __fastcall UpdateWeaponModel_Hook(DWORD* thisPtr, int)
 {
 	if (gState.isEnteringWorld)
 	{
+		// Set 'm_dwLastWeaponContextAnim' to -1 to force an update of the weapon model
 		thisPtr[11] = -1;
 		gState.isEnteringWorld = false;
 	}
@@ -1495,6 +1012,7 @@ static void __fastcall UpdateWeaponModel_Hook(DWORD* thisPtr, int)
 
 static void __fastcall SetAnimProp_Hook(DWORD* thisPtr, int, int eAnimPropGroup, int eAnimProp)
 {
+	// Skip if not an action
 	if (gState.fireAnimationInterceptionDisabled || eAnimPropGroup != 0)
 	{
 		SetAnimProp(thisPtr, eAnimPropGroup, eAnimProp);
@@ -1503,10 +1021,13 @@ static void __fastcall SetAnimProp_Hook(DWORD* thisPtr, int, int eAnimPropGroup,
 
 	gState.actionAnimationThreshold++;
 
+	// For the first 10 action animations after loading a map
 	if (gState.actionAnimationThreshold <= 10)
 	{
-		if (eAnimProp == gState.kAP_ACT_Fire_Id && gState.pUpperAnimationContext != 0) 
+		// Check if the fire animation is playing
+		if (eAnimProp == gState.kAP_ACT_Fire_Id && gState.pUpperAnimationContext != 0)
 		{
+			// Unblock the player
 			AnimationClearLock(gState.pUpperAnimationContext);
 			gState.fireAnimationInterceptionDisabled = true;
 		}
@@ -1676,27 +1197,645 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 	return static_cast<uint8_t>(currentSlot);
 }
 
-static bool __fastcall LoadFxDll_Hook(int thisPtr, int, char* Source, char a3)
+// =========================
+// HighResolutionReflections
+// =========================
+
+static bool __fastcall RenderTargetGroupFXInit_Hook(int thisPtr, int, DWORD* psfxCreateStruct)
 {
-	// Load the DLL
-	char result = LoadFxDll(thisPtr, Source, a3);
+	// Low
+	psfxCreateStruct[3] *= 4;
+	psfxCreateStruct[4] *= 4;
+	// Medium
+	psfxCreateStruct[5] *= 4;
+	psfxCreateStruct[6] *= 4;
+	// High
+	psfxCreateStruct[7] *= 4;
+	psfxCreateStruct[8] *= 4;
+	return RenderTargetGroupFXInit(thisPtr, psfxCreateStruct);
+}
 
-	// Get the path
-	char* clientFXPath = ((char*)thisPtr + 0x24);
+// ==========================
+// EnablePersistentWorldState
+// ==========================
 
-	// Get the handle
-	wchar_t wFileName[MAX_PATH];
-	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
-	HMODULE clientFxDll = GetModuleHandleW(wFileName);
+static float __stdcall GetShatterLifetime_Hook(int shatterType)
+{
+	return FLT_MAX;
+}
 
-	if (clientFxDll)
+static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
+{
+	if (prop)
 	{
-		gState.GameClientFX = clientFxDll;
+		// Decal
+		if (*reinterpret_cast<uint32_t*>(effectType) == 0x61636544)
+		{
+			MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
+			MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
+		}
+		// LTBModel
+		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x4D42544C)
+		{
+			int fxName = *(DWORD*)(fxData + 0x74);
 
-		ApplyClientFXPatch();
+			// Skip HRocket_Debris
+			if (*reinterpret_cast<uint64_t*>(fxName + 0x2) != 0x65445F74656B636F)
+			{
+				MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false);
+				MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false);
+			}
+		}
+		// Sprite
+		else if (*reinterpret_cast<uint32_t*>(effectType) == 0x69727053)
+		{
+			int fxName = *(DWORD*)(fxData + 0x74);
+
+			if (*reinterpret_cast<uint64_t*>(fxName) == 0x75625F656E6F7453 // Stone_bullethole
+				|| *reinterpret_cast<uint64_t*>(fxName) == 0x455F736972626544 // Debris_Electronic_Chunk
+				|| *reinterpret_cast<uint64_t*>(fxName) == 0x575F736972626544 // Debris_Wood_Chunk
+				|| *reinterpret_cast<uint64_t*>(fxName) == 0x4D5F736972626544 // Debris_Mug_Chunk
+				|| *reinterpret_cast<uint64_t*>(fxName) == 0x565F736972626544 // Debris_Vase1_Chunk
+				|| *reinterpret_cast<uint64_t*>(fxName + 0x4) == 0x3674616C70735F68) // Flesh_splat6
+			{
+				MemoryHelper::WriteMemory<float>(prop + 0x8, FLT_MAX, false); // m_tmEnd
+				MemoryHelper::WriteMemory<float>(prop + 0xC, FLT_MAX, false); // m_tmLifetime
+			}
+		}
+	}
+
+	return CreateFX(effectType, fxData, prop);
+}
+
+// ======================
+// HUDScaling
+// ======================
+
+// Terminate the HUD
+static void __fastcall HUDTerminate_Hook(int thisPtr, int)
+{
+	HUDTerminate(thisPtr);
+}
+
+// Initialize the HUD
+static bool __fastcall HUDInit_Hook(int thisPtr, int)
+{
+	gState.CHUDMgr = thisPtr;
+	return HUDInit(thisPtr);
+}
+
+static void __fastcall HUDRender_Hook(int thisPtr, int, int eHUDRenderLayer)
+{
+	HUDRender(thisPtr, eHUDRenderLayer);
+	if (gState.updateHUD)
+	{
+		*(DWORD*)(thisPtr + 0x14) = -1;  // Force full HUD refresh (update health bar)
+		gState.updateHUD = false;
+	}
+}
+
+static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int)
+{
+	HUDWeaponListReset(thisPtr);
+}
+
+static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int)
+{
+	gState.CHUDWeaponList = thisPtr;
+	return HUDWeaponListInit(thisPtr);
+}
+
+static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int)
+{
+	gState.CHUDGrenadeList = thisPtr;
+	return HUDGrenadeListInit(thisPtr);
+}
+
+static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
+{
+	ScreenDimsChanged(thisPtr);
+
+	// Get the current resolution
+	gState.currentWidth = *(DWORD*)(thisPtr + 0x18);
+	gState.currentHeight = *(DWORD*)(thisPtr + 0x1C);
+
+	// Calculate the new scaling factor
+	gState.scalingFactor = std::sqrt((gState.currentWidth * gState.currentHeight) / BASE_AREA);
+
+	// Don't downscale the HUD
+	if (gState.scalingFactor < 1.0f) gState.scalingFactor = 1.0f;
+
+	// Do not change the scaling of the crosshair
+	gState.scalingFactorCrosshair = gState.scalingFactor;
+
+	// Apply custom scaling for the text
+	gState.scalingFactorText = gState.scalingFactor * SmallTextCustomScalingFactor;
+
+	// Apply custom scaling to calculated scaling
+	gState.scalingFactor *= HUDCustomScalingFactor;
+
+	// Reset slow-mo bar update flag and HUDHealth.AdditionalInt index
+	gState.slowMoBarUpdated = false;
+	gState.healthAdditionalIntIndex = 0;
+
+	// If the resolution is updated
+	if (gState.CHUDMgr != 0)
+	{
+		// Reinitialize the HUD
+		HUDTerminate(gState.CHUDMgr);
+		HUDInit(gState.CHUDMgr);
+		HUDWeaponListReset(gState.CHUDWeaponList);
+		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
+		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
+		HUDPausedInit(gState.CHUDPaused);
+		gState.updateHUD = true;
+
+		// Update the size of the crosshair
+		SetConsoleVariableFloat("CrosshairSize", gState.crosshairSize * gState.scalingFactorCrosshair);
+		SetConsoleVariableFloat("PerturbScale", 0.5f * gState.scalingFactorCrosshair);
+	}
+}
+
+// Scale HUD position or dimension
+static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* Attribute, int a4) 
+{
+	if (!Record)
+		return LayoutDBGetPosition(a1, Record, Attribute, a4);
+
+	DWORD* result = LayoutDBGetPosition(a1, Record, Attribute, a4);
+	const char* hudRecordString = *(const char**)Record;
+
+	std::string_view hudElement(hudRecordString);
+	std::string_view attribute(Attribute);
+
+	auto hudEntry = gState.hudScalingRules.find(hudElement);
+	if (hudEntry != gState.hudScalingRules.end()) 
+	{
+		const auto& rule = hudEntry->second;
+		if (std::binary_search(rule.attributes.begin(), rule.attributes.end(), attribute)) 
+		{
+			float scalingFactor = *rule.scalingFactorPtr;
+			result[0] = static_cast<DWORD>(static_cast<int>(result[0]) * scalingFactor);
+			result[1] = static_cast<DWORD>(static_cast<int>(result[1]) * scalingFactor);
+		}
 	}
 
 	return result;
+}
+
+// Increase the length of the bar used for the flashlight and slowmo
+static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, int a4)
+{
+	if (!Record)
+		return GetRectF(a1, Record, Attribute, a4);
+
+	float* result = GetRectF(a1, Record, Attribute, a4);
+	char* hudRecordString = *(char**)Record;
+
+	if (hudRecordString[4] == 'l' && strcmp(Attribute, "AdditionalRect") == 0 && (strcmp(hudRecordString, "HUDSlowMo2") == 0 || strcmp(hudRecordString, "HUDFlashlight") == 0))
+	{
+		result[0] *= gState.scalingFactor;
+		result[1] *= gState.scalingFactor;
+		result[2] *= gState.scalingFactor;
+		result[3] *= gState.scalingFactor;
+	}
+
+	return result;
+}
+
+// Override 'DBGetInt32' and other related functions to return specific values
+static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
+{
+	if (!Record)
+		return DBGetRecord(Record, Attribute);
+
+	char* hudRecordString = *(char**)Record;
+
+	if (Attribute[4] == 'S' && strcmp(Attribute, "TextSize") == 0)
+	{
+		auto it = gState.textDataMap.find(hudRecordString);
+		if (it != gState.textDataMap.end())
+		{
+			auto dt = it->second;
+			float scaledSize = dt.TextSize * gState.scalingFactor;
+
+			switch (dt.ScaleType)
+			{
+				case 1: scaledSize = std::round(scaledSize * 0.95f); break;
+				case 2: scaledSize = dt.TextSize * gState.scalingFactorText; break;
+			}
+
+			gState.int32ToUpdate = static_cast<int32_t>(scaledSize);
+			gState.updateLayoutReturnValue = true;
+		}
+	}
+
+	// Additional?
+	if (Attribute[9] == 'l')
+	{
+		// Update the rectangle's length
+		if (strcmp(Attribute, "AdditionalFloat") == 0)
+		{
+			float baseValue = 0.0f;
+
+			if (!gState.slowMoBarUpdated && strcmp(hudRecordString, "HUDSlowMo2") == 0)
+			{
+				baseValue = 10.0f;
+				gState.slowMoBarUpdated = true;
+			}
+			else if (strcmp(hudRecordString, "HUDFlashlight") == 0)
+			{
+				baseValue = 6.0f;
+			}
+
+			if (baseValue != 0.0f)
+			{
+				gState.updateLayoutReturnValue = true;
+				gState.floatToUpdate = baseValue * gState.scalingFactor;
+			}
+		}
+		// Medkit prompt when health drops below 50
+		else if (strcmp(hudRecordString, "HUDHealth") == 0 && strcmp(Attribute, "AdditionalInt") == 0)
+		{
+			if (gState.healthAdditionalIntIndex == 2)
+			{
+				gState.updateLayoutReturnValue = true;
+				gState.int32ToUpdate = 14 * gState.scalingFactor;
+			}
+			else
+			{
+				gState.healthAdditionalIntIndex++;
+			}
+		}
+	}
+
+	return DBGetRecord(Record, Attribute);
+}
+
+// Executed right after 'DBGetRecord'
+static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
+{
+	if (gState.updateLayoutReturnValue)
+	{
+		gState.updateLayoutReturnValue = false;
+		return gState.int32ToUpdate;
+	}
+	return DBGetInt32(a1, a2, a3);
+}
+
+// Executed right after 'DBGetRecord'
+static float __stdcall DBGetFloat_Hook(int a1, unsigned int a2, float a3)
+{
+	if (gState.updateLayoutReturnValue)
+	{
+		gState.updateLayoutReturnValue = false;
+		return gState.floatToUpdate;
+	}
+	return DBGetFloat(a1, a2, a3);
+}
+
+// Executed right after 'DBGetRecord'
+static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
+{
+	return DBGetString(a1, a2, a3);
+}
+
+static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
+{
+	if (thisPtr)
+	{
+		const char* sliderName = *(const char**)(thisPtr + 8);
+
+		// If 'ScreenCrosshair_Size_Help' is next
+		if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
+		{
+			gState.crosshairSliderUpdated = false;
+		}
+
+		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
+		if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !gState.crosshairSliderUpdated && gState.scalingFactorCrosshair > 1.0f)
+		{
+			float unscaledIndex = index / gState.scalingFactorCrosshair;
+
+			// scs.nIncrement = 2
+			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
+
+			// Clamp to the range [4, 16].
+			newIndex = std::clamp(newIndex, 4, 16);
+
+			index = newIndex;
+
+			// Only needed on the first time
+			gState.crosshairSliderUpdated = true;
+		}
+	}
+	return UpdateSlider(thisPtr, index);
+}
+
+static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
+{
+	vPos[0] = static_cast<DWORD>((int)vPos[0] * gState.scalingFactor);
+	vPos[1] = static_cast<DWORD>((int)vPos[1] * gState.scalingFactor);
+
+	vSize[0] = static_cast<DWORD>((int)vSize[0] * gState.scalingFactor);
+	vSize[1] = static_cast<DWORD>((int)vSize[1] * gState.scalingFactor);
+
+	InitAdditionalTextureData(a1, a2, a3, vPos, vSize, a6);
+}
+
+static void __fastcall HUDPausedInit_Hook(int thisPtr, int)
+{
+	gState.CHUDPaused = thisPtr;
+	HUDPausedInit(thisPtr);
+}
+
+// ======================
+// AutoResolution
+// ======================
+
+static void __cdecl AutoDetectPerformanceSettings_Hook()
+{
+	gState.isInAutoDetect = true;
+	AutoDetectPerformanceSettings();
+	gState.isInAutoDetect = false;
+}
+
+static void __fastcall SetOption_Hook(int thisPtr, int, int a2, int a3, int a4, int a5)
+{
+	gState.isSettingOption = true;
+	SetOption(thisPtr, a2, a3, a4, a5);
+	gState.isSettingOption = false;
+}
+
+static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const char* pszVar, float a3, int a4)
+{
+	// Don't update the resolution if we change the presets
+	if (gState.isSettingOption && (strcmp(pszVar, "Performance_ScreenHeight") == 0 || strcmp(pszVar, "Performance_ScreenWidth") == 0))
+	{
+		return false;
+	}
+
+	return SetQueuedConsoleVariable(thisPtr, pszVar, a3, a4);
+}
+
+// =======================
+// XInputControllerSupport
+// =======================
+
+static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId)
+{
+	return (commandId < 117 && gController.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
+}
+
+static bool __fastcall OnCommandOn_Hook(int thisPtr, int, int commandId)
+{
+	return OnCommandOn(thisPtr, commandId);
+}
+
+static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
+{
+	return OnCommandOff(thisPtr, commandId);
+}
+
+static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
+{
+	if (gController.isConnected)
+	{
+		const int DEAD_ZONE = 7849;
+		const auto& gamepad = gController.state.Gamepad;
+
+		switch (commandId)
+		{
+			case 2: // Forward
+			{
+				if (abs(gamepad.sThumbLY) < DEAD_ZONE) return 0.0;
+				return gamepad.sThumbLY / 32768.0;
+			}
+			case 5: // Strafe
+			{
+				if (abs(gamepad.sThumbLX) < DEAD_ZONE) return 0.0;
+				return gamepad.sThumbLX / 32768.0;
+			}
+			case 22: // Pitch
+			{
+				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
+				double pitchValue = -gamepad.sThumbRY / 32768.0;
+				if (gState.zoomMag > GPadZoomMagThreshold) pitchValue *= (gState.zoomMag / GPadZoomMagThreshold);
+				return pitchValue;
+			}
+			case 23: // Yaw
+			{
+				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
+				double yawValue = gamepad.sThumbRX / 32768.0;
+				if (gState.zoomMag > GPadZoomMagThreshold) yawValue *= (gState.zoomMag / GPadZoomMagThreshold);
+				return yawValue;
+			}
+		}
+	}
+
+	return GetExtremalCommandValue(thisPtr, commandId);
+}
+
+static double __fastcall GetZoomMag_Hook(int thisPtr)
+{
+	gState.zoomMag = GetZoomMag(thisPtr);
+	return gState.zoomMag;
+}
+
+static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int nNewType)
+{
+	// If we can open a door or pick up an item
+	gState.canActivate = nNewType != -1;
+	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, nNewType);
+}
+
+static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
+{
+	// Operating a turret?
+	gState.isOperatingTurret = pTurret != 0;
+	return SetOperatingTurret(thisPtr, pTurret);
+}
+
+static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int, int commandId)
+{
+	if (!gController.isConnected)
+		return GetTriggerNameFromCommandID(thisPtr, commandId);
+
+	// Left Thumbstick movement
+	switch (commandId)
+	{
+		case 0: return L"Left Thumbstick Up";
+		case 1: return L"Left Thumbstick Down";
+	}
+
+	// Reload key alias
+	if (commandId == 87)
+		commandId = 88;
+
+	bool shortName = false;
+	if (commandId >= 30 && commandId <= 39) { commandId = 77; shortName = true; } // HUDWeapon
+	else if (commandId >= 40 && commandId <= 45) { commandId = 73; shortName = true; } // HUDGrenadeList
+
+	// Find the matching button for this command Id
+	for (size_t i = 0; i < sizeof(g_buttonMappings) / sizeof(g_buttonMappings[0]); ++i)
+	{
+		if (g_buttonMappings[i].second == commandId)
+		{
+			switch (g_buttonMappings[i].first)
+			{
+				case XINPUT_GAMEPAD_A:              return shortName ? L"A" : L"A Button";
+				case XINPUT_GAMEPAD_B:              return shortName ? L"B" : L"B Button";
+				case XINPUT_GAMEPAD_X:              return shortName ? L"X" : L"X Button";
+				case XINPUT_GAMEPAD_Y:              return shortName ? L"Y" : L"Y Button";
+				case XINPUT_GAMEPAD_LEFT_SHOULDER:  return shortName ? L"LB" : L"Left Bumper";
+				case XINPUT_GAMEPAD_RIGHT_SHOULDER: return shortName ? L"RB" : L"Right Bumper";
+				case XINPUT_GAMEPAD_LEFT_TRIGGER:   return shortName ? L"LT" : L"Left Trigger";
+				case XINPUT_GAMEPAD_RIGHT_TRIGGER:  return shortName ? L"RT" : L"Right Trigger";
+				case XINPUT_GAMEPAD_LEFT_THUMB:     return shortName ? L"L3" : L"Left Thumbstick";
+				case XINPUT_GAMEPAD_RIGHT_THUMB:    return shortName ? L"R3" : L"Right Thumbstick";
+				case XINPUT_GAMEPAD_DPAD_UP:        return shortName ? L"D-Up" : L"D-Pad Up";
+				case XINPUT_GAMEPAD_DPAD_DOWN:      return shortName ? L"D-Down" : L"D-Pad Down";
+				case XINPUT_GAMEPAD_DPAD_LEFT:      return shortName ? L"D-Left" : L"D-Pad Left";
+				case XINPUT_GAMEPAD_DPAD_RIGHT:     return shortName ? L"D-Right" : L"D-Pad Right";
+				case XINPUT_GAMEPAD_BACK:           return shortName ? L"Back" : L"Back Button";
+				default: break;
+			}
+		}
+	}
+
+	return GetTriggerNameFromCommandID(thisPtr, commandId);
+}
+
+
+static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
+{
+	gState.isPlaying = state == 1;
+	return ChangeState(thisPtr, state, screenId);
+}
+
+static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor)
+{
+	if (gController.isConnected) 
+		bUseCursor = false;
+	UseCursor(thisPtr, bUseCursor);
+}
+
+static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
+{
+	if (gController.isConnected)
+	{
+		x = 0;
+		y = 0;
+	}
+	return OnMouseMove(thisPtr, x, y);
+}
+
+static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int)
+{
+	HUDSwapUpdate(thisPtr);
+	gState.canSwap = *(BYTE*)(thisPtr + 0x1C0) != 0;
+}
+
+static void __fastcall SwitchToScreen_Hook(int thisPtr, int, int pNewScreen)
+{
+	int currentScreenID = *(DWORD*)(pNewScreen + 0x10);
+
+	if (currentScreenID == gState.screenPerformanceCPU)
+	{
+		gState.maxCurrentType = 3;
+		gState.currentType = 0;
+	}
+	else if (currentScreenID == gState.screenPerformanceGPU)
+	{
+		gState.maxCurrentType = 2;
+		gState.currentType = 0;
+	}
+	else
+	{
+		gState.maxCurrentType = -1;
+	}
+
+	SwitchToScreen(thisPtr, pNewScreen);
+}
+
+static void __fastcall SetCurrentType_Hook(int thisPtr, int, int type)
+{
+	gState.pCurrentType = thisPtr;
+	SetCurrentType(thisPtr, type);
+}
+
+static void __cdecl HUDSwapUpdateTriggerName_Hook()
+{
+	HUDSwapUpdateTriggerName();
+}
+
+static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
+{
+	if (gController.isConnected && strcmp(String, "IDS_QUICKSAVE") == 0)
+	{
+		return L"Quick save";
+	}
+
+	if (gController.isConnected && strcmp(String, "ScreenFailure_PressAnyKey") == 0)
+	{
+		return L"Press B to return to the main menu.\nPress any other button to continue.";
+	}
+	return LoadGameString(ptr, String);
+}
+
+// =============================
+// EnableCustomMaxWeaponCapacity
+// =============================
+
+static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int)
+{
+	return MaxWeaponCapacity;
+}
+
+// =============================
+// DisableHipFireAccuracyPenalty
+// =============================
+
+static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
+{
+	AccuracyMgrUpdate(thisPtr);
+	*thisPtr = 0.0f;
+}
+
+// =====================================
+//  XInputControllerSupport & HUDScaling
+// =====================================
+
+static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int)
+{
+	HUDWeaponListUpdateTriggerNames(thisPtr);
+}
+
+static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int)
+{
+	HUDGrenadeListUpdateTriggerNames(thisPtr);
+}
+
+// ============================================
+//  EnableCustomMaxWeaponCapacity & WeaponFixes
+// ============================================
+
+static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
+{
+	OnEnterWorld(thisPtr);
+
+	// Set the flag to allow aiming (can be 0 if loading a save during a cutscene)
+	if (WeaponFixes)
+	{
+		gState.isEnteringWorld = true;
+		gState.pAimMgr[1] = 1;
+	}
+
+	// Update the weapon capacity
+	if (EnableCustomMaxWeaponCapacity)
+	{
+		SetWeaponCapacityServer(gState.CPlayerInventory, MaxWeaponCapacity);
+	}
 }
 
 #pragma endregion
@@ -1716,6 +1855,7 @@ static void ApplyHighFPSFixesClientPatch()
 	DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(gState.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
 	DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(gState.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
 	DWORD targetMemoryLocation_PolyGridFXCollisionHandlerCB = ScanModuleSignature(gState.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
+	targetMemoryLocation_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetMaxRecentVelocityMag, 0xC);
 
 	if (targetMemoryLocation_SurfaceJumpImpulse == 0 ||
 		targetMemoryLocation_HeightOffset == 0 ||
@@ -1729,11 +1869,9 @@ static void ApplyHighFPSFixesClientPatch()
 		return;
 	}
 
-	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetMaxRecentVelocityMag + 0xC);
-	int getMaxRecentVelocityMagAddress = (targetMemoryLocation_GetMaxRecentVelocityMag + 0xC) + (callAddr + 0x4);
 	MemoryHelper::MakeNOP(targetMemoryLocation_SurfaceJumpImpulse, 0x10);
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84, true);
-	HookHelper::ApplyHook((void*)getMaxRecentVelocityMagAddress, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_GetMaxRecentVelocityMag, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
@@ -1748,18 +1886,20 @@ static void ApplyMouseAimMultiplierClientPatch()
 
 	DWORD targetMemoryLocation_MouseAimMultiplier = ScanModuleSignature(gState.GameClient, "89 4C 24 14 DB 44 24 14 8D 44 24 20 6A 01 50 D8 0D", "MouseAimMultiplier");
 
-	if (targetMemoryLocation_MouseAimMultiplier == 0) return;
-
-	gState.overrideSensitivity = gState.overrideSensitivity * MouseAimMultiplier;
-
-	MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&gState.overrideSensitivity), true);
+	if (targetMemoryLocation_MouseAimMultiplier != 0)
+	{
+		// Write the updated multiplier
+		gState.overrideSensitivity = gState.overrideSensitivity * MouseAimMultiplier;
+		MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&gState.overrideSensitivity), true);
+	}
 }
 
 static void ApplyXPWidescreenClientPatch()
 {
 	if (DisableXPWidescreenFiltering && gState.CurrentFEARGame == FEARXP)
 	{
-		MemoryHelper::MakeNOP((DWORD)gState.GameClient + 0x10DDB0, 24, true);
+		// Disable non-4:3 filtering
+		MemoryHelper::MakeNOP((DWORD)gState.GameClient + 0x10DDB0, 24);
 	}
 }
 
@@ -1771,7 +1911,7 @@ static void ApplySkipSplashScreenClientPatch()
 
 	if (targetMemoryLocation != 0)
 	{
-		MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8, true);
+		MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8);
 	}
 }
 
@@ -1796,6 +1936,7 @@ static void ApplyPersistentWorldClientPatch()
 	DWORD targetMemoryLocation_Decal = ScanModuleSignature(gState.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
 	DWORD targetMemoryLocation_FX = ScanModuleSignature(gState.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
 	DWORD targetMemoryLocation_Shatter = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
+	targetMemoryLocation_Shatter = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_Shatter, 0x3);
 
 	if (targetMemoryLocation_ShellCasing == 0 ||
 		targetMemoryLocation_DecalSaving == 0 ||
@@ -1805,13 +1946,10 @@ static void ApplyPersistentWorldClientPatch()
 		return;
 	}
 
-	MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4, true);
-	MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4);
+	MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13);
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
-
-	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_Shatter + 0x3);
-	int shatterLiftetimeAddress = (targetMemoryLocation_Shatter + 0x3) + (callAddr + 0x4);
-	HookHelper::ApplyHook((void*)shatterLiftetimeAddress, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
 
@@ -1833,7 +1971,7 @@ static void ApplyInfiniteFlashlightClientPatch()
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3, true);
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3, true);
 	MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3, true);
-	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6, true);
+	MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6);
 }
 
 static void ApplyXInputControllerClientPatch()
@@ -1857,6 +1995,7 @@ static void ApplyXInputControllerClientPatch()
 	DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(gState.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
 	DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(gState.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
 	DWORD targetMemoryLocation_PerformanceScreenId = ScanModuleSignature(gState.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
+	targetMemoryLocation_GetZoomMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetZoomMag, 0xD);
 
 	if (targetMemoryLocation_OnCommandOn == 0 ||
 		targetMemoryLocation_OnCommandOff == 0 ||
@@ -1889,10 +2028,7 @@ static void ApplyXInputControllerClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
-
-	int callAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GetZoomMag + 0xD);
-	int getZoomMagAddress = (targetMemoryLocation_GetZoomMag + 0xD) + (callAddr + 0x4);
-	HookHelper::ApplyHook((void*)getZoomMagAddress, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
 
 	gState.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0xD);
 	gState.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0x25);
@@ -1958,11 +2094,11 @@ static void ApplySetWeaponCapacityClientPatch()
 
 	DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(gState.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
 
-	if (targetMemoryLocation_GetWeaponCapacity == 0) return;
-
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
-
-	gState.appliedCustomMaxWeaponCapacity = true;
+	if (targetMemoryLocation_GetWeaponCapacity != 0)
+	{
+		HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
+		gState.appliedCustomMaxWeaponCapacity = true;
+	}
 }
 
 static void ApplyHighResolutionReflectionsClientPatch()
@@ -1971,16 +2107,10 @@ static void ApplyHighResolutionReflectionsClientPatch()
 
 	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "RenderTargetGroupFXInit");
 
-	if (targetMemoryLocation == 0) return;
-
-	HookHelper::ApplyHook((void*)(targetMemoryLocation - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
-}
-
-static void __cdecl AutoDetectPerformanceSettings_Hook()
-{
-	gState.isInAutoDetect = true;
-	AutoDetectPerformanceSettings();
-	gState.isInAutoDetect = false;
+	if (targetMemoryLocation != 0)
+	{
+		HookHelper::ApplyHook((void*)(targetMemoryLocation - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+	}
 }
 
 static void ApplyAutoResolutionClientCheck()
@@ -2031,6 +2161,8 @@ static void ApplyWeaponFixesClientPatch()
 	DWORD targetMemoryLocation_NextWeapon = ScanModuleSignature(gState.GameClient, "84 C0 0F 84 ?? 00 00 00 8B CE E8", "NextWeapon");
 	DWORD targetMemoryLocation_PreviousWeapon = ScanModuleSignature(gState.GameClient, "8D BE ?? 57 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 1F 8B CE E8", "PreviousWeapon");
 	DWORD targetMemoryLocation_kAP_ACT_Fire_Id = ScanModuleSignature(gState.GameClient, "84 C0 75 1E 6A 00 68 ?? 00 00 00 6A 00 8B CF", "kAP_ACT_Fire_Id");
+	targetMemoryLocation_NextWeapon = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_NextWeapon, 0xB);
+	targetMemoryLocation_PreviousWeapon = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_PreviousWeapon, 0x14);
 
 	if (targetMemoryLocation_AimMgrCtor == 0 ||
 		targetMemoryLocation_UpdateWeaponModel == 0 ||
@@ -2050,15 +2182,8 @@ static void ApplyWeaponFixesClientPatch()
 	HookHelper::ApplyHook((void*)targetMemoryLocation_SetAnimProp, &SetAnimProp_Hook, (LPVOID*)&SetAnimProp);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_InitAnimations, &InitAnimations_Hook, (LPVOID*)&InitAnimations);
 	HookHelper::ApplyHook((void*)targetMemoryLocation_GetWeaponSlot, &GetWeaponSlot_Hook, (LPVOID*)&GetWeaponSlot);
-
-	int callNextAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_NextWeapon + 0xB);
-	int nextWeaponAddress = (targetMemoryLocation_NextWeapon + 0xB) + (callNextAddr + 0x4);
-	HookHelper::ApplyHook((void*)nextWeaponAddress, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
-
-	int callPrevAddr = MemoryHelper::ReadMemory<int>(targetMemoryLocation_PreviousWeapon + 0x14);
-	int prevWeaponAddress = (targetMemoryLocation_PreviousWeapon + 0x14) + (callPrevAddr + 0x4);
-	HookHelper::ApplyHook((void*)prevWeaponAddress, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
-
+	HookHelper::ApplyHook((void*)targetMemoryLocation_NextWeapon, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
+	HookHelper::ApplyHook((void*)targetMemoryLocation_PreviousWeapon, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
 	gState.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(targetMemoryLocation_kAP_ACT_Fire_Id + 0x7);
 }
 
@@ -2066,11 +2191,12 @@ static void ApplyClientFXHook()
 {
 	if (!HighFPSFixes) return;
 
-	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "ClientFXHook");
+	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
 
-	if (targetMemoryLocation == 0) return;
-
-	HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadFxDll_Hook, (LPVOID*)&LoadFxDll);
+	if (targetMemoryLocation != 0)
+	{
+		HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadFxDll_Hook, (LPVOID*)&LoadFxDll);
+	}
 }
 
 static void ApplyDisableHipFireAccuracyPenalty()
@@ -2079,9 +2205,10 @@ static void ApplyDisableHipFireAccuracyPenalty()
 
 	DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "83 EC ?? A1 ?? ?? ?? ?? 8B 40 28 56 57 6A 00 8B F1", "DisableHipFireAccuracyPenalty");
 
-	if (targetMemoryLocation == 0) return;
-
-	HookHelper::ApplyHook((void*)targetMemoryLocation, &AccuracyMgrUpdate_Hook, (LPVOID*)&AccuracyMgrUpdate);
+	if (targetMemoryLocation != 0)
+	{
+		HookHelper::ApplyHook((void*)targetMemoryLocation, &AccuracyMgrUpdate_Hook, (LPVOID*)&AccuracyMgrUpdate);
+	}
 }
 
 static void ApplyGameDatabaseHook()
@@ -2090,16 +2217,17 @@ static void ApplyGameDatabaseHook()
 
 	DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(gState.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 
-	if (targetMemoryLocation_GameDatabase == 0) return;
+	if (targetMemoryLocation_GameDatabase != 0)
+	{
+		int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
+		int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
+		int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
 
-	int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
-	int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
-	int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
-
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &DBGetRecord_Hook, (LPVOID*)&DBGetRecord);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &DBGetInt32_Hook, (LPVOID*)&DBGetInt32);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &DBGetFloat_Hook, (LPVOID*)&DBGetFloat);
-	HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &DBGetString_Hook, (LPVOID*)&DBGetString);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &DBGetRecord_Hook, (LPVOID*)&DBGetRecord);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &DBGetInt32_Hook, (LPVOID*)&DBGetInt32);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &DBGetFloat_Hook, (LPVOID*)&DBGetFloat);
+		HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &DBGetString_Hook, (LPVOID*)&DBGetString);
+	}
 }
 
 static void ApplyClientPatchSet1()
@@ -2124,9 +2252,10 @@ static void ApplyClientPatchSet2()
 
 	DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(gState.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
 
-	if (targetMemoryLocation_OnEnterWorld == 0) return;
-
-	HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+	if (targetMemoryLocation_OnEnterWorld != 0)
+	{
+		HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+	}
 }
 
 static void ApplyClientPatch()
@@ -2156,10 +2285,13 @@ static void ApplyClientPatch()
 
 #pragma region Server Hooks
 
+// ==============================
+//  EnableCustomMaxWeaponCapacity
+// ==============================
+
 static void __fastcall SetWeaponCapacityServer_Hook(int thisPtr, int, uint8_t nCap)
 {
-	nCap = MaxWeaponCapacity;
-	SetWeaponCapacityServer(thisPtr, nCap);
+	SetWeaponCapacityServer(thisPtr, MaxWeaponCapacity);
 }
 
 static void __fastcall PlayerInventoryInit_Hook(int thisPtr, int, int nCap)
@@ -2216,7 +2348,230 @@ static void ApplyServerPatch()
 
 #pragma endregion
 
-#pragma region Hooks
+#pragma region Controller Handling
+
+static void HandleControllerButton(WORD button, int commandId)
+{
+	auto& btnState = gController.gameButtons[button];
+	bool isPressed;
+
+	// Activate instead of Reload
+	if (commandId == 88 && (gState.canActivate || gState.canSwap || gState.isOperatingTurret))
+	{
+		commandId = 87;
+	}
+
+	if (button == XINPUT_GAMEPAD_LEFT_TRIGGER)
+	{
+		// Left trigger
+		isPressed = gController.state.Gamepad.bLeftTrigger > 30;
+	}
+	else if (button == XINPUT_GAMEPAD_RIGHT_TRIGGER)
+	{
+		// Right trigger
+		isPressed = gController.state.Gamepad.bRightTrigger > 30;
+	}
+	else
+	{
+		// Regular button
+		isPressed = (gController.state.Gamepad.wButtons & button) != 0;
+	}
+
+	if (isPressed && !btnState.isPressed)
+	{
+		// Press Escape to show the menu
+		if (commandId == -1)
+		{
+			PostMessage(gState.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
+		}
+		else
+		{
+			gController.commandActive[commandId] = true;
+			OnCommandOn(gState.g_pGameClientShell, commandId);
+			btnState.wasHandled = true;
+			btnState.pressStartTime = GetTickCount64();
+		}
+	}
+	else if (isPressed)
+	{
+		if (commandId != -1)
+		{
+			gController.commandActive[commandId] = true;
+		}
+	}
+	else if (!isPressed && btnState.isPressed)
+	{
+		if (commandId == -1)
+		{
+			PostMessage(gState.hWnd, WM_KEYUP, VK_ESCAPE, 0);
+		}
+		else
+		{
+			gController.commandActive[commandId] = false;
+			OnCommandOff(gState.g_pGameClientShell, commandId);
+			btnState.wasHandled = false;
+		}
+	}
+
+	btnState.isPressed = isPressed;
+}
+
+// Main function to poll controller and process all button mappings
+static void PollController()
+{
+	// Save previous connection state
+	bool wasConnected = gController.isConnected;
+
+	// Update controller state once per frame
+	gController.isConnected = XInputGetState(0, &gController.state) == ERROR_SUCCESS;
+
+	// Check for connection state change
+	if (wasConnected != gController.isConnected)
+	{
+		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
+		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
+		HUDSwapUpdateTriggerName();
+	}
+
+	if (!gController.isConnected)
+	{
+		memset(gController.commandActive, 0, sizeof(gController.commandActive));
+		return;
+	}
+
+	// Menu navigation
+	if (!gState.isPlaying)
+	{
+		const ULONGLONG currentTime = GetTickCount64();
+
+		for (int i = 0; i < 6; i++)
+		{
+			auto& btnState = gController.menuButtons[i];
+			bool pressed = false;
+
+			if (i < 4) // D-Pad
+			{
+				const bool buttonPressed = (gController.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+				bool joystickPressed = false;
+
+				switch (i)
+				{
+					case 0: // Up
+						joystickPressed = (gController.state.Gamepad.sThumbLY > 16384) || (gController.state.Gamepad.sThumbRY > 16384);
+						break;
+					case 1: // Down
+						joystickPressed = (gController.state.Gamepad.sThumbLY < -16384) || (gController.state.Gamepad.sThumbRY < -16384);
+						break;
+					case 2: // Left
+						joystickPressed = (gController.state.Gamepad.sThumbLX < -16384) || (gController.state.Gamepad.sThumbRX < -16384);
+						break;
+					case 3: // Right
+						joystickPressed = (gController.state.Gamepad.sThumbLX > 16384) || (gController.state.Gamepad.sThumbRX > 16384);
+						break;
+				}
+
+				pressed = buttonPressed || joystickPressed;
+
+				// Handle auto-repeat
+				if (pressed)
+				{
+					if (!btnState.isPressed)
+					{
+						// Initial press
+						btnState.pressStartTime = currentTime;
+						btnState.lastRepeatTime = currentTime;
+					}
+					else
+					{
+						// Calculate time since last valid input
+						DWORD elapsedSinceStart = currentTime - btnState.pressStartTime;
+						DWORD elapsedSinceLastRepeat = currentTime - btnState.lastRepeatTime;
+
+						if (elapsedSinceStart > 500 && elapsedSinceLastRepeat > 100)
+						{
+							// Trigger repeat
+							PostMessage(gState.hWnd, WM_KEYDOWN, MENU_NAVIGATION_MAP[i][1], 0);
+							btnState.lastRepeatTime = currentTime;
+						}
+					}
+				}
+			}
+			else // A/B
+			{
+				pressed = (gController.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
+			}
+
+			// Handle state changes
+			if (pressed != btnState.isPressed)
+			{
+				PostMessage(gState.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, MENU_NAVIGATION_MAP[i][1], 0);
+				btnState.isPressed = pressed;
+
+				// Reset timing on release
+				if (!pressed)
+				{
+					btnState.pressStartTime = 0;
+					btnState.lastRepeatTime = 0;
+				}
+			}
+		}
+
+		// Handle shoulder buttons
+		auto UpdateScreenPerformanceSetting = [&](DWORD button, auto& btnState, int direction)
+		{
+			bool pressed = (gController.state.Gamepad.wButtons & button);
+			if (pressed != btnState.isPressed)
+			{
+				if (pressed)
+				{
+					if (gState.pCurrentType != 0 && gState.maxCurrentType != -1)
+					{
+						gState.currentType = (gState.currentType + direction + gState.maxCurrentType) % gState.maxCurrentType;
+						SetCurrentType(gState.pCurrentType, gState.currentType);
+					}
+				}
+				btnState.isPressed = pressed;
+			}
+		};
+
+		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_LEFT_SHOULDER, gController.leftShoulderState, -1);
+		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_RIGHT_SHOULDER, gController.rightShoulderState, 1);
+	}
+	// Handle in-game controls
+	else
+	{
+		// Reset command states
+		memset(gController.commandActive, 0, sizeof(gController.commandActive));
+
+		// Process buttons
+		for (const auto& mapping : g_buttonMappings)
+		{
+			HandleControllerButton(mapping.first, mapping.second);
+		}
+	}
+
+	// Hook 'LoadString' to override menu strings
+	if (!gState.hookedLoadString)
+	{
+		gState.hookedLoadString = true;
+
+		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
+
+		if (targetMemoryLocation != 0)
+		{
+			int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
+			int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
+			int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
+			int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
+
+			HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
+		}
+	}
+}
+
+#pragma endregion
+
+#pragma region Core Hooks
 
 // When the game is loading the Client or Server
 static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
@@ -2248,163 +2603,11 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 	return result;
 }
 
-static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int, float* timeStepParams)
-{
-	if (timeStepParams[1] > 60) timeStepParams[1] = 60;
-	gState.lastFrameTime = timeStepParams[0];
-	return StepPhysicsSimulation(thisPtr, timeStepParams);
-}
-
-// Function utilized in the process of loading video files
-static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* video_path)
-{
-	// Disable this hook once we get to the menu
-	if (SkipAllIntro || strstr(video_path, "Menu"))
-	{
-		switch (gState.CurrentFEARGame)
-		{
-			case FEAR:
-				MH_DisableHook((void*)0x510CB0);
-				break;
-			case FEARMP:
-				MH_DisableHook((void*)0x510DD0);
-				break;
-			case FEARXP:
-				MH_DisableHook((void*)0x5B3440);
-				break;
-			case FEARXP2:
-				MH_DisableHook((void*)0x5B49C0);
-				break;
-		}
-
-		if (SkipAllIntro)
-		{
-			// Skip all movies while keeping the sound of the menu
-			SystemHelper::SimulateSpacebarPress(gState.hWnd);
-		}
-	}
-
-	if (SkipSierraIntro && strstr(video_path, "sierralogo.bik")) { video_path[0] = '\0'; }
-	if (SkipMonolithIntro && strstr(video_path, "MonolithLogo.bik")) { video_path[0] = '\0'; }
-	if (SkipWBGamesIntro && strstr(video_path, "WBGames.bik")) { video_path[0] = '\0'; }
-
-	if (SkipNvidiaIntro && (
-		strstr(video_path, "TWIMTBP_640x480.bik") ||
-		strstr(video_path, "Nvidia_LogoXP2.bik")
-		)) {
-		video_path[0] = '\0';
-	}
-
-	if (SkipTimegateIntro && (
-		strstr(video_path, "timegate.bik") ||
-		strstr(video_path, "TimeGate.bik")
-		)) {
-		video_path[0] = '\0';
-	}
-
-	if (SkipDellIntro && (
-		strstr(video_path, "dell_xps.bik") ||
-		strstr(video_path, "Dell_LogoXP2.bik")
-		)) {
-		video_path[0] = '\0';
-	}
-	return FindStringCaseInsensitive(thisPtr, video_path);
-}
-
-static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
-{
-	if (gState.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
-	{
-		// Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
-		static const std::unordered_map<std::wstring, unsigned int> keyMap =
-		{
-			{L"W", 0x11},
-			{L"S", 0x1F},
-			{L"A", 0x1E},
-			{L"D", 0x20},
-			{L"Left", 0xCB},
-			{L"Right", 0xCD},
-			{L"Right Ctrl", 0x9D},
-			{L"Space", 0x39},
-			{L"C", 0x2E},
-			{L"Q", 0x10},
-			{L"E", 0x12},
-			{L"G", 0x22},
-			{L"F", 0x21},
-			{L"R", 0x13},
-			{L"Shift", 0x2A},
-			{L"Ctrl", 0x1D},
-			{L"X", 0x2D},
-			{L"Tab", 0x0F},
-			{L"M", 0x32},
-			{L"T", 0x14},
-			{L"Y", 0x15},
-			{L"V", 0x2F},
-			{L"Up", 0xC8},
-			{L"Down", 0xD0},
-			{L"End", 0xCF},
-			{L"B", 0x30},
-			{L"Z", 0x2C},
-			{L"H", 0x23}
-		};
-
-		auto it = keyMap.find(KeyName);
-		if (it != keyMap.end())
-		{
-			// Get pointer to keyboard the DIK table
-			unsigned int dikCode = it->second;
-			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
-			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
-			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
-
-			// Iterate through the table
-			while (tableStart < tableEnd)
-			{
-				// If the corresponding DirectInput Key Id is found
-				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
-				{
-					// Write and return the index for that DIK Id
-					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
-					return 0;
-				}
-				tableStart += 0x20;
-			}
-		}
-	}
-	else if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1 && iswalpha(KeyName[0])) // Handle alphabet keys by converting to VK and then to scan code (DIK)
-	{
-		wchar_t keyChar = towupper(KeyName[0]);
-		HKL layout = GetKeyboardLayout(0);
-		SHORT vkScan = VkKeyScanExW(keyChar, layout);
-
-		if (vkScan != -1)
-		{
-			BYTE vk = LOBYTE(vkScan);
-			UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
-
-			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
-			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
-			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
-
-			while (tableStart < tableEnd)
-			{
-				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == scanCode)
-				{
-					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
-					return 0;
-				}
-				tableStart += 0x20;
-			}
-		}
-	}
-
-	return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
-}
-
 static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float fValue)
 {
 	if (ForceWindowed && strcmp(pszVarName, "StreamResources") == 0)
 	{
+		// Set Windowed flag during engine initialization
 		SetConsoleVariableFloat("Windowed", 1.0f);
 		ForceWindowed = false;
 	}
@@ -2504,224 +2707,126 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 	return SetConsoleVariableFloat(pszVarName, fValue);
 }
 
-static void HandleControllerButton(WORD button, int commandId)
+// ========================
+// FixKeyboardInputLanguage
+// ========================
+
+static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
-	auto& btnState = g_Controller.gameButtons[button];
-	bool isPressed;
-
-	// Activate instead of Reload
-	if (commandId == 88 && (gState.canActivate || gState.canSwap || gState.isOperatingTurret))
+	if (gState.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
 	{
-		commandId = 87;
-	}
-
-	if (button == XINPUT_GAMEPAD_LEFT_TRIGGER)
-	{
-		// Left trigger
-		isPressed = g_Controller.state.Gamepad.bLeftTrigger > 30;
-	}
-	else if (button == XINPUT_GAMEPAD_RIGHT_TRIGGER)
-	{
-		// Right trigger
-		isPressed = g_Controller.state.Gamepad.bRightTrigger > 30;
-	}
-	else 
-	{
-		// Regular button
-		isPressed = (g_Controller.state.Gamepad.wButtons & button) != 0;
-	}
-
-	if (isPressed && !btnState.isPressed)
-	{
-		// Press Escape to show the menu
-		if (commandId == -1)
+		// Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
+		static const std::unordered_map<std::wstring, unsigned int> keyMap =
 		{
-			PostMessage(gState.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
-		}
-		else
-		{
-			g_Controller.commandActive[commandId] = true;
-			OnCommandOn(gState.g_pGameClientShell, commandId);
-			btnState.wasHandled = true;
-			btnState.pressStartTime = GetTickCount64();
-		}
-	}
-	else if (isPressed)
-	{
-		if (commandId != -1)
-		{
-			g_Controller.commandActive[commandId] = true;
-		}
-	}
-	else if (!isPressed && btnState.isPressed)
-	{
-		if (commandId == -1)
-		{
-			PostMessage(gState.hWnd, WM_KEYUP, VK_ESCAPE, 0);
-		}
-		else
-		{
-			g_Controller.commandActive[commandId] = false;
-			OnCommandOff(gState.g_pGameClientShell, commandId);
-			btnState.wasHandled = false;
-		}
-	}
-
-	btnState.isPressed = isPressed;
-}
-
-// Main function to poll controller and process all button mappings
-static void PollController()
-{
-	// Save previous connection state
-	bool wasConnected = g_Controller.isConnected;
-
-	// Update controller state once per frame
-	g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS;
-
-	// Check for connection state change
-	if (wasConnected != g_Controller.isConnected)
-	{
-		HUDWeaponListUpdateTriggerNames(gState.CHUDWeaponList);
-		HUDGrenadeListUpdateTriggerNames(gState.CHUDGrenadeList);
-		HUDSwapUpdateTriggerName();
-	}
-
-	if (!g_Controller.isConnected)
-	{
-		memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
-		return;
-	}
-
-	// Menu navigation
-	if (!gState.isPlaying)
-	{
-		const ULONGLONG currentTime = GetTickCount64();
-
-		for (int i = 0; i < 6; i++)
-		{
-			auto& btnState = g_Controller.menuButtons[i];
-			bool pressed = false;
-
-			if (i < 4) // D-Pad
-			{
-				const bool buttonPressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
-				bool joystickPressed = false;
-
-				switch (i)
-				{
-					case 0: // Up
-						joystickPressed = (g_Controller.state.Gamepad.sThumbLY > 16384) || (g_Controller.state.Gamepad.sThumbRY > 16384);
-						break;
-					case 1: // Down
-						joystickPressed = (g_Controller.state.Gamepad.sThumbLY < -16384) || (g_Controller.state.Gamepad.sThumbRY < -16384);
-						break;
-					case 2: // Left
-						joystickPressed = (g_Controller.state.Gamepad.sThumbLX < -16384) || (g_Controller.state.Gamepad.sThumbRX < -16384);
-						break;
-					case 3: // Right
-						joystickPressed = (g_Controller.state.Gamepad.sThumbLX > 16384) || (g_Controller.state.Gamepad.sThumbRX > 16384);
-						break;
-				}
-
-				pressed = buttonPressed || joystickPressed;
-
-				// Handle auto-repeat
-				if (pressed)
-				{
-					if (!btnState.isPressed)
-					{
-						// Initial press
-						btnState.pressStartTime = currentTime;
-						btnState.lastRepeatTime = currentTime;
-					}
-					else
-					{
-						// Calculate time since last valid input
-						const DWORD elapsedSinceStart = currentTime - btnState.pressStartTime;
-						const DWORD elapsedSinceLastRepeat = currentTime - btnState.lastRepeatTime;
-
-						if (elapsedSinceStart > 500 && elapsedSinceLastRepeat > 100)
-						{
-							// Trigger repeat
-							PostMessage(gState.hWnd, WM_KEYDOWN, MENU_NAVIGATION_MAP[i][1], 0);
-							btnState.lastRepeatTime = currentTime;
-						}
-					}
-				}
-			}
-			else // A/B
-			{
-				pressed = (g_Controller.state.Gamepad.wButtons & MENU_NAVIGATION_MAP[i][0]);
-			}
-
-			// Handle state changes
-			if (pressed != btnState.isPressed)
-			{
-				PostMessage(gState.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, MENU_NAVIGATION_MAP[i][1], 0);
-				btnState.isPressed = pressed;
-
-				// Reset timing on release
-				if (!pressed)
-				{
-					btnState.pressStartTime = 0;
-					btnState.lastRepeatTime = 0;
-				}
-			}
-		}
-
-		// Handle shoulder buttons
-		auto UpdateScreenPerformanceSetting = [&](DWORD button, auto& btnState, int direction)
-		{
-			bool pressed = (g_Controller.state.Gamepad.wButtons & button);
-			if (pressed != btnState.isPressed)
-			{
-				if (pressed)
-				{
-					if (gState.pCurrentType != 0 && gState.maxCurrentType != -1)
-					{
-						gState.currentType = (gState.currentType + direction + gState.maxCurrentType) % gState.maxCurrentType;
-						SetCurrentType(gState.pCurrentType, gState.currentType);
-					}
-				}
-				btnState.isPressed = pressed;
-			}
+			{L"W", 0x11},
+			{L"S", 0x1F},
+			{L"A", 0x1E},
+			{L"D", 0x20},
+			{L"Left", 0xCB},
+			{L"Right", 0xCD},
+			{L"Right Ctrl", 0x9D},
+			{L"Space", 0x39},
+			{L"C", 0x2E},
+			{L"Q", 0x10},
+			{L"E", 0x12},
+			{L"G", 0x22},
+			{L"F", 0x21},
+			{L"R", 0x13},
+			{L"Shift", 0x2A},
+			{L"Ctrl", 0x1D},
+			{L"X", 0x2D},
+			{L"Tab", 0x0F},
+			{L"M", 0x32},
+			{L"T", 0x14},
+			{L"Y", 0x15},
+			{L"V", 0x2F},
+			{L"Up", 0xC8},
+			{L"Down", 0xD0},
+			{L"End", 0xCF},
+			{L"B", 0x30},
+			{L"Z", 0x2C},
+			{L"H", 0x23}
 		};
 
-		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_LEFT_SHOULDER, g_Controller.leftShoulderState, -1);
-		UpdateScreenPerformanceSetting(XINPUT_GAMEPAD_RIGHT_SHOULDER, g_Controller.rightShoulderState, 1);
-	}
-	// Handle in-game controls
-	else
-	{
-		// Reset command states
-		memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
-
-		// Process buttons
-		for (const auto& mapping : g_buttonMappings)
+		auto it = keyMap.find(KeyName);
+		if (it != keyMap.end())
 		{
-			HandleControllerButton(mapping.first, mapping.second);
+			// Get pointer to keyboard the DIK table
+			unsigned int dikCode = it->second;
+			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
+			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
+			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
+
+			// Iterate through the table
+			while (tableStart < tableEnd)
+			{
+				// If the corresponding DirectInput Key Id is found
+				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
+				{
+					// Write and return the index for that DIK Id
+					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
+					return 0;
+				}
+				tableStart += 0x20;
+			}
+		}
+	}
+	else if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1 && iswalpha(KeyName[0])) // Handle alphabet keys by converting to VK and then to scan code (DIK)
+	{
+		wchar_t keyChar = towupper(KeyName[0]);
+		HKL layout = GetKeyboardLayout(0);
+		SHORT vkScan = VkKeyScanExW(keyChar, layout);
+
+		if (vkScan != -1)
+		{
+			BYTE vk = LOBYTE(vkScan);
+			UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
+
+			int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
+			int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
+			int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
+
+			while (tableStart < tableEnd)
+			{
+				if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == scanCode)
+				{
+					*ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
+					return 0;
+				}
+				tableStart += 0x20;
+			}
 		}
 	}
 
-	// Hook 'LoadString' to override menu strings
-	if (!gState.hookedLoadString)
-	{
-		gState.hookedLoadString = true;
-
-		DWORD targetMemoryLocation = ScanModuleSignature(gState.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
-
-		if (targetMemoryLocation != 0)
-		{
-			int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
-			int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
-			int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
-			int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
-
-			HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
-		}
-	}
+	return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
 }
+
+// ========================
+// HighFPSFixes
+// ========================
+
+static int __fastcall StepPhysicsSimulation_Hook(int thisPtr, int, float* timeStepParams)
+{
+	// Cap Havok’s physics timestep to a maximum of 60 fps
+	if (timeStepParams[1] > 60) timeStepParams[1] = 60;
+	gState.lastFrameTime = timeStepParams[0];
+	return StepPhysicsSimulation(thisPtr, timeStepParams);
+}
+
+// ========================
+// DynamicVsync
+// ========================
+
+static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int, DWORD* a2, unsigned __int8 a3)
+{
+	int res = InitializePresentationParameters(thisPtr, a2, a3);
+	thisPtr[101] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
+	return res;
+}
+
+// ================================
+// MaxFPS & XInputControllerSupport
+// ================================
 
 static int __fastcall IsFrameComplete_Hook(int thisPtr, int)
 {
@@ -2738,15 +2843,76 @@ static int __fastcall IsFrameComplete_Hook(int thisPtr, int)
 	return IsFrameComplete(thisPtr);
 }
 
-static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int, DWORD* a2, unsigned __int8 a3)
+// =======================
+// AutoResolution
+// =======================
+
+static int __cdecl SetRenderMode_Hook(int rMode)
 {
-	int res = InitializePresentationParameters(thisPtr, a2, a3);
-	thisPtr[101] = gState.useVsyncOverride != 0 ? 0 : 0x80000000;
-	return res;
+	*(DWORD*)(rMode + 0x84) = gState.screenWidth;
+	*(DWORD*)(rMode + 0x88) = gState.screenHeight;
+	return SetRenderMode(rMode);
+}
+
+// =======================
+// SkipIntro
+// =======================
+
+// Function utilized in the process of loading video files
+static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* video_path)
+{
+	// Disable this hook once we get to the menu
+	if (SkipAllIntro || strstr(video_path, "Menu"))
+	{
+		switch (gState.CurrentFEARGame)
+		{
+			case FEAR:    MH_DisableHook((void*)0x510CB0); break;
+			case FEARMP:  MH_DisableHook((void*)0x510DD0); break;
+			case FEARXP:  MH_DisableHook((void*)0x5B3440); break;
+			case FEARXP2: MH_DisableHook((void*)0x5B49C0); break;
+		}
+
+		if (SkipAllIntro)
+		{
+			// Skip all movies while keeping the sound of the menu
+			SystemHelper::SimulateSpacebarPress(gState.hWnd);
+		}
+
+		return FindStringCaseInsensitive(thisPtr, video_path);
+	}
+
+	static const struct { bool flag; const char* names[2]; } skips[] = 
+	{
+		{ SkipSierraIntro,   { "sierralogo.bik",       nullptr } },
+		{ SkipMonolithIntro, { "MonolithLogo.bik",     nullptr } },
+		{ SkipWBGamesIntro,  { "WBGames.bik",          nullptr } },
+		{ SkipNvidiaIntro,   { "TWIMTBP_640x480.bik",  "Nvidia_LogoXP2.bik" } },
+		{ SkipTimegateIntro, { "timegate.bik",         "TimeGate.bik" } },
+		{ SkipDellIntro,     { "dell_xps.bik",         "Dell_LogoXP2.bik" } },
+	};
+
+	for (const auto& s : skips)
+	{
+		if (s.flag)
+		{
+			for (const char* name : s.names)
+			{
+				if (name && strstr(video_path, name))
+				{
+					// Clear the video file path to prevent the video from playing
+					video_path[0] = '\0';
+					return FindStringCaseInsensitive(thisPtr, video_path);
+				}
+			}
+		}
+	}
+
+	return FindStringCaseInsensitive(thisPtr, video_path);
 }
 
 static int __fastcall TerminateServer_Hook(int thisPtr, int)
 {
+	// Server is unloading, remove all previously installed hooks
 	for (DWORD address : gState.hookedServerFunctionAddresses)
 	{
 		MH_RemoveHook((void*)address);
@@ -2784,40 +2950,33 @@ static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken,
 	return hr;
 }
 
-static int __cdecl SetRenderMode_Hook(int rMode)
-{
-	MemoryHelper::WriteMemory<int>(rMode + 0x84, gState.screenWidth, false);
-	MemoryHelper::WriteMemory<int>(rMode + 0x88, gState.screenHeight, false);
-	return SetRenderMode(rMode);
-}
-
 #pragma endregion
 
-#pragma region Patches
+#pragma region Core Patches
 
 static void ApplyFixDirectInputFps()
 {
-	// root cause documented by Methanhydrat: https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/
-	// fix SetWindowsHookExA input lag from: https://github.com/Vityacv/fearservmod
+	// Root cause documented by Methanhydrat: https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/
+	// Fix SetWindowsHookExA input lag from: https://github.com/Vityacv/fearservmod
 	if (!DisableRedundantHIDInit) return;
 
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-			MemoryHelper::MakeNOP(0x4840DD, 22, true);
-			MemoryHelper::MakeNOP(0x484057, 29, true);
+			MemoryHelper::MakeNOP(0x4840DD, 22);
+			MemoryHelper::MakeNOP(0x484057, 29);
 			break;
 		case FEARMP:
-			MemoryHelper::MakeNOP(0x4841FD, 22, true);
-			MemoryHelper::MakeNOP(0x484177, 29, true);
+			MemoryHelper::MakeNOP(0x4841FD, 22);
+			MemoryHelper::MakeNOP(0x484177, 29);
 			break;
 		case FEARXP:
-			MemoryHelper::MakeNOP(0x4B895D, 22, true);
-			MemoryHelper::MakeNOP(0x4B88D7, 29, true);
+			MemoryHelper::MakeNOP(0x4B895D, 22);
+			MemoryHelper::MakeNOP(0x4B88D7, 29);
 			break;
 		case FEARXP2:
-			MemoryHelper::MakeNOP(0x4B99AD, 22, true);
-			MemoryHelper::MakeNOP(0x4B9927, 29, true);
+			MemoryHelper::MakeNOP(0x4B99AD, 22);
+			MemoryHelper::MakeNOP(0x4B9927, 29);
 			break;
 	}
 }
@@ -2828,18 +2987,10 @@ static void ApplyFixHighFPSPhysics()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x495CD0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x495DF0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x4D9480, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4DA4F0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x495CD0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x495DF0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x4D9480, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x4DA4F0, &StepPhysicsSimulation_Hook, (LPVOID*)&StepPhysicsSimulation); break;
 	}
 }
 
@@ -2849,18 +3000,10 @@ static void ApplyFixKeyboardInputLanguage()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x481F30, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x4B5DE0, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4B6E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x481F30, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x4B5DE0, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x4B6E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
 	}
 }
 
@@ -2871,15 +3014,9 @@ static void ApplyReducedMipMapBias()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-		case FEARMP:
-			MemoryHelper::WriteMemory<float>(0x56D5C4, -0.5f, false);
-			break;
-		case FEARXP:
-			MemoryHelper::WriteMemory<float>(0x612B94, -0.5f, false);
-			break;
-		case FEARXP2:
-			MemoryHelper::WriteMemory<float>(0x614BA4, -0.5f, false);
-			break;
+		case FEARMP:  MemoryHelper::WriteMemory<float>(0x56D5C4, -0.5f, false); break;
+		case FEARXP:  MemoryHelper::WriteMemory<float>(0x612B94, -0.5f, false); break;
+		case FEARXP2: MemoryHelper::WriteMemory<float>(0x614BA4, -0.5f, false); break;
 	}
 }
 
@@ -2887,18 +3024,10 @@ static void ApplyClientHook()
 {
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x47D850, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x4AF260, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4B02C0, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x47D850, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x4AF260, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x4B02C0, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
 	}
 }
 
@@ -2906,18 +3035,10 @@ static void ApplySkipIntroHook()
 {
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x510DD0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x5B3440, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x5B49C0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x510DD0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x5B3440, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x5B49C0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
 	}
 }
 
@@ -2926,15 +3047,9 @@ static void ApplyConsoleVariableHook()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat, true);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x410120, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x410360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat);
-			break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat, true); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x410120, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x410360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
 	}
 }
 
@@ -2969,18 +3084,10 @@ static void HookIsFrameComplete()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x40FC30, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x419100, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4192B0, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x40FB20, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x40FC30, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x419100, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x4192B0, &IsFrameComplete_Hook, (LPVOID*)&IsFrameComplete); break;
 	}
 }
 
@@ -2990,18 +3097,10 @@ static void HookVSyncOverride()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x4F8CA0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x58F2B0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x5908D0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x4F8CA0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x58F2B0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x5908D0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
 	}
 }
 
@@ -3011,18 +3110,10 @@ static void HookTerminateServer()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer, true);
-			break;
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x4635E0, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x488B00, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x489860, &TerminateServer_Hook, (LPVOID*)&TerminateServer);
-			break;
+		case FEAR:    HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer, true); break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x4635E0, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x488B00, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x489860, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
 	}
 }
 
@@ -3040,15 +3131,9 @@ static void ApplyForceRenderMode()
 	switch (gState.CurrentFEARGame)
 	{
 		case FEAR:
-		case FEARMP:
-			HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode, true);
-			break;
-		case FEARXP:
-			HookHelper::ApplyHook((void*)0x411710, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
-			break;
-		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4119B0, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode);
-			break;
+		case FEARMP:  HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode, true); break;
+		case FEARXP:  HookHelper::ApplyHook((void*)0x411710, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
+		case FEARXP2: HookHelper::ApplyHook((void*)0x4119B0, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
 	}
 }
 
@@ -3058,18 +3143,10 @@ static void ApplyDisableJoystick()
 
 	switch (gState.CurrentFEARGame)
 	{
-		case FEAR:
-			MemoryHelper::MakeNOP(0x484166, 25);
-			break;
-		case FEARMP:
-			MemoryHelper::MakeNOP(0x484286, 25);
-			break;
-		case FEARXP:
-			MemoryHelper::MakeNOP(0x4B89E6, 25);
-			break;
-		case FEARXP2:
-			MemoryHelper::MakeNOP(0x4B9A36, 25);
-			break;
+		case FEAR:    MemoryHelper::MakeNOP(0x484166, 25); break;
+		case FEARMP:  MemoryHelper::MakeNOP(0x484286, 25); break;
+		case FEARXP:  MemoryHelper::MakeNOP(0x4B89E6, 25); break;
+		case FEARXP2: MemoryHelper::MakeNOP(0x4B9A36, 25); break;
 	}
 }
 
@@ -3114,8 +3191,10 @@ static void Init()
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
+	// Detect creation of F.E.A.R. window to initialize patches
 	if (lpWindowName && strstr(lpWindowName, "F.E.A.R.") && nWidth == 320 && nHeight == 200)
 	{
+		// Disable this hook and initialize patches once the game's code has been decrypted in memory (by SecuROM or SteamDRM)
 		MH_DisableHook(MH_ALL_HOOKS);
 		Init();
 
@@ -3137,6 +3216,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
 	{
 		case DLL_PROCESS_ATTACH:
 		{
+			// Prevents DLL from receiving thread notifications
 			DisableThreadLibraryCalls(hModule);
 
 			uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);

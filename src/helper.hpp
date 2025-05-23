@@ -1,4 +1,4 @@
-namespace MemoryHelper
+﻿namespace MemoryHelper
 {
 	template <typename T> static bool WriteMemory(uintptr_t address, T value, bool disableProtection = true)
 	{
@@ -182,6 +182,42 @@ namespace MemoryHelper
 		}
 
 		return 0;
+	}
+
+	DWORD FindSignatureAddress(HMODULE Module, std::string_view Signature, int FunctionStartCheckCount = -1)
+	{
+		DWORD Address = static_cast<DWORD>(PatternScan(Module, Signature));
+		if (Address == 0) 
+			return 0;
+
+		if (FunctionStartCheckCount >= 0)
+		{
+			// After a RET, compilers pad with INT3 (0xCC) to align the next function (often on a 16-byte boundary).
+			// This padding also acts as a breakpoint if execution runs off the end of a function.
+			// We backtrack past any 0xCC bytes to find the real function start.
+			for (DWORD ScanAddress = Address; ScanAddress > Address - 0x1000; ScanAddress--)
+			{
+				bool IsValid = true;
+				for (int OffsetIndex = 1; OffsetIndex <= FunctionStartCheckCount; OffsetIndex++)
+				{
+					if (ReadMemory<uint8_t>(ScanAddress - OffsetIndex) != 0xCC)
+					{
+						IsValid = false;
+						break;
+					}
+				}
+				if (IsValid)
+					return ScanAddress;
+			}
+		}
+
+		return Address;
+	}
+
+	DWORD ResolveRelativeAddress(uintptr_t BaseAddress, std::size_t InstructionOffset)
+	{
+		int RelativeOffset = ReadMemory<int>(BaseAddress + InstructionOffset);
+		return BaseAddress + InstructionOffset + sizeof(RelativeOffset) + RelativeOffset;
 	}
 };
 
@@ -694,7 +730,7 @@ namespace HookHelper
 		return true;
 	}
 
-	// For that weird no-cd version
+	// FEAR: For the no-cd version that removes the EXECUTE flag
 	static bool EnsureExecutable(void* addr)
 	{
 		MEMORY_BASIC_INFORMATION mbi;

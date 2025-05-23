@@ -58,10 +58,10 @@ Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
 
 ## Weapon Fixes
 Addresses several weapon-related issues:
-- Aim disabled when loading a save during a cutscene  
-- Automatic weapons stuck in firing animation when loading a save made mid-fire  
-- Weapon cycling not working when there’s an empty slot between two weapons  
-- Weapon models not refreshing after loading a save with the same weapon equipped  
+- Zoom disabled when loading a save during a cutscene. 
+- Automatic weapons stuck in firing animation when loading a save made mid-fire.
+- Weapon cycling not working when there’s an empty slot between two weapons.
+- Weapon models not refreshing after loading a save with the same weapon equipped.
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
@@ -70,11 +70,9 @@ Prevents the game from running too fast by capping the maximum framerate.
 - **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it.  
 - **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing and shadow flickering. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
-## FPS Drop Fix
-Stops the game from initializing all HID devices to prevent framerate drops over time, rather than intercepting the call as in other fixes.
-
-## Input Lag Fix
-Disabled the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
+## Input & Frame Drop Fixes
+- **FPS Drop Fix**: Stops the game from initializing all HID devices to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
+- **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
 
 ## Fix Keyboard Input Initialization
 Corrects key mapping on non-English systems to prevent “[unassigned]” entries in controls mapping.
