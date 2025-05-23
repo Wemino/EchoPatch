@@ -71,7 +71,7 @@ Prevents the game from running too fast by capping the maximum framerate.
 - **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing and shadow flickering. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
 ## Input & Frame Drop Fixes
-- **FPS Drop Fix**: Stops the game from initializing all HID devices to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
+- **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
 - **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
 
 ## Fix Keyboard Input Initialization
