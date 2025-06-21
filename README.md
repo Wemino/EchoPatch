@@ -2,7 +2,7 @@
   <img src="assets/EchoPatch_Logo.png" style="max-width:75%">
 </p>
 
-Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements.
+Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements. It aims to be as non-intrusive as possible, with no file modifications and no gameplay changes by default, focusing solely on fixing issues and enhancing the overall experience.
 
 ## How to Install
 > [!NOTE]  
@@ -18,7 +18,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
 
 > [!NOTE]  
-> This project does **not** address OS compatibility issues. For modern Windows support, consider using [dxwrapper](https://github.com/elishacloud/dxwrapper).
+> This project does **not** address OS compatibility issues. For better support on modern versions of Windows, consider using [dxwrapper](https://github.com/elishacloud/dxwrapper).
 ---
 
 # Features
@@ -108,8 +108,8 @@ Disabled by default because it modifies the executable on disk, set `CheckLAAPat
 | **Back Button**                  | Mission Status                 |
 
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
-> **Note**: When XInput support is enabled, DirectInput controller support is disabled.  
-> **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.
+> **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
+> **Note**: To provide a console-like experience, the mouse cursor is automatically hidden when a controller is detected. You can re-enable it by setting `HideMouseCursor=0` `in EchoPatch.ini`.
 
 ## Mouse Aim Multiplier
 Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
