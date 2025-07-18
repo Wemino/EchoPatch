@@ -366,6 +366,7 @@ struct ControllerState
 
 	// Menu navigation states
 	ButtonState menuButtons[6];
+	ULONGLONG menuToGameTransitionTime = 0;
 
 	// Game button states
 	std::map<WORD, ButtonState> gameButtons;
@@ -1969,6 +1970,7 @@ static void ApplyPersistentWorldClientPatch()
 static void ApplyInfiniteFlashlightClientPatch()
 {
 	if (!InfiniteFlashlight) return;
+
 	DWORD targetMemoryLocation_Update = ScanModuleSignature(g_State.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
 	DWORD targetMemoryLocation_UpdateBar = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
 	DWORD targetMemoryLocation_UpdateLayout = ScanModuleSignature(g_State.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
@@ -2390,6 +2392,15 @@ static void HandleControllerButton(WORD button, int commandId)
 		isPressed = (g_Controller.state.Gamepad.wButtons & button) != 0;
 	}
 
+	// Check if we recently transitioned from menu to prevent immediate actions
+	ULONGLONG currentTime = GetTickCount64();
+	if (g_Controller.menuToGameTransitionTime > 0 && currentTime - g_Controller.menuToGameTransitionTime < 200) // 200ms grace period
+	{
+		// During transition period, only register button state but don't execute commands
+		btnState.isPressed = isPressed;
+		return;
+	}
+
 	if (isPressed && !btnState.isPressed)
 	{
 		// Press Escape to show the menu
@@ -2445,6 +2456,49 @@ static void PollController()
 		HUDGrenadeListUpdateTriggerNames(g_State.CHUDGrenadeList);
 		HUDSwapUpdateTriggerName();
 	}
+
+	// Handle transition from gameplay to menu
+	static bool wasPlaying = g_State.isPlaying;
+	if (wasPlaying && !g_State.isPlaying && g_Controller.isConnected)
+	{
+		for (const auto& mapping : g_buttonMappings)
+		{
+			WORD button = mapping.first;
+			int commandId = mapping.second;
+			auto& btnState = g_Controller.gameButtons[button];
+
+			if (btnState.isPressed)
+			{
+				if (commandId == -1) // Start button
+				{
+					PostMessage(g_State.hWnd, WM_KEYUP, VK_ESCAPE, 0);
+				}
+				else
+				{
+					g_Controller.commandActive[commandId] = false;
+					OnCommandOff(g_State.g_pGameClientShell, commandId);
+				}
+				btnState.isPressed = false;
+				btnState.wasHandled = false;
+			}
+		}
+	}
+
+	if (!wasPlaying && g_State.isPlaying && g_Controller.isConnected)
+	{
+		// Set transition timestamp to prevent immediate actions
+		g_Controller.menuToGameTransitionTime = GetTickCount64();
+
+		// Clear any lingering menu button states
+		for (int i = 0; i < 6; i++)
+		{
+			g_Controller.menuButtons[i].isPressed = false;
+			g_Controller.menuButtons[i].pressStartTime = 0;
+			g_Controller.menuButtons[i].lastRepeatTime = 0;
+		}
+	}
+
+	wasPlaying = g_State.isPlaying;
 
 	if (!g_Controller.isConnected)
 	{
