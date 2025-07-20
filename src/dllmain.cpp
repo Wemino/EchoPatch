@@ -29,8 +29,10 @@ int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
 
 // HighFPSFixes
-void(__thiscall* ProcessRagdollConstraint)(int, float*, float*) = nullptr;
-void(__thiscall* ProcessHingeConstraint)(int, float*, float*) = nullptr;
+void(__cdecl* ProcessTwistLimitConstraint)(int, float*, float*) = nullptr;
+void(__cdecl* ProcessConeLimitConstraint)(int, float*, float*, float*) = nullptr;
+void(__cdecl* BuildJacobianRow) (int, float*, float*) = nullptr;
+void(__cdecl* ProcessMotorConstraint) (int, float*, float*) = nullptr;
 
 // DynamicVsync
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
@@ -209,10 +211,10 @@ struct GlobalState
 	// ======================
 	// HUD Scaling
 	// ======================
-	float scalingFactor = 0;
-	float scalingFactorText = 0;
-	float scalingFactorCrosshair = 0;
-	float crosshairSize = 0;
+	float scalingFactor = 0.0f;
+	float scalingFactorText = 0.0f;
+	float scalingFactorCrosshair = 0.0f;
+	float crosshairSize = 0.0f;
 	bool updateHUD = false;
 	bool crosshairSliderUpdated = false;
 
@@ -261,7 +263,7 @@ struct GlobalState
 	bool slowMoBarUpdated = false;
 	int healthAdditionalIntIndex = 0;
 	int int32ToUpdate = 0;
-	float floatToUpdate = 0;
+	float floatToUpdate = 0.0f;
 
 	// ======================
 	// Game State
@@ -315,6 +317,7 @@ struct GlobalState
 	int remainingJumpFrames = 0;
 	bool previousJumpState = false;
 	float waveUpdateAccumulator = 0.0f;
+	float persistentInvTimeStep = 0.0f;
 
 	// ======================
 	// PolyGrid Timing
@@ -2851,20 +2854,37 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 // HighFPSFixes
 // ========================
 
-static void __fastcall ProcessRagdollConstraint_Hook(int thisPtr, int, float* in, float* out)
+static void __cdecl ProcessTwistLimitConstraint_Hook(int twistParams, float* constraintInstance, float* queryIn)
 {
-	float timeStepBak = in[3];
-	if (in[3] > 250.0f) in[3] = 250.0f;
-	ProcessRagdollConstraint(thisPtr, in, out);
-	in[3] = timeStepBak;
+	float timeStepBak = constraintInstance[3];
+	g_State.persistentInvTimeStep = timeStepBak;
+	if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
+	ProcessTwistLimitConstraint(twistParams, constraintInstance, queryIn);
+	constraintInstance[3] = timeStepBak;
 }
 
-static void __fastcall ProcessHingeConstraint_Hook(int thisPtr, int, float* in, float* out)
+static void __cdecl ProcessConeLimitConstraint_Hook(int pivotA, float* pivotB, float* constraintInstance, float* queryIn)
 {
-	float timeStepBak = in[3];
-	if (in[3] > 250.0f) in[3] = 250.0f;
-	ProcessHingeConstraint(thisPtr, in, out);
-	in[3] = timeStepBak;
+	float timeStepBak = constraintInstance[3];
+	if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
+	ProcessConeLimitConstraint(pivotA, pivotB, constraintInstance, queryIn);
+	constraintInstance[3] = timeStepBak;
+}
+
+static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintInstance, float* queryIn)
+{
+	float timeStepBak = constraintInstance[3];
+	if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
+	BuildJacobianRow(jacobianData, constraintInstance, queryIn);
+	constraintInstance[3] = timeStepBak;
+}
+
+static void __cdecl ProcessMotorConstraint_Hook(int motorParams, float* constraintInstance, float* queryIn)
+{
+	float timeStepBak = constraintInstance[3];
+	if (g_State.persistentInvTimeStep > 250.0f) constraintInstance[3] = g_State.persistentInvTimeStep *= 0.96f; // Allows bodies to settle naturally
+	ProcessMotorConstraint(motorParams, constraintInstance, queryIn);
+	constraintInstance[3] = timeStepBak;
 }
 
 // ========================
@@ -3041,20 +3061,28 @@ static void ApplyFixHighFPSPhysics()
 	switch (g_State.CurrentFEARGame)
 	{
 		case FEAR:
-			HookHelper::ApplyHook((void*)0x498390, &ProcessRagdollConstraint_Hook, (LPVOID*)&ProcessRagdollConstraint, true);
-			HookHelper::ApplyHook((void*)0x499050, &ProcessHingeConstraint_Hook, (LPVOID*)&ProcessHingeConstraint, true);
+			HookHelper::ApplyHook((void*)0x4A8D30, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
+			HookHelper::ApplyHook((void*)0x4A8F10, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint, true);
+			HookHelper::ApplyHook((void*)0x4A9940, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint, true);
+			HookHelper::ApplyHook((void*)0x4A9F00, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
 			break;
 		case FEARMP:
-			HookHelper::ApplyHook((void*)0x4984B0, &ProcessRagdollConstraint_Hook, (LPVOID*)&ProcessRagdollConstraint);
-			HookHelper::ApplyHook((void*)0x499170, &ProcessHingeConstraint_Hook, (LPVOID*)&ProcessHingeConstraint);
+			HookHelper::ApplyHook((void*)0x4A8E50, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+			HookHelper::ApplyHook((void*)0x4A9030, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
+			HookHelper::ApplyHook((void*)0x4A9A60, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+			HookHelper::ApplyHook((void*)0x4AA020, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
 		case FEARXP:
-			HookHelper::ApplyHook((void*)0x4DC4B0, &ProcessRagdollConstraint_Hook, (LPVOID*)&ProcessRagdollConstraint);
-			HookHelper::ApplyHook((void*)0x4DD4C0, &ProcessHingeConstraint_Hook, (LPVOID*)&ProcessHingeConstraint);
+			HookHelper::ApplyHook((void*)0x4FF710, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+			HookHelper::ApplyHook((void*)0x4FF8F0, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
+			HookHelper::ApplyHook((void*)0x500320, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+			HookHelper::ApplyHook((void*)0x5008E0, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
 		case FEARXP2:
-			HookHelper::ApplyHook((void*)0x4DD520, &ProcessRagdollConstraint_Hook, (LPVOID*)&ProcessRagdollConstraint);
-			HookHelper::ApplyHook((void*)0x4DE530, &ProcessHingeConstraint_Hook, (LPVOID*)&ProcessHingeConstraint);
+			HookHelper::ApplyHook((void*)0x500780, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+			HookHelper::ApplyHook((void*)0x500960, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
+			HookHelper::ApplyHook((void*)0x501390, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+			HookHelper::ApplyHook((void*)0x501950, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
 	}
 }
