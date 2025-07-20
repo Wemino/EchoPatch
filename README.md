@@ -74,17 +74,6 @@ Prevents the game from running too fast by capping the maximum framerate.
 - **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
 - **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
 
-## Fix Keyboard Input Initialization
-Corrects key mapping on non-English systems to prevent “[unassigned]” entries in controls mapping.
-
-## Widescreen Resolution Support for Extraction Point
-Removes 4:3 restriction so all widescreen resolutions are available.
-
-## LAA Patcher
-Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues.  
-Disabled by default because it modifies the executable on disk, set `CheckLAAPatch = 1` in `EchoPatch.ini` to enable.  
-> **Note**: For the Steam version, run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling.
-
 ## XInput Controller Support
 
 | Controller Input                 | Action                         |
@@ -109,7 +98,18 @@ Disabled by default because it modifies the executable on disk, set `CheckLAAPat
 
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
-> **Note**: To provide a console-like experience, the mouse cursor is automatically hidden when a controller is detected. You can re-enable it by setting `HideMouseCursor=0` `in EchoPatch.ini`.
+> **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.
+
+## Fix Keyboard Input Initialization
+Corrects key mapping on non-English systems to prevent “[unassigned]” entries in controls mapping.
+
+## Widescreen Resolution Support for Extraction Point
+Removes 4:3 restriction so all widescreen resolutions are available.
+
+## LAA Patcher
+Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues.  
+Disabled by default because it modifies the executable on disk, set `CheckLAAPatch = 1` in `EchoPatch.ini` to enable.  
+> **Note**: For the Steam version, run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling.
 
 ## Mouse Aim Multiplier
 Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
