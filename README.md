@@ -17,10 +17,6 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
 > This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
 
-> [!NOTE]  
-> This project does **not** address OS compatibility issues. For better support on modern versions of Windows, consider using [dxwrapper](https://github.com/elishacloud/dxwrapper).
----
-
 # Features
 
 ## HUD Scaling
@@ -41,10 +37,10 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
   </table>
 </div>
 
-> **Note**: Base resolution is 1024×768, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
+> **Note**: The base resolution (1024×768) is used as the reference for scaling, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
 ## Fix High FPS Issues
-Resolves multiple issues at high framerates for smooth gameplay up to 240 FPS:
+Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS:
 - Ragdoll physics instability above 60 FPS.
 - Water physics instability above 120 FPS.
 - Excessive water splash effect repetitions above 60 FPS.
@@ -67,12 +63,12 @@ Addresses several weapon-related issues:
 
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
-- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it.  
+- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
 - **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing and shadow flickering. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
 ## Input & Frame Drop Fixes
 - **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
-- **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag and improve responsiveness.
+- **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag.
 
 ## XInput Controller Support
 
@@ -101,7 +97,7 @@ Customizable alongside sensitivity settings within the `[Controller]` section of
 > **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.
 
 ## Fix Keyboard Input Initialization
-Corrects key mapping on non-English systems to prevent “[unassigned]” entries in controls mapping.
+Corrects default control assignment on non‑English layouts by mapping hardware scan codes instead of English key names (preventing some “[unassigned]” entries on first launch or after resetting controls) while leaving the saved bindings in the save file unchanged.
 
 ## Widescreen Resolution Support for Extraction Point
 Removes 4:3 restriction so all widescreen resolutions are available.
@@ -109,11 +105,7 @@ Removes 4:3 restriction so all widescreen resolutions are available.
 ## LAA Patcher
 Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues.  
 Disabled by default because it modifies the executable on disk, set `CheckLAAPatch = 1` in `EchoPatch.ini` to enable.  
-> **Note**: For the Steam version, run [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling.
-
-## Mouse Aim Multiplier
-Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
-Set `MouseAimMultiplier` in `EchoPatch.ini` (default `1.0`).
+> **Note**: For the Steam version, running [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling is recommended, but not required.
 
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
@@ -139,6 +131,10 @@ Renders the highest quality models at all distances by disabling LOD bias.
 
 ## Reduced Mipmap Bias
 Improves texture sharpness at a distance by reducing mipmap bias.
+
+## Mouse Aim Multiplier
+Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
+Set `MouseAimMultiplier` in `EchoPatch.ini` (default `1.0`).
 
 ## Disable Letterboxing
 Disables cutscene letterboxing when `DisableLetterbox = 1` in `EchoPatch.ini`.
