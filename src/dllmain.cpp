@@ -658,17 +658,11 @@ static void ReadConfig()
 		g_State.textDataMap["HUDLadder"] = { 18, 0 };
 		g_State.textDataMap["HUDObjective"] = { 22, 0 };
 		g_State.textDataMap["HUDPaused"] = { 20, 0 };
-		g_State.textDataMap["HUDPlayerList"] = { 14, 0 };
 		g_State.textDataMap["HUDRadio"] = { 16, 0 };
 		g_State.textDataMap["HUDRespawn"] = { 18, 0 };
-		g_State.textDataMap["HUDScoreDiff"] = { 16, 0 };
-		g_State.textDataMap["HUDScores"] = { 14, 0 };
 		g_State.textDataMap["HUDSpectator"] = { 12, 0 };
 		g_State.textDataMap["HUDSubtitle"] = { 14, 2 };
 		g_State.textDataMap["HUDSwap"] = { 12, 2 };
-		g_State.textDataMap["HUDTeamScoreControl"] = { 24, 0 };
-		g_State.textDataMap["HUDTeamScoreCTF"] = { 14, 0 };
-		g_State.textDataMap["HUDTeamScoreTDM"] = { 14, 0 };
 		g_State.textDataMap["HUDTimerMain"] = { 14, 0 };
 		g_State.textDataMap["HUDTimerSuddenDeath"] = { 14, 0 };
 		g_State.textDataMap["HUDTimerTeam0"] = { 18, 0 };
