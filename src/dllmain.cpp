@@ -32,7 +32,6 @@ int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*)
 void(__cdecl* ProcessTwistLimitConstraint)(int, float*, float*) = nullptr;
 void(__cdecl* ProcessConeLimitConstraint)(int, float*, float*, float*) = nullptr;
 void(__cdecl* BuildJacobianRow) (int, float*, float*) = nullptr;
-void(__cdecl* ProcessMotorConstraint) (int, float*, float*) = nullptr;
 
 // DynamicVsync
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
@@ -317,7 +316,6 @@ struct GlobalState
 	int remainingJumpFrames = 0;
 	bool previousJumpState = false;
 	float waveUpdateAccumulator = 0.0f;
-	float persistentInvTimeStep = 0.0f;
 
 	// ======================
 	// PolyGrid Timing
@@ -2851,7 +2849,6 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 static void __cdecl ProcessTwistLimitConstraint_Hook(int twistParams, float* constraintInstance, float* queryIn)
 {
 	float timeStepBak = constraintInstance[3];
-	g_State.persistentInvTimeStep = timeStepBak;
 	if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
 	ProcessTwistLimitConstraint(twistParams, constraintInstance, queryIn);
 	constraintInstance[3] = timeStepBak;
@@ -2870,14 +2867,6 @@ static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintIns
 	float timeStepBak = constraintInstance[3];
 	if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
 	BuildJacobianRow(jacobianData, constraintInstance, queryIn);
-	constraintInstance[3] = timeStepBak;
-}
-
-static void __cdecl ProcessMotorConstraint_Hook(int motorParams, float* constraintInstance, float* queryIn)
-{
-	float timeStepBak = constraintInstance[3];
-	if (g_State.persistentInvTimeStep > 250.0f) constraintInstance[3] = g_State.persistentInvTimeStep *= 0.96f; // Allows bodies to settle naturally
-	ProcessMotorConstraint(motorParams, constraintInstance, queryIn);
 	constraintInstance[3] = timeStepBak;
 }
 
@@ -3056,25 +3045,21 @@ static void ApplyFixHighFPSPhysics()
 	{
 		case FEAR:
 			HookHelper::ApplyHook((void*)0x4A8D30, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
-			HookHelper::ApplyHook((void*)0x4A8F10, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint, true);
 			HookHelper::ApplyHook((void*)0x4A9940, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint, true);
 			HookHelper::ApplyHook((void*)0x4A9F00, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
 			break;
 		case FEARMP:
 			HookHelper::ApplyHook((void*)0x4A8E50, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-			HookHelper::ApplyHook((void*)0x4A9030, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
 			HookHelper::ApplyHook((void*)0x4A9A60, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
 			HookHelper::ApplyHook((void*)0x4AA020, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
 		case FEARXP:
 			HookHelper::ApplyHook((void*)0x4FF710, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-			HookHelper::ApplyHook((void*)0x4FF8F0, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
 			HookHelper::ApplyHook((void*)0x500320, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
 			HookHelper::ApplyHook((void*)0x5008E0, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
 		case FEARXP2:
 			HookHelper::ApplyHook((void*)0x500780, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-			HookHelper::ApplyHook((void*)0x500960, &ProcessMotorConstraint_Hook, (LPVOID*)&ProcessMotorConstraint);
 			HookHelper::ApplyHook((void*)0x501390, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
 			HookHelper::ApplyHook((void*)0x501950, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
 			break;
