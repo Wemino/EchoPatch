@@ -612,7 +612,7 @@ static void ReadConfig()
 	if (HUDScaling)
 	{
 		// Text: Interface\Credits\LineLayout
-		g_State.textDataMap["Default10"] = { 12, 0 };
+		g_State.textDataMap["Default10"] = { 10, 0 };
 		g_State.textDataMap["Default12"] = { 12, 0 };
 		g_State.textDataMap["Default14"] = { 14, 0 };
 		g_State.textDataMap["Default16"] = { 16, 0 };
