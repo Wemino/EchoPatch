@@ -645,15 +645,13 @@ static void ReadConfig()
 		g_State.textDataMap["HUDDecision"] = { 16, 0 };
 		g_State.textDataMap["HUDDialogue"] = { 13, 1 };
 		g_State.textDataMap["HUDDistance"] = { 16, 0 };
-		g_State.textDataMap["HUDEditorPosition"] = { 12, 0 };
-		g_State.textDataMap["HudEndRoundMessage"] = { 32, 0 };
+		g_State.textDataMap["HUDEndRoundMessage"] = { 32, 0 };
 		g_State.textDataMap["HUDFocus"] = { 16, 0 };
 		g_State.textDataMap["HUDGameMessage"] = { 14, 2 };
 		g_State.textDataMap["HUDGear"] = { 14, 0 };
 		g_State.textDataMap["HUDGrenade"] = { 14, 0 };
 		g_State.textDataMap["HUDGrenadeList"] = { 14, 0 };
 		g_State.textDataMap["HUDHealth"] = { 25, 0 };
-		g_State.textDataMap["HUDLadder"] = { 18, 0 };
 		g_State.textDataMap["HUDObjective"] = { 22, 0 };
 		g_State.textDataMap["HUDPaused"] = { 20, 0 };
 		g_State.textDataMap["HUDRadio"] = { 16, 0 };
@@ -666,7 +664,6 @@ static void ReadConfig()
 		g_State.textDataMap["HUDTimerTeam0"] = { 18, 0 };
 		g_State.textDataMap["HUDTimerTeam1"] = { 18, 0 };
 		g_State.textDataMap["HUDTransmission"] = { 16, 0 };
-		g_State.textDataMap["HUDTurret"] = { 18, 0 };
 		g_State.textDataMap["HUDVote"] = { 16, 0 };
 		g_State.textDataMap["HUDWeapon"] = { 14, 0 };
 
@@ -1488,32 +1485,29 @@ static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
 
 static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
 {
-	if (thisPtr)
+	const char* sliderName = *(const char**)(thisPtr + 8);
+
+	// If 'ScreenCrosshair_Size_Help' is next
+	if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
 	{
-		const char* sliderName = *(const char**)(thisPtr + 8);
+		g_State.crosshairSliderUpdated = false;
+	}
 
-		// If 'ScreenCrosshair_Size_Help' is next
-		if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
-		{
-			g_State.crosshairSliderUpdated = false;
-		}
+	// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
+	if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
+	{
+		float unscaledIndex = index / g_State.scalingFactorCrosshair;
 
-		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
-		if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
-		{
-			float unscaledIndex = index / g_State.scalingFactorCrosshair;
+		// scs.nIncrement = 2
+		int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
 
-			// scs.nIncrement = 2
-			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
+		// Clamp to the range [4, 16].
+		newIndex = std::clamp(newIndex, 4, 16);
 
-			// Clamp to the range [4, 16].
-			newIndex = std::clamp(newIndex, 4, 16);
+		index = newIndex;
 
-			index = newIndex;
-
-			// Only needed on the first time
-			g_State.crosshairSliderUpdated = true;
-		}
+		// Only needed on the first time
+		g_State.crosshairSliderUpdated = true;
 	}
 
 	return UpdateSlider(thisPtr, index);
@@ -1656,8 +1650,7 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 	}
 
 	// Reload key alias
-	if (commandId == 87)
-		commandId = 88;
+	if (commandId == 87) commandId = 88;
 
 	bool shortName = false;
 	if (commandId >= 30 && commandId <= 39) { commandId = 77; shortName = true; } // HUDWeapon
