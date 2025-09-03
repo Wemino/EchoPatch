@@ -719,38 +719,6 @@ static DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, con
 
 #pragma endregion
 
-#pragma region ClientFX Hooks
-
-// ======================
-// HighFPSFixes
-// ======================
-
-static void ProcessParticleResult(float* result)
-{
-	// If m_fLifetime == -1
-	if (result && result[6] == -1)
-	{
-		// Prevent an issue inside GetParticleSizeAndColor
-		result[6] = 0;
-	}
-}
-
-static float* __fastcall AddParticleBatchMarker_Hook(int thisPtr, int, int a2, bool a3)
-{
-	float* result = AddParticleBatchMarker(thisPtr, a2, a3);
-	ProcessParticleResult(result);
-	return result;
-}
-
-static float* __fastcall EmitParticleBatch_Hook(int thisPtr, int, float a2, int a3, int* a4)
-{
-	float* result = EmitParticleBatch(thisPtr, a2, a3, a4);
-	ProcessParticleResult(result);
-	return result;
-}
-
-#pragma endregion
-
 #pragma region ClientFX Patches
 
 static void ApplyHighFPSFixesClientFXPatch()
@@ -758,8 +726,8 @@ static void ApplyHighFPSFixesClientFXPatch()
 	if (!HighFPSFixes) return;
 
 	DWORD targetMemoryLocation_ParticleUpdateThreshold = ScanModuleSignature(g_State.GameClientFX, "D9 44 24 04 ?? D8 1D", "FixParticleUpdateThreshold");
-	DWORD targetMemoryLocation_AddParticleBatchMarker = ScanModuleSignature(g_State.GameClientFX, "83 C1 10 E8 ?? ?? ?? ?? 85 C0 74 24 8A 4C 24 08", "FixParticleLifetime_AddParticleBatchMarker");
-	DWORD targetMemoryLocation_EmitParticleBatch = ScanModuleSignature(g_State.GameClientFX, "CC CC CC CC 81 EC C0 00 00 00", "FixParticleLifetime_EmitParticleBatch");
+	DWORD targetMemoryLocation_AddParticleBatchMarker = ScanModuleSignature(g_State.GameClientFX, "C7 40 18 00 00 80 BF C2 08 00", "FixParticleLifetime_AddParticleBatchMarker");
+	DWORD targetMemoryLocation_EmitParticleBatch = ScanModuleSignature(g_State.GameClientFX, "C7 40 18 00 00 80 BF ?? ?? ?? 81 C4 C0", "FixParticleLifetime_EmitParticleBatch");
 
 	if (targetMemoryLocation_ParticleUpdateThreshold == 0 ||
 		targetMemoryLocation_AddParticleBatchMarker == 0 ||
@@ -772,8 +740,10 @@ static void ApplyHighFPSFixesClientFXPatch()
 	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0x5, 6);
 	MemoryHelper::MakeNOP(targetMemoryLocation_ParticleUpdateThreshold + 0xD, 7);
 
-	HookHelper::ApplyHook((void*)targetMemoryLocation_AddParticleBatchMarker, &AddParticleBatchMarker_Hook, (LPVOID*)&AddParticleBatchMarker);
-	HookHelper::ApplyHook((void*)(targetMemoryLocation_EmitParticleBatch + 0x4), &EmitParticleBatch_Hook, (LPVOID*)&EmitParticleBatch);
+	// m_fLifetime: -1 -> 0 
+	// Prevent an issue inside GetParticleSizeAndColor
+	MemoryHelper::WriteMemory<float>(targetMemoryLocation_AddParticleBatchMarker + 0x3, 0.0f);
+	MemoryHelper::WriteMemory<float>(targetMemoryLocation_EmitParticleBatch + 0x3, 0.0f);
 }
 
 static void ApplyClientFXPatch()
