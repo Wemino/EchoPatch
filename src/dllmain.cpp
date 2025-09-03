@@ -308,7 +308,7 @@ struct GlobalState
 	// Physics/Velocity
 	// ======================
 	bool useVelocitySmoothing = false;
-	std::chrono::high_resolution_clock::time_point lastVelocityTime;
+	LONGLONG lastVelocityTime;
 	bool velocityTimeInitialized = false;
 	double smoothedVelocity = 0.0;
 	bool velocitySmoothingInitialized = false;
@@ -830,26 +830,37 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	}
 
 	// Track frame time
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	double frameTime = 0.0;
-	if (g_State.velocityTimeInitialized)
-	{
-		auto duration = std::chrono::duration_cast<std::chrono::microseconds>(currentTime - g_State.lastVelocityTime);
-		frameTime = duration.count() / 1000000.0;
-	}
-	g_State.lastVelocityTime = currentTime;
+	LARGE_INTEGER currentTime;
+	QueryPerformanceCounter(&currentTime);
 
 	double raw = GetMaxRecentVelocityMag(thisPtr);
 
 	if (!g_State.velocityTimeInitialized)
 	{
 		g_State.velocityTimeInitialized = true;
+		g_State.lastVelocityTime = currentTime.QuadPart;
+		g_State.smoothedVelocity = raw;
+		g_State.velocitySmoothingInitialized = true;
 		return raw;
 	}
 
+	static const double INV_PERF_FREQ = []() 
+	{
+		LARGE_INTEGER freq;
+		QueryPerformanceFrequency(&freq);
+		return 1.0 / static_cast<double>(freq.QuadPart);
+	}();
+
+	LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
+	g_State.lastVelocityTime = currentTime.QuadPart;
+
+	double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
+
 	// Calculate time scale
-	double timeScale = TARGET_FRAME_TIME / frameTime;
-	timeScale = std::clamp(timeScale, 0.5, 2.0);
+	static constexpr double INV_TARGET_FRAME_TIME = 1.0 / TARGET_FRAME_TIME;
+	double timeScale = TARGET_FRAME_TIME * (1.0 / frameTime);
+
+	timeScale = std::min(std::max(timeScale, 0.5), 2.0);
 	double scaled = raw * timeScale;
 
 	// Exponential moving average
@@ -862,10 +873,12 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 
 	// Adaptive smoothing factor
 	double frameDelta = std::abs(frameTime - TARGET_FRAME_TIME);
-	double stability = std::clamp(1.0 - (frameDelta / TARGET_FRAME_TIME), 0.1, 1.0);
-	double alpha = 0.2 * stability;
+	double stability = frameDelta * INV_TARGET_FRAME_TIME;
+	stability = std::min(std::max(1.0 - stability, 0.1), 1.0);
 
-	g_State.smoothedVelocity = alpha * scaled + (1.0 - alpha) * g_State.smoothedVelocity;
+	double alpha = 0.2 * stability;
+	g_State.smoothedVelocity += alpha * (scaled - g_State.smoothedVelocity);
+
 	return g_State.smoothedVelocity;
 }
 
@@ -878,11 +891,13 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 	}
 
 	// Get current time in seconds
-	LARGE_INTEGER curr; QueryPerformanceCounter(&curr);
+	LARGE_INTEGER curr;
+	QueryPerformanceCounter(&curr);
 	double now = double(curr.QuadPart) / double(g_State.polyGridSplashFreq.QuadPart);
 
 	// Build an order-independent 64-bit key for this body pair
-	uint64_t key = (uint64_t(std::max(hBody1, hBody2)) << 32) | std::min(hBody1, hBody2);
+	uint64_t key = (uint64_t(hBody1) << 32) | hBody2;
+	if (hBody1 < hBody2) key = (uint64_t(hBody2) << 32) | hBody1;
 
 	// Lookup last splash timestamp
 	auto& splashMap = g_State.polyGridLastSplashTime;
@@ -897,8 +912,8 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 		// Evict oldest entry if cache is full
 		if (splashMap.size() > 50)
 		{
-			auto oldest = std::min_element(splashMap.begin(), splashMap.end(), [](const auto& a, const auto& b) { return a.second < b.second; });
-			splashMap.erase(oldest);
+			splashMap.clear();
+			splashMap[key] = now;  // Re-add current entry
 		}
 	}
 }
