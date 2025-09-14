@@ -17,6 +17,10 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
 > This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
 
+### Steam Deck/Linux Specific Instructions (Windows users can skip this)
+> [!WARNING]
+> To launch the game on Steam Deck or Linux, open the game’s properties in Steam and include `WINEDLLOVERRIDES="dinput8=n,b" %command%` in the launch options.
+
 # Features
 
 ## HUD Scaling
@@ -189,3 +193,4 @@ Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
+
