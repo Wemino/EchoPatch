@@ -103,6 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ECHOPATCH_EXPORTS_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -163,6 +164,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;_USRDLL;ECHOPATCH_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(SolutionDir)$(ProjectName)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -173,6 +175,12 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\dllmain.cpp" />
+    <ClCompile Include="..\src\Core\Core.cpp" />
+    <ClCompile Include="..\src\Core\DInputProxy.cpp" />
+    <ClCompile Include="..\src\Client\Client.cpp" />
+    <ClCompile Include="..\src\Server\Server.cpp" />
+    <ClCompile Include="..\src\ClientFX\ClientFX.cpp" />
+    <ClCompile Include="..\src\Controller\Controller.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini">
@@ -181,9 +189,14 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\dllmain.hpp" />
     <ClInclude Include="..\src\FpsLimiter.hpp" />
     <ClInclude Include="..\src\helper.hpp" />
+    <ClInclude Include="..\src\Core\Core.hpp" />
+    <ClInclude Include="..\src\Core\DInputProxy.hpp" />
+    <ClInclude Include="..\src\Client\Client.hpp" />
+    <ClInclude Include="..\src\Server\Server.hpp" />
+    <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
+    <ClInclude Include="..\src\Controller\Controller.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

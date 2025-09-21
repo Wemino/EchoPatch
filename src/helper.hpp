@@ -1,4 +1,9 @@
-﻿namespace MemoryHelper
+﻿#pragma once
+
+#include "ini.hpp"
+#include "Core/DInputProxy.hpp"
+
+namespace MemoryHelper
 {
 	template <typename T> static bool WriteMemory(uintptr_t address, T value, bool disableProtection = true)
 	{
@@ -92,7 +97,7 @@
 		return value;
 	}
 
-	DWORD64 PatternScan(HMODULE hModule, std::string_view signature)
+	inline DWORD64 PatternScan(HMODULE hModule, std::string_view signature)
 	{
 		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
 		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
@@ -184,7 +189,7 @@
 		return 0;
 	}
 
-	DWORD FindSignatureAddress(HMODULE Module, std::string_view Signature, int FunctionStartCheckCount = -1)
+	inline DWORD FindSignatureAddress(HMODULE Module, std::string_view Signature, int FunctionStartCheckCount = -1)
 	{
 		DWORD Address = static_cast<DWORD>(PatternScan(Module, Signature));
 		if (Address == 0) 
@@ -214,7 +219,7 @@
 		return Address;
 	}
 
-	DWORD ResolveRelativeAddress(uintptr_t BaseAddress, std::size_t InstructionOffset)
+	inline DWORD ResolveRelativeAddress(uintptr_t BaseAddress, std::size_t InstructionOffset)
 	{
 		int RelativeOffset = ReadMemory<int>(BaseAddress + InstructionOffset);
 		return BaseAddress + InstructionOffset + sizeof(RelativeOffset) + RelativeOffset;
@@ -223,7 +228,7 @@
 
 namespace SystemHelper
 {
-	void SimulateSpacebarPress(HWND phWnd)
+	inline void SimulateSpacebarPress(HWND phWnd)
 	{
 		if (phWnd)
 		{
@@ -256,13 +261,13 @@ namespace SystemHelper
 		return { 0, 0 };
 	}
 
-	bool FileExists(const std::string& path)
+	inline bool FileExists(const std::string& path)
 	{
 		struct stat buffer;
 		return (stat(path.c_str(), &buffer) == 0);
 	}
 
-	static void LoadProxyLibrary()
+	inline void LoadProxyLibrary()
 	{
 		// Attempt to load the chain-load DLL from the game's directory
 		wchar_t modulePath[MAX_PATH];
@@ -278,7 +283,7 @@ namespace SystemHelper
 				if (hChain)
 				{
 					// Set up proxies to use the chain-loaded DLL
-					if (dinput8.ProxySetup(hChain))
+					if (g_dinput8.ProxySetup(hChain))
 					{
 						return; // Successfully chained
 					}
@@ -309,11 +314,11 @@ namespace SystemHelper
 		}
 
 		// Set up proxies to system DLL
-		dinput8.ProxySetup(hOriginal);
+		g_dinput8.ProxySetup(hOriginal);
 	}
 
 	// Reference: https://github.com/nipkownix/re4_tweaks/blob/master/dllmain/LAApatch.cpp
-	static bool PerformLAAPatch(HMODULE hModule)
+	inline bool PerformLAAPatch(HMODULE hModule)
 	{
 		if (!hModule)
 		{
@@ -626,10 +631,10 @@ namespace SystemHelper
 
 namespace IniHelper
 {
-	std::unique_ptr<mINI::INIFile> iniFile;
-	mINI::INIStructure iniReader;
+	inline std::unique_ptr<mINI::INIFile> iniFile;
+	inline mINI::INIStructure iniReader;
 
-	void Init(bool lookUp)
+	inline void Init(bool lookUp)
 	{
 		std::string iniPath = "EchoPatch.ini";
 		if (!SystemHelper::FileExists(iniPath) && lookUp)
@@ -644,7 +649,7 @@ namespace IniHelper
 		iniFile->read(iniReader);
 	}
 
-	void Save()
+	inline void Save()
 	{
 		if (iniFile)
 		{
@@ -652,7 +657,7 @@ namespace IniHelper
 		}
 	}
 
-	char* ReadString(const char* sectionName, const char* valueName, const char* defaultValue)
+	inline char* ReadString(const char* sectionName, const char* valueName, const char* defaultValue)
 	{
 		char* result = new char[255];
 		try
@@ -666,19 +671,17 @@ namespace IniHelper
 				if (!value.empty() && (value.back() == '\"' || value.back() == '\''))
 					value.erase(value.size() - 1);
 
-				strncpy(result, value.c_str(), 254);
-				result[254] = '\0';
-				return result;
+					strncpy_s(result, 255, value.c_str(), _TRUNCATE);
+					return result;
 			}
 		}
 		catch (...) {}
 
-		strncpy(result, defaultValue, 254);
-		result[254] = '\0';
-		return result;
+			strncpy_s(result, 255, defaultValue, _TRUNCATE);
+			return result;
 	}
 
-	float ReadFloat(const char* sectionName, const char* valueName, float defaultValue)
+	inline float ReadFloat(const char* sectionName, const char* valueName, float defaultValue)
 	{
 		try
 		{
@@ -693,7 +696,7 @@ namespace IniHelper
 		return defaultValue;
 	}
 
-	int ReadInteger(const char* sectionName, const char* valueName, int defaultValue)
+	inline int ReadInteger(const char* sectionName, const char* valueName, int defaultValue)
 	{
 		try
 		{
@@ -711,7 +714,7 @@ namespace IniHelper
 
 namespace HookHelper
 {
-	bool isMHInitialized = false;
+	inline bool isMHInitialized = false;
 
 	static bool InitializeMinHook()
 	{
@@ -800,26 +803,26 @@ namespace HookHelper
 
 namespace StringHelper
 {
-	const char* IntegerToCString(int value) 
+	inline const char* IntegerToCString(int value) 
 	{
 		static thread_local char buffer[32];
 		snprintf(buffer, sizeof(buffer), "%d", value);
 		return buffer;
 	}
 
-	const char* FloatToCString(float value) 
+	inline const char* FloatToCString(float value) 
 	{
 		static thread_local char buffer[32];
 		snprintf(buffer, sizeof(buffer), "%.0f", value);
 		return buffer;
 	}
 
-	const char* BoolToCString(bool value)
+	inline const char* BoolToCString(bool value)
 	{
 		return value ? "1" : "0";
 	}
 
-	bool stricmp(const char* str1, const char* str2) 
+	inline bool stricmp(const char* str1, const char* str2) 
 	{
 		if (!str1 || !str2) 
 		{

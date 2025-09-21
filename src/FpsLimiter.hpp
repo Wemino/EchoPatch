@@ -57,8 +57,7 @@ public:
             {
                 Sleep(0);
                 QueryPerformanceCounter(&currentTime);
-            } 
-            while (currentTime.QuadPart < targetTicks);
+            } while (currentTime.QuadPart < targetTicks);
 
             // Update lastTime to the exact target time to prevent drift
             lastTime.QuadPart = targetTicks;

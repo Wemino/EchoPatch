@@ -1,0 +1,66 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\src\dllmain.cpp" />
+    <ClCompile Include="..\src\Client\Client.cpp">
+      <Filter>Client</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ClientFX\ClientFX.cpp">
+      <Filter>ClientFX</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Controller\Controller.cpp">
+      <Filter>Controller</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Core\Core.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Core\DInputProxy.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\Server\Server.cpp">
+      <Filter>Server</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\FpsLimiter.hpp" />
+    <ClInclude Include="..\src\helper.hpp" />
+    <ClInclude Include="..\src\Client\Client.hpp">
+      <Filter>Client</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\ClientFX\ClientFX.hpp">
+      <Filter>ClientFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Controller\Controller.hpp">
+      <Filter>Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Core\Core.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Core\DInputProxy.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Server\Server.hpp">
+      <Filter>Server</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="EchoPatch.ini" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Client">
+      <UniqueIdentifier>{19435d5b-c978-45a0-b0b2-c93f2cd33be8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ClientFX">
+      <UniqueIdentifier>{a33519fe-ce3e-462e-9f4f-acfada2ad046}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Server">
+      <UniqueIdentifier>{62765357-af95-4f3b-8eb8-22a9a2ec65d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Controller">
+      <UniqueIdentifier>{f958ef86-00f3-441a-89e8-1d115b35ee92}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{616feba7-8988-4f4c-b533-ff91de518d4b}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
