@@ -6,6 +6,7 @@
 #include <Windows.h>
 #include <Xinput.h>
 #include <string_view>
+#include <string>
 #include <unordered_map>
 
 #include "../FpsLimiter.hpp"
@@ -173,6 +174,18 @@ struct GlobalState
 	// ======================
 	LARGE_INTEGER polyGridSplashFreq = {};
 	std::unordered_map<uint64_t, double> polyGridLastSplashTime;
+
+	// ======================
+	// Save Optimization
+	// ======================
+	struct SaveBuffer 
+	{
+		std::vector<uint8_t> buffer{};
+		LONGLONG position{ 0 };
+		bool flushed{ false };
+	};
+
+	static inline std::unordered_map<HANDLE, SaveBuffer> saveBuffers;
 
 	// ======================
 	// Static Data

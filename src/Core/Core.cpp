@@ -27,6 +27,9 @@ GlobalState g_State;
 // WinAPI function pointers
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
+HANDLE(WINAPI* ori_CreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE) = nullptr;
+BOOL(WINAPI* ori_SetFilePointerEx)(HANDLE, LARGE_INTEGER, PLARGE_INTEGER, DWORD) = nullptr;
+BOOL(WINAPI* ori_CloseHandle)(HANDLE) = nullptr;
 
 // ======================
 // Core Function Pointers
@@ -42,6 +45,7 @@ int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
+bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 
 // =============================
 // Ini Variables
@@ -50,6 +54,7 @@ int(__thiscall* TerminateServer)(int) = nullptr;
 // Fixes
 bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
+bool OptimizeSaveSpeed = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
@@ -124,6 +129,7 @@ static void ReadConfig()
     // Fixes
     DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
+    OptimizeSaveSpeed = IniHelper::ReadInteger("Fixes", "OptimizeSaveSpeed", 1) == 1;
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
@@ -460,6 +466,12 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
         }
     }
 
+    // Making us wait when saving a checkpoint, likely useless
+    if (OptimizeSaveSpeed && strcmp(pszVarName, "CheckPointOptimizeVideoMemory") == 0)
+    {
+        fValue = 0.0f;
+    }
+
     return SetConsoleVariableFloat(pszVarName, fValue);
 }
 
@@ -583,6 +595,113 @@ static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintIns
     if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
     BuildJacobianRow(jacobianData, constraintInstance, queryIn);
     constraintInstance[3] = timeStepBak;
+}
+
+// =========================
+// OptimizeSaveSpeed
+// =========================
+
+static bool __fastcall StreamWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite)
+{
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+    auto it = g_State.saveBuffers.find(h);
+
+    if (it != g_State.saveBuffers.end())
+    {
+        GlobalState::SaveBuffer& sb = it->second;
+
+        LONGLONG writePos = sb.position;
+        LONGLONG endPos = writePos + nNumberOfBytesToWrite;
+
+        if (endPos > (LONGLONG)sb.buffer.size())
+        {
+            sb.buffer.resize((size_t)endPos, 0);
+        }
+
+        const uint8_t* data = (const uint8_t*)lpBuffer;
+        memcpy(sb.buffer.data() + writePos, data, nNumberOfBytesToWrite);
+
+        sb.position = endPos;
+        return true;
+    }
+
+    return StreamWrite(thisp, lpBuffer, nNumberOfBytesToWrite);
+}
+
+static HANDLE WINAPI CreateFileA_Hook(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+{
+    HANDLE h = ori_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+
+    if (h != INVALID_HANDLE_VALUE && lpFileName)
+    {
+        std::string_view filename(lpFileName);
+
+        // Check if it's a .sav file being opened for writing
+        if (filename.ends_with(".sav") && (dwDesiredAccess & GENERIC_WRITE))
+        {
+            GlobalState::SaveBuffer& sb = g_State.saveBuffers[h];
+            sb.position = 0;
+            sb.flushed = false;
+        }
+    }
+
+    return h;
+}
+
+static BOOL WINAPI SetFilePointerEx_Hook(HANDLE hFile, LARGE_INTEGER liDistanceToMove, PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod)
+{
+    auto it = g_State.saveBuffers.find(hFile);
+    if (it != g_State.saveBuffers.end() && !it->second.flushed)
+    {
+        GlobalState::SaveBuffer& sb = it->second;
+
+        switch (dwMoveMethod)
+        {
+            case FILE_BEGIN:
+                sb.position = liDistanceToMove.QuadPart;
+                break;
+            case FILE_CURRENT:
+                sb.position += liDistanceToMove.QuadPart;
+                break;
+            case FILE_END:
+                sb.position = sb.buffer.size() + liDistanceToMove.QuadPart;
+                break;
+        }
+
+        if (lpNewFilePointer)
+        {
+            lpNewFilePointer->QuadPart = sb.position;
+        }
+
+        return TRUE;
+    }
+
+    return ori_SetFilePointerEx(hFile, liDistanceToMove, lpNewFilePointer, dwMoveMethod);
+}
+
+static BOOL WINAPI CloseHandle_Hook(HANDLE hObject)
+{
+    auto it = g_State.saveBuffers.find(hObject);
+    if (it != g_State.saveBuffers.end())
+    {
+        GlobalState::SaveBuffer& sb = it->second;
+
+        if (!sb.flushed && !sb.buffer.empty())
+        {
+            sb.flushed = true;
+
+            LARGE_INTEGER zero = { 0 };
+            ori_SetFilePointerEx(hObject, zero, nullptr, FILE_BEGIN);
+
+            DWORD bytesWritten = 0;
+            WriteFile(hObject, sb.buffer.data(), (DWORD)sb.buffer.size(), &bytesWritten, nullptr);
+            FlushFileBuffers(hObject);
+        }
+
+        g_State.saveBuffers.erase(it);
+    }
+
+    return ori_CloseHandle(hObject);
 }
 
 // ========================
@@ -781,6 +900,23 @@ static void ApplyFixHighFPSPhysics()
     }
 }
 
+static void ApplyOptimizeSaveSpeed()
+{
+    if (!OptimizeSaveSpeed) return;
+
+    HookHelper::ApplyHookAPI(L"kernel32.dll", "CreateFileA", &CreateFileA_Hook, (LPVOID*)&ori_CreateFileA);
+    HookHelper::ApplyHookAPI(L"kernel32.dll", "SetFilePointerEx", &SetFilePointerEx_Hook, (LPVOID*)&ori_SetFilePointerEx);
+    HookHelper::ApplyHookAPI(L"kernel32.dll", "CloseHandle", &CloseHandle_Hook, (LPVOID*)&ori_CloseHandle);
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    HookHelper::ApplyHook((void*)0x41C670, &StreamWrite_Hook, (LPVOID*)&StreamWrite, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)0x41C790, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)0x429720, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)0x429900, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+    }
+}
+
 static void ApplyFixKeyboardInputLanguage()
 {
     if (!FixKeyboardInputLanguage) return;
@@ -957,6 +1093,7 @@ static void Init()
     // Fixes
     ApplyFixDirectInputFps();
     ApplyFixHighFPSPhysics();
+    ApplyOptimizeSaveSpeed();
     ApplyFixKeyboardInputLanguage();
 
     // Display
