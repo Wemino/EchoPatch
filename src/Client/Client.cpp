@@ -985,7 +985,7 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 
 static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int, int commandId)
 {
-	if (!g_Controller.isConnected)
+	if (!g_Controller.isConnected || g_State.isLoadingDefault)
 		return GetTriggerNameFromCommandID(thisPtr, commandId);
 
 	// Left Thumbstick movement
