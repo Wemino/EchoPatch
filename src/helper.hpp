@@ -798,5 +798,4 @@ namespace HookHelper
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
 		}
 	}
-
 };
