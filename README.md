@@ -70,7 +70,7 @@ Addresses several weapon-related issues:
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
 - **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
-- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing and shadow flickering. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
+- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
 ## Input & Frame Drop Fixes
 - **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  

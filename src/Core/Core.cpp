@@ -46,6 +46,7 @@ int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
+int(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 
 // =============================
 // Ini Variables
@@ -55,6 +56,7 @@ bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
 bool OptimizeSaveSpeed = false;
+bool FixNvidiaShadowCorruption = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
@@ -130,6 +132,7 @@ static void ReadConfig()
     DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
     OptimizeSaveSpeed = IniHelper::ReadInteger("Fixes", "OptimizeSaveSpeed", 1) == 1;
+    FixNvidiaShadowCorruption = IniHelper::ReadInteger("Fixes", "FixNvidiaShadowCorruption", 1) == 1;
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
@@ -704,6 +707,30 @@ static BOOL WINAPI CloseHandle_Hook(HANDLE hObject)
     return ori_CloseHandle(hObject);
 }
 
+// ===========================
+// FixNvidiaShadowCorruption
+// ===========================
+
+static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
+{
+    DWORD VendorId = a2[267];
+
+    // NVIDIA device is used for the game
+    if (VendorId == 0x10DE)
+    {
+        switch (g_State.CurrentFEARGame)
+        {
+            // CreateVertexBuffer: D3DPOOL_MANAGED -> D3DPOOL_SYSTEMMEM
+            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(0x512234, 2); break;
+            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(0x512354, 2); break;
+            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(0x5B5A24, 2); break;
+            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(0x5B6F94, 2); break;
+        }
+    }
+
+    return CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
+}
+
 // ========================
 // DynamicVsync
 // ========================
@@ -917,6 +944,19 @@ static void ApplyOptimizeSaveSpeed()
     }
 }
 
+static void ApplyFixNvidiaShadowCorruption()
+{
+    if (!FixNvidiaShadowCorruption) return;
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    HookHelper::ApplyHook((void*)0x4F91E0, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)0x4F9300, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)0x58F930, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)0x590F60, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+    }
+}
+
 static void ApplyFixKeyboardInputLanguage()
 {
     if (!FixKeyboardInputLanguage) return;
@@ -1094,6 +1134,7 @@ static void Init()
     ApplyFixDirectInputFps();
     ApplyFixHighFPSPhysics();
     ApplyOptimizeSaveSpeed();
+    ApplyFixNvidiaShadowCorruption();
     ApplyFixKeyboardInputLanguage();
 
     // Display
