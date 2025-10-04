@@ -742,6 +742,7 @@ static char __fastcall GetNodeWorldTransform_Hook(DWORD* thisp, int, unsigned in
 {
     int modelData = *(thisp + 68);
 
+    // Attempts to retrieve bone transforms for a character whose model data has been freed
     if (modelData == 0)
     {
         // Return identity transform and return success
@@ -1198,11 +1199,12 @@ static void Init()
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
     // Detect creation of F.E.A.R. window to initialize patches
-    if (lpWindowName && strstr(lpWindowName, "F.E.A.R.") && nWidth == 320 && nHeight == 200)
+    if (!g_State.isInit && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && nWidth == 320 && nHeight == 200)
     {
         // Disable this hook and initialize patches once the game's code has been decrypted in memory (by SecuROM or SteamDRM)
         MH_DisableHook(MH_ALL_HOOKS);
         Init();
+        g_State.isInit = true;
 
         if (FixWindowStyle)
         {

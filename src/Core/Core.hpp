@@ -96,6 +96,7 @@ struct GlobalState
 	// ======================
 	// Module Handles
 	// ======================
+	bool isInit = false;
 	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
