@@ -46,7 +46,8 @@ int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
-int(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
+char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
+char(__thiscall* GetNodeWorldTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
 
 // =============================
 // Ini Variables
@@ -60,6 +61,7 @@ bool FixNvidiaShadowCorruption = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
+bool FixScriptedAnimationCrash = false;
 bool CheckLAAPatch = false;
 
 // Graphics
@@ -136,6 +138,7 @@ static void ReadConfig()
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
+    FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
 
     // Graphics
@@ -731,6 +734,32 @@ static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
     return CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
 }
 
+// ===========================
+// FixScriptedAnimationCrash
+// ===========================
+
+static char __fastcall GetNodeWorldTransform_Hook(DWORD* thisp, int, unsigned int nodeIndex, DWORD* outTransform, char a4)
+{
+    int modelData = *(thisp + 68);
+
+    if (modelData == 0)
+    {
+        // Return identity transform and return success
+        outTransform[0] = 0;
+        outTransform[1] = 0;
+        outTransform[2] = 0;
+        outTransform[3] = 0;
+        outTransform[4] = 0;
+        outTransform[5] = 0;
+        outTransform[6] = 0x3F800000;
+        outTransform[7] = 0x3F800000;
+
+        return 1;
+    }
+
+    return GetNodeWorldTransform(thisp, nodeIndex, outTransform, a4);
+}
+
 // ========================
 // DynamicVsync
 // ========================
@@ -957,6 +986,17 @@ static void ApplyFixNvidiaShadowCorruption()
     }
 }
 
+static void ApplyFixScriptedAnimationCrash()
+{
+    if (!FixScriptedAnimationCrash) return;
+
+    // Only happen on the first game
+    if (g_State.CurrentFEARGame == FEAR) 
+    { 
+        HookHelper::ApplyHook((void*)0x436F10, &GetNodeWorldTransform_Hook, (LPVOID*)&GetNodeWorldTransform, true);
+    }
+}
+
 static void ApplyFixKeyboardInputLanguage()
 {
     if (!FixKeyboardInputLanguage) return;
@@ -1136,6 +1176,7 @@ static void Init()
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();
     ApplyFixKeyboardInputLanguage();
+    ApplyFixScriptedAnimationCrash();
 
     // Display
     ApplyAutoResolution();

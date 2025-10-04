@@ -215,9 +215,12 @@ extern GlobalState g_State;
 // Fixes
 extern bool DisableRedundantHIDInit;
 extern bool HighFPSFixes;
+extern bool OptimizeSaveSpeed;
+extern bool FixNvidiaShadowCorruption;
 extern bool DisableXPWidescreenFiltering;
 extern bool FixKeyboardInputLanguage;
 extern bool WeaponFixes;
+extern bool FixScriptedAnimationCrash;
 extern bool CheckLAAPatch;
 
 // Graphics
