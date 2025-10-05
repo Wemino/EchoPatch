@@ -1,5 +1,3 @@
-#define NOMINMAX
-
 #include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
 #include "../ClientFX/ClientFX.hpp"
@@ -202,8 +200,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	// Calculate time scale
 	static constexpr double INV_TARGET_FRAME_TIME = 1.0 / TARGET_FRAME_TIME;
 	double timeScale = TARGET_FRAME_TIME * (1.0 / frameTime);
-
-	timeScale = std::min(std::max(timeScale, 0.5), 2.0);
 	double scaled = raw * timeScale;
 
 	// Exponential moving average
@@ -217,8 +213,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	// Adaptive smoothing factor
 	double frameDelta = std::abs(frameTime - TARGET_FRAME_TIME);
 	double stability = frameDelta * INV_TARGET_FRAME_TIME;
-	stability = std::min(std::max(1.0 - stability, 0.1), 1.0);
-
 	double alpha = 0.2 * stability;
 	g_State.smoothedVelocity += alpha * (scaled - g_State.smoothedVelocity);
 

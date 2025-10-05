@@ -45,7 +45,7 @@ struct GlobalState
 	// ======================
 	// Game Identification
 	// ======================
-	FEARGAME CurrentFEARGame;
+	FEARGAME CurrentFEARGame = FEAR;
 	bool IsOriginalGame() const { return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP; }
 	bool IsExpansion() const { return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2; }
 
@@ -161,7 +161,7 @@ struct GlobalState
 	// Physics/Velocity
 	// ======================
 	bool useVelocitySmoothing = false;
-	LONGLONG lastVelocityTime;
+	LONGLONG lastVelocityTime = 0;
 	bool velocityTimeInitialized = false;
 	double smoothedVelocity = 0.0;
 	bool velocitySmoothingInitialized = false;
