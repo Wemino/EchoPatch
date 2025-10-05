@@ -329,12 +329,6 @@ static void ReadConfig()
             {"HUDSlowMo2",           {{"IconSize", "IconOffset"}, &g_State.scalingFactor}},
             {"HUDActivateObject",    {{"TextOffset"}, &g_State.scalingFactor}},
         };
-
-        // Make sure to sort the attributes of each rule after setting them up
-        for (auto& [key, rule] : g_State.hudScalingRules)
-        {
-            std::sort(rule.attributes.begin(), rule.attributes.end());
-        }
     }
 
     // 10 slots max
@@ -730,6 +724,17 @@ static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
             case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(0x5B6F94, 2); break;
         }
     }
+    else
+    {
+        switch (g_State.CurrentFEARGame)
+        {
+            // Should never happen but do it anyway
+            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(0x512234, 1); break;
+            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(0x512354, 1); break;
+            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(0x5B5A24, 1); break;
+            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(0x5B6F94, 1); break;
+        }
+    }
 
     return CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
 }
@@ -1065,16 +1070,16 @@ static void ApplyAutoResolution()
     {
         case FEAR:
         case FEARMP:
-            MemoryHelper::WriteMemory<int>(0x56ABF4, g_State.screenWidth, true);
-            MemoryHelper::WriteMemory<int>(0x56ABF8, g_State.screenHeight, true);
+            MemoryHelper::WriteMemory<int>(0x56ABF4, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(0x56ABF8, g_State.screenHeight, false);
             break;
         case FEARXP:
-            MemoryHelper::WriteMemory<int>(0x60EC2C, g_State.screenWidth, true);
-            MemoryHelper::WriteMemory<int>(0x60EC30, g_State.screenHeight, true);
+            MemoryHelper::WriteMemory<int>(0x60EC2C, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(0x60EC30, g_State.screenHeight, false);
             break;
         case FEARXP2:
-            MemoryHelper::WriteMemory<int>(0x610C2C, g_State.screenWidth, true);
-            MemoryHelper::WriteMemory<int>(0x610C30, g_State.screenHeight, true);
+            MemoryHelper::WriteMemory<int>(0x610C2C, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(0x610C30, g_State.screenHeight, false);
             break;
     }
 }

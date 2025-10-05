@@ -43,7 +43,7 @@ static void ApplyPersistentWorldServerPatch()
 
     if (targetMemoryLocation_BodyFading != 0)
     {
-        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75, true);
+        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75);
     }
 }
 

@@ -162,9 +162,7 @@ struct GlobalState
 	// ======================
 	bool useVelocitySmoothing = false;
 	LONGLONG lastVelocityTime = 0;
-	bool velocityTimeInitialized = false;
 	double smoothedVelocity = 0.0;
-	bool velocitySmoothingInitialized = false;
 	bool inFriction = false;
 	int remainingJumpFrames = 0;
 	bool previousJumpState = false;
@@ -173,17 +171,16 @@ struct GlobalState
 	// ======================
 	// PolyGrid Timing
 	// ======================
-	LARGE_INTEGER polyGridSplashFreq = {};
 	std::unordered_map<uint64_t, double> polyGridLastSplashTime;
 
 	// ======================
 	// Save Optimization
 	// ======================
-	struct SaveBuffer 
+	struct SaveBuffer
 	{
 		std::vector<uint8_t> buffer{};
-		LONGLONG position{ 0 };
-		bool flushed{ false };
+		LONGLONG position = 0;
+		bool flushed = false;
 	};
 
 	static inline std::unordered_map<HANDLE, SaveBuffer> saveBuffers;

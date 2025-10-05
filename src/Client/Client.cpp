@@ -170,21 +170,7 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	// Track frame time
-	LARGE_INTEGER currentTime;
-	QueryPerformanceCounter(&currentTime);
-
-	double raw = GetMaxRecentVelocityMag(thisPtr);
-
-	if (!g_State.velocityTimeInitialized)
-	{
-		g_State.velocityTimeInitialized = true;
-		g_State.lastVelocityTime = currentTime.QuadPart;
-		g_State.smoothedVelocity = raw;
-		g_State.velocitySmoothingInitialized = true;
-		return raw;
-	}
-
+	// Get current time in seconds
 	static const double INV_PERF_FREQ = []()
 	{
 		LARGE_INTEGER freq;
@@ -192,49 +178,39 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return 1.0 / static_cast<double>(freq.QuadPart);
 	}();
 
-	LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
+	LARGE_INTEGER currentTime;
+	QueryPerformanceCounter(&currentTime);
+	double raw = GetMaxRecentVelocityMag(thisPtr);
+
+	// Calculate frame time delta
+	double frameTime = static_cast<double>(currentTime.QuadPart - g_State.lastVelocityTime) * INV_PERF_FREQ;
 	g_State.lastVelocityTime = currentTime.QuadPart;
 
-	double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
-
-	// Calculate time scale
+	// Scale velocity by frame time and apply adaptive smoothing
 	static constexpr double INV_TARGET_FRAME_TIME = 1.0 / TARGET_FRAME_TIME;
-	double timeScale = TARGET_FRAME_TIME * (1.0 / frameTime);
-	double scaled = raw * timeScale;
+	double scaled = raw * TARGET_FRAME_TIME / frameTime;
+	double alpha = 0.2 * std::abs(frameTime - TARGET_FRAME_TIME) * INV_TARGET_FRAME_TIME;
 
-	// Exponential moving average
-	if (!g_State.velocitySmoothingInitialized)
-	{
-		g_State.smoothedVelocity = scaled;
-		g_State.velocitySmoothingInitialized = true;
-		return scaled;
-	}
-
-	// Adaptive smoothing factor
-	double frameDelta = std::abs(frameTime - TARGET_FRAME_TIME);
-	double stability = frameDelta * INV_TARGET_FRAME_TIME;
-	double alpha = 0.2 * stability;
 	g_State.smoothedVelocity += alpha * (scaled - g_State.smoothedVelocity);
-
 	return g_State.smoothedVelocity;
 }
 
 static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
 {
-	// One-time init of high-res timer
-	if (g_State.polyGridSplashFreq.QuadPart == 0)
-	{
-		QueryPerformanceFrequency(&g_State.polyGridSplashFreq);
-	}
-
 	// Get current time in seconds
-	LARGE_INTEGER curr;
-	QueryPerformanceCounter(&curr);
-	double now = double(curr.QuadPart) / double(g_State.polyGridSplashFreq.QuadPart);
+	static const double INV_PERF_FREQ = []()
+	{
+		LARGE_INTEGER freq;
+		QueryPerformanceFrequency(&freq);
+		return 1.0 / static_cast<double>(freq.QuadPart);
+	}();
+
+	LARGE_INTEGER currentTime;
+	QueryPerformanceCounter(&currentTime);
+	double now = static_cast<double>(currentTime.QuadPart) * INV_PERF_FREQ;
 
 	// Build an order-independent 64-bit key for this body pair
-	uint64_t key = (uint64_t(hBody1) << 32) | hBody2;
-	if (hBody1 < hBody2) key = (uint64_t(hBody2) << 32) | hBody1;
+	uint64_t key = (hBody1 < hBody2) ? (uint64_t(hBody2) << 32) | hBody1 : (uint64_t(hBody1) << 32) | hBody2;
 
 	// Lookup last splash timestamp
 	auto& splashMap = g_State.polyGridLastSplashTime;
@@ -246,7 +222,7 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
 		splashMap[key] = now;
 
-		// Evict oldest entry if cache is full
+		// Evict all entries if cache is full
 		if (splashMap.size() > 50)
 		{
 			splashMap.clear();
@@ -693,7 +669,7 @@ static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* At
 	if (hudEntry != g_State.hudScalingRules.end())
 	{
 		const auto& rule = hudEntry->second;
-		if (std::binary_search(rule.attributes.begin(), rule.attributes.end(), attribute))
+		if (std::find(rule.attributes.begin(), rule.attributes.end(), attribute) != rule.attributes.end())
 		{
 			float scalingFactor = *rule.scalingFactorPtr;
 			result[0] = static_cast<DWORD>(static_cast<int>(result[0]) * scalingFactor);
@@ -731,21 +707,22 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 		return DBGetRecord(Record, Attribute);
 
 	char* hudRecordString = *(char**)Record;
+	std::string_view attribute(Attribute);
+	std::string_view hudElement(hudRecordString);
 
-	if (Attribute[4] == 'S' && strcmp(Attribute, "TextSize") == 0)
+	// TextSize handling
+	if (Attribute[4] == 'S' && attribute == "TextSize")
 	{
 		auto it = g_State.textDataMap.find(hudRecordString);
 		if (it != g_State.textDataMap.end())
 		{
 			auto dt = it->second;
 			float scaledSize = dt.TextSize * g_State.scalingFactor;
-
 			switch (dt.ScaleType)
 			{
 				case 1: scaledSize = std::round(scaledSize * 0.95f); break;
 				case 2: scaledSize = dt.TextSize * g_State.scalingFactorText; break;
 			}
-
 			g_State.int32ToUpdate = static_cast<int32_t>(scaledSize);
 			g_State.updateLayoutReturnValue = true;
 		}
@@ -754,21 +731,19 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 	// Additional?
 	if (Attribute[9] == 'l')
 	{
-		// Update the rectangle's length
-		if (strcmp(Attribute, "AdditionalFloat") == 0)
+		// AdditionalFloat handling
+		if (attribute == "AdditionalFloat")
 		{
 			float baseValue = 0.0f;
-
-			if (!g_State.slowMoBarUpdated && strcmp(hudRecordString, "HUDSlowMo2") == 0)
+			if (!g_State.slowMoBarUpdated && hudElement == "HUDSlowMo2")
 			{
 				baseValue = 10.0f;
 				g_State.slowMoBarUpdated = true;
 			}
-			else if (strcmp(hudRecordString, "HUDFlashlight") == 0)
+			else if (hudElement == "HUDFlashlight")
 			{
 				baseValue = 6.0f;
 			}
-
 			if (baseValue != 0.0f)
 			{
 				g_State.updateLayoutReturnValue = true;
@@ -776,7 +751,7 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 			}
 		}
 		// Medkit prompt when health drops below 50
-		else if (strcmp(hudRecordString, "HUDHealth") == 0 && strcmp(Attribute, "AdditionalInt") == 0)
+		else if (hudElement == "HUDHealth" && attribute == "AdditionalInt")
 		{
 			if (g_State.healthAdditionalIntIndex == 2)
 			{
@@ -1152,7 +1127,7 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 	OnEnterWorld(thisPtr);
 
 	// Set the flag to allow aiming (can be 0 if loading a save during a cutscene)
-	if (WeaponFixes)
+	if (WeaponFixes && g_State.pAimMgr != 0)
 	{
 		g_State.isEnteringWorld = true;
 		g_State.pAimMgr[1] = 1;
@@ -1197,7 +1172,7 @@ static void ApplyHighFPSFixesClientPatch()
     }
 
     MemoryHelper::MakeNOP(targetMemoryLocation_SurfaceJumpImpulse, 0x10);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84, true);
+    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84);
     HookHelper::ApplyHook((void*)targetMemoryLocation_GetMaxRecentVelocityMag, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
     HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
     HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
@@ -1217,7 +1192,7 @@ static void ApplyMouseAimMultiplierClientPatch()
     {
         // Write the updated multiplier
         g_State.overrideSensitivity = g_State.overrideSensitivity * MouseAimMultiplier;
-        MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&g_State.overrideSensitivity), true);
+        MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&g_State.overrideSensitivity));
     }
 }
 
@@ -1250,7 +1225,7 @@ static void ApplyDisableLetterboxClientPatch()
 
     if (targetMemoryLocation != 0)
     {
-        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3, true);
+        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3);
     }
 }
 
@@ -1275,7 +1250,7 @@ static void ApplyPersistentWorldClientPatch()
 
     MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4);
     MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74, true);
+    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74);
     HookHelper::ApplyHook((void*)targetMemoryLocation_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
     HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
@@ -1296,9 +1271,9 @@ static void ApplyInfiniteFlashlightClientPatch()
         return;
     }
 
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3, true);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3, true);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3, true);
+    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3);
+    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3);
+    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3);
     MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6);
 }
 
