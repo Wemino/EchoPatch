@@ -58,6 +58,25 @@ Resolves multiple issues at high framerates, designed and optimized for smooth g
 - Inability to perform a jump kick above 120 FPS.
 - Excessive sliding on sloped surfaces above 60 FPS.
 
+## Optimized Save Performance
+Dramatically reduces save times by buffering file operations in memory instead of writing directly to disk.  
+The game performs hundreds of thousands of individual WriteFile calls per save (over 220,000 for a typical 2MB save file), causing multi-second delays even on high-end hardware.
+
+## Input & Frame Drop Fixes
+- **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
+- **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag.
+
+## Fix Rendering Corruption on Nvidia GPUs
+Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs.  
+This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers, with a small performance trade-off for correct shadow rendering.
+
+## Framerate Limiter
+Prevents the game from running too fast by capping the maximum framerate.  
+- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
+- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
+
+> **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
+
 ## Weapon Fixes
 Addresses several weapon-related issues:
 - Zoom disabled when loading a save during a cutscene. 
@@ -66,15 +85,6 @@ Addresses several weapon-related issues:
 - Weapon models not refreshing after loading a save with the same weapon equipped.
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
-
-## Framerate Limiter
-Prevents the game from running too fast by capping the maximum framerate.  
-- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
-- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
-
-## Input & Frame Drop Fixes
-- **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
-- **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag.
 
 ## XInput Controller Support
 
@@ -187,6 +197,9 @@ Enable with `EnableCustomMaxWeaponCapacity = 1`.
 ## dinput8 Chaining Support
 Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility.
 
+## Configuration
+All features can be customized via the `EchoPatch.ini` file. Each setting includes detailed comments explaining its function and acceptable values. The patch uses sensible defaults that work for most users, but allows fine-tuning of every aspect.
+
 ---
 
 ## Credits
@@ -195,5 +208,3 @@ Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
-
-
