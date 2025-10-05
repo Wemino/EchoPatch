@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
 #include "../ClientFX/ClientFX.hpp"
@@ -170,7 +172,12 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	// Get current time in seconds
+	// Track frame time
+	LARGE_INTEGER currentTime;
+	QueryPerformanceCounter(&currentTime);
+
+	double raw = GetMaxRecentVelocityMag(thisPtr);
+
 	static const double INV_PERF_FREQ = []()
 	{
 		LARGE_INTEGER freq;
@@ -178,20 +185,25 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return 1.0 / static_cast<double>(freq.QuadPart);
 	}();
 
-	LARGE_INTEGER currentTime;
-	QueryPerformanceCounter(&currentTime);
-	double raw = GetMaxRecentVelocityMag(thisPtr);
-
-	// Calculate frame time delta
-	double frameTime = static_cast<double>(currentTime.QuadPart - g_State.lastVelocityTime) * INV_PERF_FREQ;
+	LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
 	g_State.lastVelocityTime = currentTime.QuadPart;
 
-	// Scale velocity by frame time and apply adaptive smoothing
+	double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
+
+	// Calculate time scale
 	static constexpr double INV_TARGET_FRAME_TIME = 1.0 / TARGET_FRAME_TIME;
-	double scaled = raw * TARGET_FRAME_TIME / frameTime;
-	double alpha = 0.2 * std::abs(frameTime - TARGET_FRAME_TIME) * INV_TARGET_FRAME_TIME;
+	double timeScale = TARGET_FRAME_TIME * (1.0 / frameTime);
+	timeScale = std::min(std::max(timeScale, 0.5), 2.0);
+	double scaled = raw * timeScale;
+
+	// Adaptive smoothing factor
+	double frameDelta = std::abs(frameTime - TARGET_FRAME_TIME);
+	double stability = frameDelta * INV_TARGET_FRAME_TIME;
+	stability = std::min(std::max(1.0 - stability, 0.1), 1.0);
+	double alpha = 0.2 * stability;
 
 	g_State.smoothedVelocity += alpha * (scaled - g_State.smoothedVelocity);
+
 	return g_State.smoothedVelocity;
 }
 
