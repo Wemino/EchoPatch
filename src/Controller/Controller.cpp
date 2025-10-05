@@ -1,5 +1,4 @@
 #include <Windows.h>
-#include <Xinput.h>
 
 #include "../Core/Core.hpp"
 #include "Controller.hpp"

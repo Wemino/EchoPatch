@@ -1,5 +1,3 @@
-#include <Windows.h>
-
 #include "../Core/Core.hpp"
 #include "MinHook.hpp"
 #include "../helper.hpp"

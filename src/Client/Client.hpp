@@ -1,7 +1,5 @@
 #pragma once
 
-#include <Windows.h>
-
 void ApplyClientPatch();
 
 // Subset of client function pointers used by controller handling
