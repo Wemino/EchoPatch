@@ -3,8 +3,6 @@
 #include "../Core/Core.hpp"
 #include "Controller.hpp"
 #include "../Client/Client.hpp"
-#include "MinHook.hpp"
-#include "../helper.hpp"
 
 ControllerState g_Controller;
 
@@ -37,23 +35,6 @@ static constexpr int MENU_NAVIGATION_MAP[][2] =
     {XINPUT_GAMEPAD_A,          VK_RETURN},
     {XINPUT_GAMEPAD_B,          VK_ESCAPE}
 };
-
-static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
-{
-    if (g_Controller.isConnected)
-    {
-        if (strcmp(String, "IDS_QUICKSAVE") == 0)
-        {
-            return L"Quick save";
-        }
-        else if (strcmp(String, "ScreenFailure_PressAnyKey") == 0)
-        {
-            return L"Press B to return to the main menu.\nPress any other button to continue.";
-        }
-    }
-
-    return LoadGameString(ptr, String);
-}
 
 static void HandleControllerButton(WORD button, int commandId)
 {
@@ -322,24 +303,6 @@ void PollController()
         for (const auto& mapping : g_buttonMappings)
         {
             HandleControllerButton(mapping.first, mapping.second);
-        }
-    }
-
-    // Hook 'LoadString' to override menu strings
-    if (!g_State.hookedLoadString)
-    {
-        g_State.hookedLoadString = true;
-
-        DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
-
-        if (targetMemoryLocation != 0)
-        {
-            int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
-            int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
-            int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
-            int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
-
-            HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
         }
     }
 }

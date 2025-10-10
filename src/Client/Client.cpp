@@ -84,6 +84,7 @@ void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
 void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
 void(__thiscall* MsgBoxHide)(int, int) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
+bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
 // EnableCustomMaxWeaponCapacity
 uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
@@ -1112,6 +1113,27 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 	return LoadGameString(ptr, String);
 }
 
+static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
+{
+	// Load StringEditRuntime.dll
+	bool res = DEditLoadModule(pszProjectPath);
+
+	// Get and hook 'LoadString'
+	DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
+
+	if (targetMemoryLocation != 0)
+	{
+		int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
+		int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
+		int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
+		int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
+
+		HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
+	}
+
+	return res;
+}
+
 // =============================
 // EnableCustomMaxWeaponCapacity
 // =============================
@@ -1326,6 +1348,7 @@ static void ApplyXInputControllerClientPatch()
     DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
     DWORD targetMemoryLocation_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
     DWORD targetMemoryLocation_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
+    DWORD targetMemoryLocation_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
     DWORD targetMemoryLocation_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
     targetMemoryLocation_GetZoomMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetZoomMag, 0xD);
 
@@ -1344,6 +1367,7 @@ static void ApplyXInputControllerClientPatch()
         targetMemoryLocation_GetZoomMag == 0 ||
         targetMemoryLocation_MsgBoxShow == 0 ||
         targetMemoryLocation_MsgBoxHide == 0 ||
+        targetMemoryLocation_DEditLoadModule == 0 ||
         targetMemoryLocation_PerformanceScreenId == 0) {
         return;
     }
@@ -1365,6 +1389,7 @@ static void ApplyXInputControllerClientPatch()
     HookHelper::ApplyHook((void*)targetMemoryLocation_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
     HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
     HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
+    HookHelper::ApplyHook((void*)(targetMemoryLocation_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0xD);
     g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0x25);

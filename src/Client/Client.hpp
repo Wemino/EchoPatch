@@ -12,4 +12,3 @@ extern void (__thiscall* SetCurrentType)(int, int);
 
 // From core
 extern int(__stdcall* SetConsoleVariableFloat)(const char*, float);
-extern const wchar_t* (__stdcall* LoadGameString)(int, char*);

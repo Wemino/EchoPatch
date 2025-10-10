@@ -136,7 +136,6 @@ struct GlobalState
 	int pCurrentType = 0;
 	int currentType = 0;
 	int maxCurrentType = 0;
-	bool hookedLoadString = false;
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
 
