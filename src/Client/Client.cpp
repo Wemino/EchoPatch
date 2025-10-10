@@ -81,6 +81,8 @@ void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
 void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
+void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
+void(__thiscall* MsgBoxHide)(int, int) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 
 // EnableCustomMaxWeaponCapacity
@@ -952,6 +954,18 @@ static double __fastcall GetZoomMag_Hook(int thisPtr)
 	return g_State.zoomMag;
 }
 
+static void __fastcall MsgBoxShow_Hook(int thisPtr, int, const wchar_t* pString, int pCreate, int nFontSize, bool bDefaultReturn)
+{
+    MsgBoxShow(thisPtr, pString, pCreate, nFontSize, bDefaultReturn);
+    g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
+}
+
+static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
+{
+    MsgBoxHide(thisPtr, a2);
+    g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
+}
+
 static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int nNewType)
 {
 	// If we can open a door or pick up an item
@@ -1310,6 +1324,8 @@ static void ApplyXInputControllerClientPatch()
     DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
     DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
     DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
+    DWORD targetMemoryLocation_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
+    DWORD targetMemoryLocation_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
     DWORD targetMemoryLocation_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
     targetMemoryLocation_GetZoomMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetZoomMag, 0xD);
 
@@ -1326,6 +1342,8 @@ static void ApplyXInputControllerClientPatch()
         targetMemoryLocation_SetCurrentType == 0 ||
         targetMemoryLocation_HUDSwapUpdateTriggerName == 0 ||
         targetMemoryLocation_GetZoomMag == 0 ||
+        targetMemoryLocation_MsgBoxShow == 0 ||
+        targetMemoryLocation_MsgBoxHide == 0 ||
         targetMemoryLocation_PerformanceScreenId == 0) {
         return;
     }
@@ -1345,6 +1363,8 @@ static void ApplyXInputControllerClientPatch()
     HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
     HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
     HookHelper::ApplyHook((void*)targetMemoryLocation_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
+    HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
+    HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0xD);
     g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0x25);

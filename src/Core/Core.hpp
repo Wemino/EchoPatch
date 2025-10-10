@@ -122,7 +122,8 @@ struct GlobalState
 	// Game State
 	// ======================
 	int g_pGameClientShell = 0;
-	bool isPlaying = true;
+	bool isPlaying = false;
+	bool isMsgBoxVisible = false;
 	bool isEnteringWorld = false;
 
 	// ======================

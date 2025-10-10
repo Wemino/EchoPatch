@@ -149,6 +149,8 @@ void PollController()
 
     // Handle transition from gameplay to menu
     static bool wasPlaying = g_State.isPlaying;
+    static bool wasMsgBoxVisible = g_State.isMsgBoxVisible;
+
     if (wasPlaying && !g_State.isPlaying && g_Controller.isConnected)
     {
         for (const auto& mapping : g_buttonMappings)
@@ -188,7 +190,23 @@ void PollController()
         }
     }
 
+    // Handle message box visibility changes
+    if (wasMsgBoxVisible && !g_State.isMsgBoxVisible && g_Controller.isConnected)
+    {
+        // Set transition timestamp to prevent immediate actions
+        g_Controller.menuToGameTransitionTime = GetTickCount64();
+
+        // Clear any lingering menu button states
+        for (int i = 0; i < 6; i++)
+        {
+            g_Controller.menuButtons[i].isPressed = false;
+            g_Controller.menuButtons[i].pressStartTime = 0;
+            g_Controller.menuButtons[i].lastRepeatTime = 0;
+        }
+    }
+
     wasPlaying = g_State.isPlaying;
+    wasMsgBoxVisible = g_State.isMsgBoxVisible;
 
     if (!g_Controller.isConnected)
     {
@@ -197,7 +215,7 @@ void PollController()
     }
 
     // Menu navigation
-    if (!g_State.isPlaying)
+    if (!g_State.isPlaying || g_State.isMsgBoxVisible)
     {
         const ULONGLONG currentTime = GetTickCount64();
 
