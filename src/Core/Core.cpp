@@ -116,6 +116,7 @@ bool SkipTimegateIntro = false;
 bool SkipDellIntro = false;
 
 // Extra
+bool DisablePunkBuster = false;
 bool RedirectSaveFolder = false;
 bool InfiniteFlashlight = false;
 bool EnableCustomMaxWeaponCapacity = false;
@@ -193,6 +194,7 @@ static void ReadConfig()
     SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
 
     // Extra
+    DisablePunkBuster = IniHelper::ReadInteger("Extra", "DisablePunkBuster", 1) == 1;
     RedirectSaveFolder = IniHelper::ReadInteger("Extra", "RedirectSaveFolder", 0) == 1;
     InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 0) == 1;
     EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;

@@ -268,6 +268,7 @@ extern bool SkipTimegateIntro;
 extern bool SkipDellIntro;
 
 // Extra
+extern bool DisablePunkBuster;
 extern bool RedirectSaveFolder;
 extern bool InfiniteFlashlight;
 extern bool EnableCustomMaxWeaponCapacity;

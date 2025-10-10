@@ -1535,6 +1535,18 @@ static void ApplyClientFXHook()
     }
 }
 
+static void ApplyDisablePunkBuster()
+{
+	if (!DisablePunkBuster) return;
+
+	DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "83 EC 28 56 8B F1 8B 86 ?? ?? 00 00 85", "DisablePunkBuster");
+
+	if (targetMemoryLocation != 0)
+	{
+		MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3);
+	}
+}
+
 static void ApplyDisableHipFireAccuracyPenalty()
 {
     if (!DisableHipFireAccuracyPenalty) return;
@@ -1596,25 +1608,26 @@ static void ApplyClientPatchSet2()
 
 void ApplyClientPatch()
 {
-    ApplyHighFPSFixesClientPatch();
-    ApplyMouseAimMultiplierClientPatch();
-    ApplyXPWidescreenClientPatch();
-    ApplySkipSplashScreenClientPatch();
-    ApplyDisableLetterboxClientPatch();
-    ApplyPersistentWorldClientPatch();
-    ApplyInfiniteFlashlightClientPatch();
-    ApplyXInputControllerClientPatch();
-    ApplyHUDScalingClientPatch();
-    ApplySetWeaponCapacityClientPatch();
-    ApplyHighResolutionReflectionsClientPatch();
-    ApplyAutoResolutionClientCheck();
-    ApplyKeyboardInputLanguageClientCheck();
-    ApplyWeaponFixesClientPatch();
-    ApplyClientFXHook();
-    ApplyDisableHipFireAccuracyPenalty();
-    ApplyGameDatabaseHook();
-    ApplyClientPatchSet1();
-    ApplyClientPatchSet2();
+	ApplyHighFPSFixesClientPatch();
+	ApplyMouseAimMultiplierClientPatch();
+	ApplyXPWidescreenClientPatch();
+	ApplySkipSplashScreenClientPatch();
+	ApplyDisableLetterboxClientPatch();
+	ApplyPersistentWorldClientPatch();
+	ApplyInfiniteFlashlightClientPatch();
+	ApplyXInputControllerClientPatch();
+	ApplyHUDScalingClientPatch();
+	ApplySetWeaponCapacityClientPatch();
+	ApplyHighResolutionReflectionsClientPatch();
+	ApplyAutoResolutionClientCheck();
+	ApplyKeyboardInputLanguageClientCheck();
+	ApplyWeaponFixesClientPatch();
+	ApplyClientFXHook();
+	ApplyDisablePunkBuster();
+	ApplyDisableHipFireAccuracyPenalty();
+	ApplyGameDatabaseHook();
+	ApplyClientPatchSet1();
+	ApplyClientPatchSet2();
 }
 
 #pragma endregion
