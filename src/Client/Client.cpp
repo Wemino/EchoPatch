@@ -280,6 +280,7 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults, bool bLoadDisplaySettings)
 {
 	g_State.isLoadingDefault = bLoadDefaults;
+	g_State.currentKeyIndex = 0;
 	LoadUserProfile(thisPtr, bLoadDefaults, bLoadDisplaySettings);
 	g_State.isLoadingDefault = false;
 }
@@ -287,6 +288,7 @@ static void __fastcall LoadUserProfile_Hook(int thisPtr, int, bool bLoadDefaults
 static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
 {
 	g_State.isLoadingDefault = true;
+	g_State.currentKeyIndex = 0;
 	bool res = RestoreDefaults(thisPtr, nFlags);
 	g_State.isLoadingDefault = false;
 	return res;
@@ -1012,7 +1014,6 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
 }
-
 
 static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
 {

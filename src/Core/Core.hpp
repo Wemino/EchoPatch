@@ -87,6 +87,7 @@ struct GlobalState
 	// User Profile
 	// ======================
 	bool isLoadingDefault = false;
+	int currentKeyIndex = 0;
 
 	// ======================
 	// Input Settings

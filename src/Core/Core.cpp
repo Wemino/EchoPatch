@@ -43,7 +43,7 @@ int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
-char(__thiscall* GetNodeWorldTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
+char(__thiscall* GetSocketTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
 
 // =============================
 // Ini Variables
@@ -479,40 +479,42 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 {
     if (g_State.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
     {
-        // Control name from 'ProfileDatabase/Defaults.Gamdb00p' with corresponding DirectInput Key Id
-        static const std::unordered_map<std::wstring, unsigned int> keyMap =
+        // Index to DirectInput Key Id mapping
+        static const std::unordered_map<int, unsigned int> keyMap =
         {
-            {L"W", 0x11},
-            {L"S", 0x1F},
-            {L"A", 0x1E},
-            {L"D", 0x20},
-            {L"Left", 0xCB},
-            {L"Right", 0xCD},
-            {L"Right Ctrl", 0x9D},
-            {L"Space", 0x39},
-            {L"C", 0x2E},
-            {L"Q", 0x10},
-            {L"E", 0x12},
-            {L"G", 0x22},
-            {L"F", 0x21},
-            {L"R", 0x13},
-            {L"Shift", 0x2A},
-            {L"Ctrl", 0x1D},
-            {L"X", 0x2D},
-            {L"Tab", 0x0F},
-            {L"M", 0x32},
-            {L"T", 0x14},
-            {L"Y", 0x15},
-            {L"V", 0x2F},
-            {L"Up", 0xC8},
-            {L"Down", 0xD0},
-            {L"End", 0xCF},
-            {L"B", 0x30},
-            {L"Z", 0x2C},
-            {L"H", 0x23}
+            {0, 0x11},   // W
+            {1, 0x1F},   // S
+            {2, 0x1E},   // A
+            {3, 0x20},   // D
+            {4, 0xCB},   // Left
+            {5, 0xCD},   // Right
+            {6, 0x9D},   // Right Ctrl
+            {8, 0x39},   // Space
+            {9, 0x2E},   // C
+            {10, 0x10},  // Q
+            {11, 0x12},  // E
+            {13, 0x22},  // G
+            {14, 0x21},  // F
+            {15, 0x13},  // R
+            {16, 0x2A},  // Shift
+            {17, 0x1D},  // Ctrl
+            {18, 0x2D},  // X
+            {19, 0x0F},  // Tab
+            {20, 0x32},  // M
+            {21, 0x14},  // T
+            {22, 0x15},  // Y
+            {23, 0x2F},  // V
+            {24, 0xC8},  // Up
+            {25, 0xD0},  // Down
+            {26, 0xCF},  // End
+            {31, 0x30},  // B
+            {36, 0x2C},  // Z
+            {37, 0x23}   // H
         };
 
-        auto it = keyMap.find(KeyName);
+        auto it = keyMap.find(g_State.currentKeyIndex);
+        g_State.currentKeyIndex++;
+
         if (it != keyMap.end())
         {
             // Get pointer to keyboard the DIK table
@@ -600,8 +602,8 @@ static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintIns
 static bool __fastcall StreamWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite)
 {
     HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
-    auto it = g_State.saveBuffers.find(h);
 
+    auto it = g_State.saveBuffers.find(h);
     if (it != g_State.saveBuffers.end())
     {
         GlobalState::SaveBuffer& sb = it->second;
@@ -609,6 +611,7 @@ static bool __fastcall StreamWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWO
         LONGLONG writePos = sb.position;
         LONGLONG endPos = writePos + nNumberOfBytesToWrite;
 
+        // Only resize if we exceed pre-allocated size
         if (endPos > (LONGLONG)sb.buffer.size())
         {
             sb.buffer.resize((size_t)endPos, 0);
@@ -638,6 +641,7 @@ static HANDLE WINAPI CreateFileA_Hook(LPCSTR lpFileName, DWORD dwDesiredAccess, 
             GlobalState::SaveBuffer& sb = g_State.saveBuffers[h];
             sb.position = 0;
             sb.flushed = false;
+            sb.buffer.resize(4 * 1024 * 1024, 0); // Pre-allocate 4MB
         }
     }
 
@@ -681,16 +685,15 @@ static BOOL WINAPI CloseHandle_Hook(HANDLE hObject)
     if (it != g_State.saveBuffers.end())
     {
         GlobalState::SaveBuffer& sb = it->second;
-
         if (!sb.flushed && !sb.buffer.empty())
         {
             sb.flushed = true;
-
             LARGE_INTEGER zero = { 0 };
             ori_SetFilePointerEx(hObject, zero, nullptr, FILE_BEGIN);
 
+            DWORD actualSize = (DWORD)sb.position;
             DWORD bytesWritten = 0;
-            WriteFile(hObject, sb.buffer.data(), (DWORD)sb.buffer.size(), &bytesWritten, nullptr);
+            WriteFile(hObject, sb.buffer.data(), actualSize, &bytesWritten, nullptr);
             FlushFileBuffers(hObject);
         }
 
@@ -739,7 +742,7 @@ static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
 // FixScriptedAnimationCrash
 // ===========================
 
-static char __fastcall GetNodeWorldTransform_Hook(DWORD* thisp, int, unsigned int nodeIndex, DWORD* outTransform, char a4)
+static char __fastcall GetSocketTransform_Hook(DWORD* thisp, int, unsigned int nodeIndex, DWORD* outTransform, char a4)
 {
     int modelData = *(thisp + 68);
 
@@ -759,7 +762,7 @@ static char __fastcall GetNodeWorldTransform_Hook(DWORD* thisp, int, unsigned in
         return 1;
     }
 
-    return GetNodeWorldTransform(thisp, nodeIndex, outTransform, a4);
+    return GetSocketTransform(thisp, nodeIndex, outTransform, a4);
 }
 
 // ========================
@@ -993,9 +996,9 @@ static void ApplyFixScriptedAnimationCrash()
     if (!FixScriptedAnimationCrash) return;
 
     // Only happen on the first game
-    if (g_State.CurrentFEARGame == FEAR) 
-    { 
-        HookHelper::ApplyHook((void*)0x436F10, &GetNodeWorldTransform_Hook, (LPVOID*)&GetNodeWorldTransform, true);
+    if (g_State.CurrentFEARGame == FEAR)
+    {
+        HookHelper::ApplyHook((void*)0x436F10, &GetSocketTransform_Hook, (LPVOID*)&GetSocketTransform, true);
     }
 }
 
