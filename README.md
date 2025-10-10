@@ -79,10 +79,10 @@ Prevents the game from running too fast by capping the maximum framerate.
 
 ## Weapon Fixes
 Addresses several weapon-related issues:
-- Zoom disabled when loading a save during a cutscene. 
+- Fix Aim/Zoom not working when loading a save during a cutscene.
 - Automatic weapons stuck in firing animation when loading a save made mid-fire.
 - Weapon cycling not working when there’s an empty slot between two weapons.
-- Weapon models not refreshing after loading a save with the same weapon equipped.
+- Weapon model position not updating correctly after reloading a save with the same weapon equipped.
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
@@ -175,8 +175,12 @@ Automatically sets the game window to match your screen resolution on first laun
 Bypasses developer splash on launch when `SkipSplashScreen = 1`.
 
 ## Skip Movies
-Skips intro videos (menu sound retained) when `SkipAllIntro = 1`.  
+Skips intro videos when `SkipAllIntro = 1`.  
 Individual videos can be skipped via the `SkipIntro` section in `EchoPatch.ini`.
+
+## Disable PunkBuster Initialization
+Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
+This prevents the game from loading unused background components.
 
 ## Save Folder Redirection
 Redirects the save folder from `%PUBLIC%\Documents\` to `%USERPROFILE%\Documents\My Games\`.  
