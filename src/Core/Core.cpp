@@ -22,6 +22,7 @@ GlobalState g_State;
 
 // WinAPI function pointers
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
+BOOL(WINAPI* ori_AdjustWindowRect)(LPRECT, DWORD, BOOL);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
 HANDLE(WINAPI* ori_CreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE) = nullptr;
 BOOL(WINAPI* ori_SetFilePointerEx)(HANDLE, LARGE_INTEGER, PLARGE_INTEGER, DWORD) = nullptr;
@@ -901,6 +902,16 @@ static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken,
     return hr;
 }
 
+static BOOL WINAPI AdjustWindowRect_Hook(LPRECT lpRect, DWORD dwStyle, BOOL bMenu)
+{
+    if (dwStyle == 0xCF0000)
+    {
+        dwStyle = WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+    }
+
+    return ori_AdjustWindowRect(lpRect, dwStyle, bMenu);
+}
+
 #pragma endregion
 
 #pragma region Core Patches
@@ -1213,6 +1224,7 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
         if (FixWindowStyle)
         {
             dwStyle = WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+            HookHelper::ApplyHookAPI(L"user32.dll", "AdjustWindowRect", &AdjustWindowRect_Hook, (LPVOID*)&ori_AdjustWindowRect);
         }
 
         g_State.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
