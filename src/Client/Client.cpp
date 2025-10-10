@@ -1119,11 +1119,11 @@ static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
 	bool res = DEditLoadModule(pszProjectPath);
 
 	// Get and hook 'LoadString'
-	DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
+	DWORD addr = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
 
-	if (targetMemoryLocation != 0)
+	if (addr != 0)
 	{
-		int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(targetMemoryLocation + 0x8);
+		int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(addr + 0x8);
 		int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
 		int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
 		int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
@@ -1197,51 +1197,51 @@ static void ApplyHighFPSFixesClientPatch()
 {
     if (!HighFPSFixes) return;
 
-    DWORD targetMemoryLocation_SurfaceJumpImpulse = ScanModuleSignature(g_State.GameClient, "C7 44 24 1C 00 00 00 00 C7 44 24 10 00 00 00 00 EB", "SurfaceJumpImpulse");
-    DWORD targetMemoryLocation_HeightOffset = ScanModuleSignature(g_State.GameClient, "D9 E1 D9 54 24 1C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85", "HeightOffset");
-    DWORD targetMemoryLocation_UpdateOnGround = ScanModuleSignature(g_State.GameClient, "83 EC 3C 53 55 56 57 8B F1", "UpdateOnGround");
-    DWORD targetMemoryLocation_UpdateWaveProp = ScanModuleSignature(g_State.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
-    DWORD targetMemoryLocation_UpdateNormalFriction = ScanModuleSignature(g_State.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
-    DWORD targetMemoryLocation_GetTimerElapsedS = ScanModuleSignature(g_State.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
-    DWORD targetMemoryLocation_GetMaxRecentVelocityMag = ScanModuleSignature(g_State.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
-    DWORD targetMemoryLocation_UpdateNormalControlFlags = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
-    DWORD targetMemoryLocation_PolyGridFXCollisionHandlerCB = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
-    targetMemoryLocation_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetMaxRecentVelocityMag, 0xC);
+    DWORD addr_SurfaceJumpImpulse = ScanModuleSignature(g_State.GameClient, "C7 44 24 1C 00 00 00 00 C7 44 24 10 00 00 00 00 EB", "SurfaceJumpImpulse");
+    DWORD addr_HeightOffset = ScanModuleSignature(g_State.GameClient, "D9 E1 D9 54 24 1C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85", "HeightOffset");
+    DWORD addr_UpdateOnGround = ScanModuleSignature(g_State.GameClient, "83 EC 3C 53 55 56 57 8B F1", "UpdateOnGround");
+    DWORD addr_UpdateWaveProp = ScanModuleSignature(g_State.GameClient, "D9 44 24 04 83 EC ?? D8 1D", "UpdateWaveProp");
+    DWORD addr_UpdateNormalFriction = ScanModuleSignature(g_State.GameClient, "83 EC 3C 56 8B F1 8B 46 28 F6 C4 08 C7 44 24 34", "UpdateNormalFriction");
+    DWORD addr_GetTimerElapsedS = ScanModuleSignature(g_State.GameClient, "04 51 8B C8 FF 52 3C 85 C0 5E", "GetTimerElapsedS");
+    DWORD addr_GetMaxRecentVelocityMag = ScanModuleSignature(g_State.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
+    DWORD addr_UpdateNormalControlFlags = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
+    DWORD addr_PolyGridFXCollisionHandlerCB = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
+    addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
-    if (targetMemoryLocation_SurfaceJumpImpulse == 0 ||
-        targetMemoryLocation_HeightOffset == 0 ||
-        targetMemoryLocation_UpdateOnGround == 0 ||
-        targetMemoryLocation_GetMaxRecentVelocityMag == 0 ||
-        targetMemoryLocation_UpdateNormalControlFlags == 0 ||
-        targetMemoryLocation_UpdateNormalFriction == 0 ||
-        targetMemoryLocation_GetTimerElapsedS == 0 ||
-        targetMemoryLocation_UpdateWaveProp == 0 ||
-        targetMemoryLocation_PolyGridFXCollisionHandlerCB == 0) {
+    if (addr_SurfaceJumpImpulse == 0 ||
+        addr_HeightOffset == 0 ||
+        addr_UpdateOnGround == 0 ||
+        addr_GetMaxRecentVelocityMag == 0 ||
+        addr_UpdateNormalControlFlags == 0 ||
+        addr_UpdateNormalFriction == 0 ||
+        addr_GetTimerElapsedS == 0 ||
+        addr_UpdateWaveProp == 0 ||
+        addr_PolyGridFXCollisionHandlerCB == 0) {
         return;
     }
 
-    MemoryHelper::MakeNOP(targetMemoryLocation_SurfaceJumpImpulse, 0x10);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_HeightOffset + 0x12, 0x84);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_GetMaxRecentVelocityMag, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
+    MemoryHelper::MakeNOP(addr_SurfaceJumpImpulse, 0x10);
+    MemoryHelper::WriteMemory<uint8_t>(addr_HeightOffset + 0x12, 0x84);
+    HookHelper::ApplyHook((void*)addr_GetMaxRecentVelocityMag, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
+    HookHelper::ApplyHook((void*)addr_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
+    HookHelper::ApplyHook((void*)addr_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
+    HookHelper::ApplyHook((void*)addr_UpdateWaveProp, &UpdateWaveProp_Hook, (LPVOID*)&UpdateWaveProp);
+    HookHelper::ApplyHook((void*)addr_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
+    HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
+    HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
 }
 
 static void ApplyMouseAimMultiplierClientPatch()
 {
     if (MouseAimMultiplier == 1.0f) return;
 
-    DWORD targetMemoryLocation_MouseAimMultiplier = ScanModuleSignature(g_State.GameClient, "89 4C 24 14 DB 44 24 14 8D 44 24 20 6A 01 50 D8 0D", "MouseAimMultiplier");
+    DWORD addr_MouseAimMultiplier = ScanModuleSignature(g_State.GameClient, "89 4C 24 14 DB 44 24 14 8D 44 24 20 6A 01 50 D8 0D", "MouseAimMultiplier");
 
-    if (targetMemoryLocation_MouseAimMultiplier != 0)
+    if (addr_MouseAimMultiplier != 0)
     {
         // Write the updated multiplier
         g_State.overrideSensitivity = g_State.overrideSensitivity * MouseAimMultiplier;
-        MemoryHelper::WriteMemory<uint32_t>(targetMemoryLocation_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&g_State.overrideSensitivity));
+        MemoryHelper::WriteMemory<uint32_t>(addr_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&g_State.overrideSensitivity));
     }
 }
 
@@ -1258,11 +1258,11 @@ static void ApplySkipSplashScreenClientPatch()
 {
     if (!SkipSplashScreen) return;
 
-    DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 55 8B 6C 24 14 56 8D 43 FF 83 F8", "SkipSplashScreen");
 
-    if (targetMemoryLocation != 0)
+    if (addr != 0)
     {
-        MemoryHelper::MakeNOP(targetMemoryLocation + 0x13D, 8);
+        MemoryHelper::MakeNOP(addr + 0x13D, 8);
     }
 }
 
@@ -1270,11 +1270,11 @@ static void ApplyDisableLetterboxClientPatch()
 {
     if (!DisableLetterbox) return;
 
-    DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
 
-    if (targetMemoryLocation != 0)
+    if (addr != 0)
     {
-        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3);
+        MemoryHelper::WriteMemory<uint8_t>(addr, 0xC3);
     }
 }
 
@@ -1282,182 +1282,182 @@ static void ApplyPersistentWorldClientPatch()
 {
     if (!EnablePersistentWorldState) return;
 
-    DWORD targetMemoryLocation_ShellCasing = ScanModuleSignature(g_State.GameClient, "D9 86 88 00 00 00 D8 64 24", "ShellCasing");
-    DWORD targetMemoryLocation_DecalSaving = ScanModuleSignature(g_State.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "DecalSaving");
-    DWORD targetMemoryLocation_Decal = ScanModuleSignature(g_State.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
-    DWORD targetMemoryLocation_FX = ScanModuleSignature(g_State.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
-    DWORD targetMemoryLocation_Shatter = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
-    targetMemoryLocation_Shatter = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_Shatter, 0x3);
+    DWORD addr_ShellCasing = ScanModuleSignature(g_State.GameClient, "D9 86 88 00 00 00 D8 64 24", "ShellCasing");
+    DWORD addr_DecalSaving = ScanModuleSignature(g_State.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "DecalSaving");
+    DWORD addr_Decal = ScanModuleSignature(g_State.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
+    DWORD addr_FX = ScanModuleSignature(g_State.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
+    DWORD addr_Shatter = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
+    addr_Shatter = MemoryHelper::ResolveRelativeAddress(addr_Shatter, 0x3);
 
-    if (targetMemoryLocation_ShellCasing == 0 ||
-        targetMemoryLocation_DecalSaving == 0 ||
-        targetMemoryLocation_Decal == 0 ||
-        targetMemoryLocation_FX == 0 ||
-        targetMemoryLocation_Shatter == 0) {
+    if (addr_ShellCasing == 0 ||
+        addr_DecalSaving == 0 ||
+        addr_Decal == 0 ||
+        addr_FX == 0 ||
+        addr_Shatter == 0) {
         return;
     }
 
-    MemoryHelper::MakeNOP(targetMemoryLocation_ShellCasing + 0x6, 4);
-    MemoryHelper::MakeNOP(targetMemoryLocation_DecalSaving + 0xF, 13);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Decal + 0x5, 0x74);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
+    MemoryHelper::MakeNOP(addr_ShellCasing + 0x6, 4);
+    MemoryHelper::MakeNOP(addr_DecalSaving + 0xF, 13);
+    MemoryHelper::WriteMemory<uint8_t>(addr_Decal + 0x5, 0x74);
+    HookHelper::ApplyHook((void*)addr_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
+    HookHelper::ApplyHook((void*)addr_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
 
 static void ApplyInfiniteFlashlightClientPatch()
 {
     if (!InfiniteFlashlight) return;
 
-    DWORD targetMemoryLocation_Update = ScanModuleSignature(g_State.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
-    DWORD targetMemoryLocation_UpdateBar = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
-    DWORD targetMemoryLocation_UpdateLayout = ScanModuleSignature(g_State.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
-    DWORD targetMemoryLocation_Battery = ScanModuleSignature(g_State.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
+    DWORD addr_Update = ScanModuleSignature(g_State.GameClient, "8B 51 10 8A 42 18 84 C0 8A 86 04 01 00 00", "InfiniteFlashlight_Update");
+    DWORD addr_UpdateBar = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 85 C0 56 8B F1 74 71 D9 86 1C 04 00 00", "InfiniteFlashlight_UpdateBar");
+    DWORD addr_UpdateLayout = ScanModuleSignature(g_State.GameClient, "68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 50 FF 57 58 8B 0D ?? ?? ?? ?? 50 FF 97 84 00 00 00 8B 0D ?? ?? ?? ?? 8B 11 50 8D 44 24 10 50 FF 52 04 8B 4C 24 0C 8D BE C4 01 00 00", "InfiniteFlashlight_UpdateLayout");
+    DWORD addr_Battery = ScanModuleSignature(g_State.GameClient, "D8 4C 24 04 DC AE 88 03 00 00 DD 96 88 03 00 00", "InfiniteFlashlight_Battery");
 
-    if (targetMemoryLocation_Update == 0 ||
-        targetMemoryLocation_UpdateBar == 0 ||
-        targetMemoryLocation_UpdateLayout == 0 ||
-        targetMemoryLocation_Battery == 0) {
+    if (addr_Update == 0 ||
+        addr_UpdateBar == 0 ||
+        addr_UpdateLayout == 0 ||
+        addr_Battery == 0) {
         return;
     }
 
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_Update - 0x31, 0xC3);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateLayout - 0x36, 0xC3);
-    MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_UpdateBar, 0xC3);
-    MemoryHelper::MakeNOP(targetMemoryLocation_Battery + 0xA, 6);
+    MemoryHelper::WriteMemory<uint8_t>(addr_Update - 0x31, 0xC3);
+    MemoryHelper::WriteMemory<uint8_t>(addr_UpdateLayout - 0x36, 0xC3);
+    MemoryHelper::WriteMemory<uint8_t>(addr_UpdateBar, 0xC3);
+    MemoryHelper::MakeNOP(addr_Battery + 0xA, 6);
 }
 
 static void ApplyXInputControllerClientPatch()
 {
     if (!XInputControllerSupport) return;
 
-    DWORD targetMemoryLocation_pGameClientShell = ScanModuleSignature(g_State.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
-    if (targetMemoryLocation_pGameClientShell == 0) return;
+    DWORD addr_pGameClientShell = ScanModuleSignature(g_State.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
+    if (addr_pGameClientShell == 0) return;
 
-    DWORD targetMemoryLocation_OnCommandOn = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x21) + 0x25;
-    DWORD targetMemoryLocation_OnCommandOff = targetMemoryLocation_pGameClientShell + MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x28) + 0x2C;
-    DWORD targetMemoryLocation_GetExtremalCommandValue = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");
-    DWORD targetMemoryLocation_IsCommandOn = ScanModuleSignature(g_State.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
-    DWORD targetMemoryLocation_ChangeState = ScanModuleSignature(g_State.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
-    DWORD targetMemoryLocation_HUDActivateObjectSetObject = ScanModuleSignature(g_State.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
-    DWORD targetMemoryLocation_HUDSwapUpdate = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
-    DWORD targetMemoryLocation_SetOperatingTurret = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
-    DWORD targetMemoryLocation_GetTriggerNameFromCommandID = ScanModuleSignature(g_State.GameClient, "81 EC 44 08 00 00", "GetTriggerNameFromCommandID");
-    DWORD targetMemoryLocation_SwitchToScreen = ScanModuleSignature(g_State.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
-    DWORD targetMemoryLocation_SetCurrentType = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
-    DWORD targetMemoryLocation_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
-    DWORD targetMemoryLocation_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
-    DWORD targetMemoryLocation_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
-    DWORD targetMemoryLocation_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
-    DWORD targetMemoryLocation_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
-    DWORD targetMemoryLocation_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
-    targetMemoryLocation_GetZoomMag = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_GetZoomMag, 0xD);
+    DWORD addr_OnCommandOn = addr_pGameClientShell + MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x21) + 0x25;
+    DWORD addr_OnCommandOff = addr_pGameClientShell + MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x28) + 0x2C;
+    DWORD addr_GetExtremalCommandValue = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");
+    DWORD addr_IsCommandOn = ScanModuleSignature(g_State.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
+    DWORD addr_ChangeState = ScanModuleSignature(g_State.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
+    DWORD addr_HUDActivateObjectSetObject = ScanModuleSignature(g_State.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
+    DWORD addr_HUDSwapUpdate = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
+    DWORD addr_SetOperatingTurret = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
+    DWORD addr_GetTriggerNameFromCommandID = ScanModuleSignature(g_State.GameClient, "81 EC 44 08 00 00", "GetTriggerNameFromCommandID");
+    DWORD addr_SwitchToScreen = ScanModuleSignature(g_State.GameClient, "53 55 56 8B F1 8B 6E 60 33 DB 3B EB 57 8B 7C 24 14", "SwitchToScreen");
+    DWORD addr_SetCurrentType = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
+    DWORD addr_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
+    DWORD addr_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
+    DWORD addr_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
+    DWORD addr_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
+    DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
+    DWORD addr_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
+    addr_GetZoomMag = MemoryHelper::ResolveRelativeAddress(addr_GetZoomMag, 0xD);
 
-    if (targetMemoryLocation_OnCommandOn == 0 ||
-        targetMemoryLocation_OnCommandOff == 0 ||
-        targetMemoryLocation_GetExtremalCommandValue == 0 ||
-        targetMemoryLocation_IsCommandOn == 0 ||
-        targetMemoryLocation_ChangeState == 0 ||
-        targetMemoryLocation_HUDActivateObjectSetObject == 0 ||
-        targetMemoryLocation_HUDSwapUpdate == 0 ||
-        targetMemoryLocation_SetOperatingTurret == 0 ||
-        targetMemoryLocation_GetTriggerNameFromCommandID == 0 ||
-        targetMemoryLocation_SwitchToScreen == 0 ||
-        targetMemoryLocation_SetCurrentType == 0 ||
-        targetMemoryLocation_HUDSwapUpdateTriggerName == 0 ||
-        targetMemoryLocation_GetZoomMag == 0 ||
-        targetMemoryLocation_MsgBoxShow == 0 ||
-        targetMemoryLocation_MsgBoxHide == 0 ||
-        targetMemoryLocation_DEditLoadModule == 0 ||
-        targetMemoryLocation_PerformanceScreenId == 0) {
+    if (addr_OnCommandOn == 0 ||
+        addr_OnCommandOff == 0 ||
+        addr_GetExtremalCommandValue == 0 ||
+        addr_IsCommandOn == 0 ||
+        addr_ChangeState == 0 ||
+        addr_HUDActivateObjectSetObject == 0 ||
+        addr_HUDSwapUpdate == 0 ||
+        addr_SetOperatingTurret == 0 ||
+        addr_GetTriggerNameFromCommandID == 0 ||
+        addr_SwitchToScreen == 0 ||
+        addr_SetCurrentType == 0 ||
+        addr_HUDSwapUpdateTriggerName == 0 ||
+        addr_GetZoomMag == 0 ||
+        addr_MsgBoxShow == 0 ||
+        addr_MsgBoxHide == 0 ||
+        addr_DEditLoadModule == 0 ||
+        addr_PerformanceScreenId == 0) {
         return;
     }
 
-    g_State.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(targetMemoryLocation_pGameClientShell + 0x1A));
+    g_State.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x1A));
 
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
+    HookHelper::ApplyHook((void*)(addr_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
+    HookHelper::ApplyHook((void*)addr_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
+    HookHelper::ApplyHook((void*)addr_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
+    HookHelper::ApplyHook((void*)addr_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
+    HookHelper::ApplyHook((void*)addr_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
+    HookHelper::ApplyHook((void*)addr_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
+    HookHelper::ApplyHook((void*)(addr_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
+    HookHelper::ApplyHook((void*)addr_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
+    HookHelper::ApplyHook((void*)addr_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
+    HookHelper::ApplyHook((void*)addr_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
+    HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
+    HookHelper::ApplyHook((void*)addr_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
+    HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
+    HookHelper::ApplyHook((void*)addr_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
+    HookHelper::ApplyHook((void*)addr_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
+    HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
 
-    g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0xD);
-    g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(targetMemoryLocation_PerformanceScreenId + 0x25);
+    g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
+    g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0x25);
 
     if (!HideMouseCursor) return;
 
-    DWORD targetMemoryLocation_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
-    DWORD targetMemoryLocation_OnMouseMove = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
+    DWORD addr_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
+    DWORD addr_OnMouseMove = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
 
-    HookHelper::ApplyHook((void*)targetMemoryLocation_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
+    HookHelper::ApplyHook((void*)addr_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
+    HookHelper::ApplyHook((void*)addr_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
 }
 
 static void ApplyHUDScalingClientPatch()
 {
     if (!HUDScaling) return;
 
-    DWORD targetMemoryLocation_HUDTerminate = ScanModuleSignature(g_State.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
-    DWORD targetMemoryLocation_HUDInit = ScanModuleSignature(g_State.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
-    DWORD targetMemoryLocation_HUDRender = ScanModuleSignature(g_State.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
-    DWORD targetMemoryLocation_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
-    DWORD targetMemoryLocation_LayoutDBGetPosition = ScanModuleSignature(g_State.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
-    DWORD targetMemoryLocation_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
-    DWORD targetMemoryLocation_UpdateSlider = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
-    DWORD targetMemoryLocation_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
-    DWORD targetMemoryLocation_HUDWeaponListInit = ScanModuleSignature(g_State.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
-    DWORD targetMemoryLocation_HUDGrenadeListInit = ScanModuleSignature(g_State.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
-    DWORD targetMemoryLocation_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
-    DWORD targetMemoryLocation_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
+    DWORD addr_HUDTerminate = ScanModuleSignature(g_State.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
+    DWORD addr_HUDInit = ScanModuleSignature(g_State.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
+    DWORD addr_HUDRender = ScanModuleSignature(g_State.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
+    DWORD addr_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
+    DWORD addr_LayoutDBGetPosition = ScanModuleSignature(g_State.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
+    DWORD addr_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
+    DWORD addr_UpdateSlider = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
+    DWORD addr_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
+    DWORD addr_HUDWeaponListInit = ScanModuleSignature(g_State.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
+    DWORD addr_HUDGrenadeListInit = ScanModuleSignature(g_State.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
+    DWORD addr_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
+    DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
 
-    if (targetMemoryLocation_HUDTerminate == 0 ||
-        targetMemoryLocation_HUDInit == 0 ||
-        targetMemoryLocation_HUDRender == 0 ||
-        targetMemoryLocation_ScreenDimsChanged == 0 ||
-        targetMemoryLocation_LayoutDBGetPosition == 0 ||
-        targetMemoryLocation_GetRectF == 0 ||
-        targetMemoryLocation_UpdateSlider == 0 ||
-        targetMemoryLocation_HUDWeaponListReset == 0 ||
-        targetMemoryLocation_HUDWeaponListInit == 0 ||
-        targetMemoryLocation_HUDGrenadeListInit == 0 ||
-        targetMemoryLocation_InitAdditionalTextureData == 0 ||
-        targetMemoryLocation_HUDPausedInit == 0) {
+    if (addr_HUDTerminate == 0 ||
+        addr_HUDInit == 0 ||
+        addr_HUDRender == 0 ||
+        addr_ScreenDimsChanged == 0 ||
+        addr_LayoutDBGetPosition == 0 ||
+        addr_GetRectF == 0 ||
+        addr_UpdateSlider == 0 ||
+        addr_HUDWeaponListReset == 0 ||
+        addr_HUDWeaponListInit == 0 ||
+        addr_HUDGrenadeListInit == 0 ||
+        addr_InitAdditionalTextureData == 0 ||
+        addr_HUDPausedInit == 0) {
         return;
     }
 
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
+    HookHelper::ApplyHook((void*)addr_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
+    HookHelper::ApplyHook((void*)addr_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
+    HookHelper::ApplyHook((void*)addr_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
+    HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
+    HookHelper::ApplyHook((void*)addr_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
+    HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
+    HookHelper::ApplyHook((void*)addr_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
+    HookHelper::ApplyHook((void*)addr_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
+    HookHelper::ApplyHook((void*)addr_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
+    HookHelper::ApplyHook((void*)addr_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
+    HookHelper::ApplyHook((void*)(addr_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
+    HookHelper::ApplyHook((void*)addr_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
 }
 
 static void ApplySetWeaponCapacityClientPatch()
 {
     if (!EnableCustomMaxWeaponCapacity) return;
 
-    DWORD targetMemoryLocation_GetWeaponCapacity = ScanModuleSignature(g_State.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
+    DWORD addr_GetWeaponCapacity = ScanModuleSignature(g_State.GameClient, "CC 8B 41 48 8B 0D", "GetWeaponCapacity");
 
-    if (targetMemoryLocation_GetWeaponCapacity != 0)
+    if (addr_GetWeaponCapacity != 0)
     {
-        HookHelper::ApplyHook((void*)(targetMemoryLocation_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
+        HookHelper::ApplyHook((void*)(addr_GetWeaponCapacity + 0x1), &GetWeaponCapacity_Hook, (LPVOID*)&GetWeaponCapacity);
         g_State.appliedCustomMaxWeaponCapacity = true;
     }
 }
@@ -1466,11 +1466,11 @@ static void ApplyHighResolutionReflectionsClientPatch()
 {
     if (!HighResolutionReflections) return;
 
-    DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "RenderTargetGroupFXInit");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "RenderTargetGroupFXInit");
 
-    if (targetMemoryLocation != 0)
+    if (addr != 0)
     {
-        HookHelper::ApplyHook((void*)(targetMemoryLocation - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+        HookHelper::ApplyHook((void*)(addr - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
     }
 }
 
@@ -1478,85 +1478,85 @@ static void ApplyAutoResolutionClientCheck()
 {
     if (!AutoResolution) return;
 
-    DWORD targetMemoryLocation_AutoDetectPerformanceSettings = ScanModuleSignature(g_State.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
-    DWORD targetMemoryLocation_SetQueuedConsoleVariable = ScanModuleSignature(g_State.GameClient, "83 EC 10 56 8B F1 8B 46 ?? 8B 4E ?? 8D 54 24 18", "SetQueuedConsoleVariable");
-    DWORD targetMemoryLocation_SetOption = ScanModuleSignature(g_State.GameClient, "51 8B 44 24 14 85 C0 89 0C 24", "SetOption");
+    DWORD addr_AutoDetectPerformanceSettings = ScanModuleSignature(g_State.GameClient, "83 C4 10 83 F8 01 75 37", "AutoDetectPerformanceSettings", 2);
+    DWORD addr_SetQueuedConsoleVariable = ScanModuleSignature(g_State.GameClient, "83 EC 10 56 8B F1 8B 46 ?? 8B 4E ?? 8D 54 24 18", "SetQueuedConsoleVariable");
+    DWORD addr_SetOption = ScanModuleSignature(g_State.GameClient, "51 8B 44 24 14 85 C0 89 0C 24", "SetOption");
 
-    if (targetMemoryLocation_AutoDetectPerformanceSettings == 0 ||
-        targetMemoryLocation_SetQueuedConsoleVariable == 0 ||
-        targetMemoryLocation_SetOption == 0) {
+    if (addr_AutoDetectPerformanceSettings == 0 ||
+        addr_SetQueuedConsoleVariable == 0 ||
+        addr_SetOption == 0) {
         return;
     }
 
-    HookHelper::ApplyHook((void*)targetMemoryLocation_AutoDetectPerformanceSettings, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SetQueuedConsoleVariable, &SetQueuedConsoleVariable_Hook, (LPVOID*)&SetQueuedConsoleVariable);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
+    HookHelper::ApplyHook((void*)addr_AutoDetectPerformanceSettings, &AutoDetectPerformanceSettings_Hook, (LPVOID*)&AutoDetectPerformanceSettings);
+    HookHelper::ApplyHook((void*)addr_SetQueuedConsoleVariable, &SetQueuedConsoleVariable_Hook, (LPVOID*)&SetQueuedConsoleVariable);
+    HookHelper::ApplyHook((void*)addr_SetOption, &SetOption_Hook, (LPVOID*)&SetOption);
 }
 
 static void ApplyKeyboardInputLanguageClientCheck()
 {
     if (!FixKeyboardInputLanguage) return;
 
-    DWORD targetMemoryLocation_LoadUserProfile = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
-    DWORD targetMemoryLocation_RestoreDefaults = ScanModuleSignature(g_State.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
+    DWORD addr_LoadUserProfile = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
+    DWORD addr_RestoreDefaults = ScanModuleSignature(g_State.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
 
-    if (targetMemoryLocation_LoadUserProfile == 0 ||
-        targetMemoryLocation_RestoreDefaults == 0) {
+    if (addr_LoadUserProfile == 0 ||
+        addr_RestoreDefaults == 0) {
         return;
     }
 
-    HookHelper::ApplyHook((void*)targetMemoryLocation_LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
+    HookHelper::ApplyHook((void*)addr_LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
+    HookHelper::ApplyHook((void*)addr_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
 }
 
 static void ApplyWeaponFixesClientPatch()
 {
     if (!WeaponFixes) return;
 
-    DWORD targetMemoryLocation_AimMgrCtor = ScanModuleSignature(g_State.GameClient, "8B C1 C6 00 00 C6 40 01 01 C3", "AimMgrCtor");
-    DWORD targetMemoryLocation_UpdateWeaponModel = ScanModuleSignature(g_State.GameClient, "83 EC 44 56 8B F1 57 8B 7E 08 85 FF", "UpdateWeaponModel");
-    DWORD targetMemoryLocation_AnimationClearLock = ScanModuleSignature(g_State.GameClient, "E8 BB FF FF FF C7 41 34 FF FF FF FF C7 81 58 01", "AnimationClearLock");
-    DWORD targetMemoryLocation_SetAnimProp = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 83 F8 FF 74 ?? 83 F8 12 7D ?? 8B 54 24 08 89 04", "SetAnimProp");
-    DWORD targetMemoryLocation_InitAnimations = ScanModuleSignature(g_State.GameClient, "6A 08 6A 7A 8B CF FF ?? 24 8B ?? 6A 08", "InitAnimations", 3);
-    DWORD targetMemoryLocation_GetWeaponSlot = ScanModuleSignature(g_State.GameClient, "8A 51 40 32 C0 84 D2 76 23 56 8B B1 B4 00 00 00 57", "GetWeaponSlot");
-    DWORD targetMemoryLocation_NextWeapon = ScanModuleSignature(g_State.GameClient, "84 C0 0F 84 ?? 00 00 00 8B CE E8", "NextWeapon");
-    DWORD targetMemoryLocation_PreviousWeapon = ScanModuleSignature(g_State.GameClient, "8D BE ?? 57 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 1F 8B CE E8", "PreviousWeapon");
-    DWORD targetMemoryLocation_kAP_ACT_Fire_Id = ScanModuleSignature(g_State.GameClient, "84 C0 75 1E 6A 00 68 ?? 00 00 00 6A 00 8B CF", "kAP_ACT_Fire_Id");
-    targetMemoryLocation_NextWeapon = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_NextWeapon, 0xB);
-    targetMemoryLocation_PreviousWeapon = MemoryHelper::ResolveRelativeAddress(targetMemoryLocation_PreviousWeapon, 0x14);
+    DWORD addr_AimMgrCtor = ScanModuleSignature(g_State.GameClient, "8B C1 C6 00 00 C6 40 01 01 C3", "AimMgrCtor");
+    DWORD addr_UpdateWeaponModel = ScanModuleSignature(g_State.GameClient, "83 EC 44 56 8B F1 57 8B 7E 08 85 FF", "UpdateWeaponModel");
+    DWORD addr_AnimationClearLock = ScanModuleSignature(g_State.GameClient, "E8 BB FF FF FF C7 41 34 FF FF FF FF C7 81 58 01", "AnimationClearLock");
+    DWORD addr_SetAnimProp = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 83 F8 FF 74 ?? 83 F8 12 7D ?? 8B 54 24 08 89 04", "SetAnimProp");
+    DWORD addr_InitAnimations = ScanModuleSignature(g_State.GameClient, "6A 08 6A 7A 8B CF FF ?? 24 8B ?? 6A 08", "InitAnimations", 3);
+    DWORD addr_GetWeaponSlot = ScanModuleSignature(g_State.GameClient, "8A 51 40 32 C0 84 D2 76 23 56 8B B1 B4 00 00 00 57", "GetWeaponSlot");
+    DWORD addr_NextWeapon = ScanModuleSignature(g_State.GameClient, "84 C0 0F 84 ?? 00 00 00 8B CE E8", "NextWeapon");
+    DWORD addr_PreviousWeapon = ScanModuleSignature(g_State.GameClient, "8D BE ?? 57 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 1F 8B CE E8", "PreviousWeapon");
+    DWORD addr_kAP_ACT_Fire_Id = ScanModuleSignature(g_State.GameClient, "84 C0 75 1E 6A 00 68 ?? 00 00 00 6A 00 8B CF", "kAP_ACT_Fire_Id");
+    addr_NextWeapon = MemoryHelper::ResolveRelativeAddress(addr_NextWeapon, 0xB);
+    addr_PreviousWeapon = MemoryHelper::ResolveRelativeAddress(addr_PreviousWeapon, 0x14);
 
-    if (targetMemoryLocation_AimMgrCtor == 0 ||
-        targetMemoryLocation_UpdateWeaponModel == 0 ||
-        targetMemoryLocation_AnimationClearLock == 0 ||
-        targetMemoryLocation_SetAnimProp == 0 ||
-        targetMemoryLocation_InitAnimations == 0 ||
-        targetMemoryLocation_GetWeaponSlot == 0 ||
-        targetMemoryLocation_NextWeapon == 0 ||
-        targetMemoryLocation_PreviousWeapon == 0 ||
-        targetMemoryLocation_kAP_ACT_Fire_Id == 0) {
+    if (addr_AimMgrCtor == 0 ||
+        addr_UpdateWeaponModel == 0 ||
+        addr_AnimationClearLock == 0 ||
+        addr_SetAnimProp == 0 ||
+        addr_InitAnimations == 0 ||
+        addr_GetWeaponSlot == 0 ||
+        addr_NextWeapon == 0 ||
+        addr_PreviousWeapon == 0 ||
+        addr_kAP_ACT_Fire_Id == 0) {
         return;
     }
 
-    HookHelper::ApplyHook((void*)targetMemoryLocation_AimMgrCtor, &AimMgrCtor_Hook, (LPVOID*)&AimMgrCtor);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_UpdateWeaponModel, &UpdateWeaponModel_Hook, (LPVOID*)&UpdateWeaponModel);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_AnimationClearLock, &AnimationClearLock_Hook, (LPVOID*)&AnimationClearLock);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_SetAnimProp, &SetAnimProp_Hook, (LPVOID*)&SetAnimProp);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_InitAnimations, &InitAnimations_Hook, (LPVOID*)&InitAnimations);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_GetWeaponSlot, &GetWeaponSlot_Hook, (LPVOID*)&GetWeaponSlot);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_NextWeapon, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
-    HookHelper::ApplyHook((void*)targetMemoryLocation_PreviousWeapon, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
-    g_State.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(targetMemoryLocation_kAP_ACT_Fire_Id + 0x7);
+    HookHelper::ApplyHook((void*)addr_AimMgrCtor, &AimMgrCtor_Hook, (LPVOID*)&AimMgrCtor);
+    HookHelper::ApplyHook((void*)addr_UpdateWeaponModel, &UpdateWeaponModel_Hook, (LPVOID*)&UpdateWeaponModel);
+    HookHelper::ApplyHook((void*)addr_AnimationClearLock, &AnimationClearLock_Hook, (LPVOID*)&AnimationClearLock);
+    HookHelper::ApplyHook((void*)addr_SetAnimProp, &SetAnimProp_Hook, (LPVOID*)&SetAnimProp);
+    HookHelper::ApplyHook((void*)addr_InitAnimations, &InitAnimations_Hook, (LPVOID*)&InitAnimations);
+    HookHelper::ApplyHook((void*)addr_GetWeaponSlot, &GetWeaponSlot_Hook, (LPVOID*)&GetWeaponSlot);
+    HookHelper::ApplyHook((void*)addr_NextWeapon, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
+    HookHelper::ApplyHook((void*)addr_PreviousWeapon, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
+    g_State.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(addr_kAP_ACT_Fire_Id + 0x7);
 }
 
 static void ApplyClientFXHook()
 {
     if (!HighFPSFixes) return;
 
-    DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
 
-    if (targetMemoryLocation != 0)
+    if (addr != 0)
     {
-        HookHelper::ApplyHook((void*)targetMemoryLocation, &LoadFxDll_Hook, (LPVOID*)&LoadFxDll);
+        HookHelper::ApplyHook((void*)addr, &LoadFxDll_Hook, (LPVOID*)&LoadFxDll);
     }
 }
 
@@ -1564,11 +1564,11 @@ static void ApplyDisablePunkBuster()
 {
 	if (!DisablePunkBuster) return;
 
-	DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "83 EC 28 56 8B F1 8B 86 ?? ?? 00 00 85", "DisablePunkBuster");
+	DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 28 56 8B F1 8B 86 ?? ?? 00 00 85", "DisablePunkBuster");
 
-	if (targetMemoryLocation != 0)
+	if (addr != 0)
 	{
-		MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation, 0xC3);
+		MemoryHelper::WriteMemory<uint8_t>(addr, 0xC3);
 	}
 }
 
@@ -1576,11 +1576,11 @@ static void ApplyDisableHipFireAccuracyPenalty()
 {
     if (!DisableHipFireAccuracyPenalty) return;
 
-    DWORD targetMemoryLocation = ScanModuleSignature(g_State.GameClient, "83 EC ?? A1 ?? ?? ?? ?? 8B 40 28 56 57 6A 00 8B F1", "DisableHipFireAccuracyPenalty");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC ?? A1 ?? ?? ?? ?? 8B 40 28 56 57 6A 00 8B F1", "DisableHipFireAccuracyPenalty");
 
-    if (targetMemoryLocation != 0)
+    if (addr != 0)
     {
-        HookHelper::ApplyHook((void*)targetMemoryLocation, &AccuracyMgrUpdate_Hook, (LPVOID*)&AccuracyMgrUpdate);
+        HookHelper::ApplyHook((void*)addr, &AccuracyMgrUpdate_Hook, (LPVOID*)&AccuracyMgrUpdate);
     }
 }
 
@@ -1588,11 +1588,11 @@ static void ApplyGameDatabaseHook()
 {
     if (!HUDScaling) return;
 
-    DWORD targetMemoryLocation_GameDatabase = ScanModuleSignature(g_State.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
+    DWORD addr_GameDatabase = ScanModuleSignature(g_State.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 
-    if (targetMemoryLocation_GameDatabase != 0)
+    if (addr_GameDatabase != 0)
     {
-        int pDB = MemoryHelper::ReadMemory<int>(targetMemoryLocation_GameDatabase + 0xB);
+        int pDB = MemoryHelper::ReadMemory<int>(addr_GameDatabase + 0xB);
         int pGameDatabase = MemoryHelper::ReadMemory<int>(pDB);
         int pLayoutDB = MemoryHelper::ReadMemory<int>(pGameDatabase);
 
@@ -1607,27 +1607,27 @@ static void ApplyClientPatchSet1()
 {
     if (!HUDScaling && !XInputControllerSupport) return;
 
-    DWORD targetMemoryLocation_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
-    DWORD targetMemoryLocation_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+    DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
+    DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
 
-    if (targetMemoryLocation_HUDWeaponListUpdateTriggerNames == 0 ||
-        targetMemoryLocation_HUDGrenadeListUpdateTriggerNames == 0) {
+    if (addr_HUDWeaponListUpdateTriggerNames == 0 ||
+        addr_HUDGrenadeListUpdateTriggerNames == 0) {
         return;
     }
 
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
-    HookHelper::ApplyHook((void*)(targetMemoryLocation_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+    HookHelper::ApplyHook((void*)(addr_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
+    HookHelper::ApplyHook((void*)(addr_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
 }
 
 static void ApplyClientPatchSet2()
 {
     if (!WeaponFixes && !EnableCustomMaxWeaponCapacity) return;
 
-    DWORD targetMemoryLocation_OnEnterWorld = ScanModuleSignature(g_State.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
+    DWORD addr_OnEnterWorld = ScanModuleSignature(g_State.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
 
-    if (targetMemoryLocation_OnEnterWorld != 0)
+    if (addr_OnEnterWorld != 0)
     {
-        HookHelper::ApplyHook((void*)targetMemoryLocation_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
+        HookHelper::ApplyHook((void*)addr_OnEnterWorld, &OnEnterWorld_Hook, (LPVOID*)&OnEnterWorld);
     }
 }
 

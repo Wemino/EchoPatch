@@ -37,11 +37,11 @@ static void ApplyPersistentWorldServerPatch()
 {
     if (!EnablePersistentWorldState) return;
 
-    DWORD targetMemoryLocation_BodyFading = ScanModuleSignature(g_State.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "BodyFading");
+    DWORD addr_BodyFading = ScanModuleSignature(g_State.GameServer, "8A 86 ?? ?? 00 00 84 C0 74 A1 8D 8E", "BodyFading");
 
-    if (targetMemoryLocation_BodyFading != 0)
+    if (addr_BodyFading != 0)
     {
-        MemoryHelper::WriteMemory<uint8_t>(targetMemoryLocation_BodyFading + 0x22, 0x75);
+        MemoryHelper::WriteMemory<uint8_t>(addr_BodyFading + 0x22, 0x75);
     }
 }
 
@@ -49,16 +49,16 @@ static void ApplySetWeaponCapacityServerPatch()
 {
     if (!EnableCustomMaxWeaponCapacity || !g_State.appliedCustomMaxWeaponCapacity) return;
 
-    DWORD targetMemoryLocation_SetWeaponCapacityServer = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
-    DWORD targetMemoryLocation_PlayerInventoryInit = ScanModuleSignature(g_State.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
+    DWORD addr_SetWeaponCapacityServer = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
+    DWORD addr_PlayerInventoryInit = ScanModuleSignature(g_State.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
 
-    if (targetMemoryLocation_SetWeaponCapacityServer == 0 ||
-        targetMemoryLocation_PlayerInventoryInit == 0) {
+    if (addr_SetWeaponCapacityServer == 0 ||
+        addr_PlayerInventoryInit == 0) {
         return;
     }
 
-    ApplyTrackedHook(targetMemoryLocation_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
-    ApplyTrackedHook(targetMemoryLocation_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
+    ApplyTrackedHook(addr_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
+    ApplyTrackedHook(addr_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
 }
 
 void ApplyServerPatch()
