@@ -172,7 +172,7 @@ struct GlobalState
 	// ======================
 	// PolyGrid Timing
 	// ======================
-	std::unordered_map<uint64_t, double> polyGridLastSplashTime;
+	static inline std::unordered_map<uint64_t, double> polyGridLastSplashTime;
 
 	// ======================
 	// Save Optimization
@@ -187,7 +187,7 @@ struct GlobalState
 	static inline std::unordered_map<HANDLE, SaveBuffer> saveBuffers;
 
 	// ======================
-	// Static Data
+	// HUD Data
 	// ======================
 	struct DataEntry
 	{

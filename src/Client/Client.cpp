@@ -1,5 +1,3 @@
-#define NOMINMAX
-
 #include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
 #include "../ClientFX/ClientFX.hpp"
@@ -175,12 +173,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	// Track frame time
-	LARGE_INTEGER currentTime;
-	QueryPerformanceCounter(&currentTime);
-
-	double raw = GetMaxRecentVelocityMag(thisPtr);
-
 	static const double INV_PERF_FREQ = []()
 	{
 		LARGE_INTEGER freq;
@@ -188,24 +180,27 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return 1.0 / static_cast<double>(freq.QuadPart);
 	}();
 
-	LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
+	// Get current time and raw velocity
+	LARGE_INTEGER currentTime;
+	QueryPerformanceCounter(&currentTime);
+	const double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
+
+	// Calculate frame time
+	const LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
 	g_State.lastVelocityTime = currentTime.QuadPart;
+	const double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
 
-	double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
+	// Scale velocity based on frame time
+	const double timeScale = std::clamp(TARGET_FRAME_TIME / frameTime, 0.8, 1.2);
+	const double scaledVelocity = rawVelocity * timeScale;
 
-	// Calculate time scale
-	static constexpr double INV_TARGET_FRAME_TIME = 1.0 / TARGET_FRAME_TIME;
-	double timeScale = TARGET_FRAME_TIME * (1.0 / frameTime);
-	timeScale = std::min(std::max(timeScale, 0.5), 2.0);
-	double scaled = raw * timeScale;
+	// Calculate adaptive smoothing factor
+	const double frameDeviation = std::abs(frameTime - TARGET_FRAME_TIME) / TARGET_FRAME_TIME;
+	const double stability = std::clamp(1.0 - (frameDeviation * 0.5), 0.3, 1.0);
+	const double alpha = 0.25 * stability;
 
-	// Adaptive smoothing factor
-	double frameDelta = std::abs(frameTime - TARGET_FRAME_TIME);
-	double stability = frameDelta * INV_TARGET_FRAME_TIME;
-	stability = std::min(std::max(1.0 - stability, 0.1), 1.0);
-	double alpha = 0.2 * stability;
-
-	g_State.smoothedVelocity += alpha * (scaled - g_State.smoothedVelocity);
+	// Apply exponential smoothing
+	g_State.smoothedVelocity += alpha * (scaledVelocity - g_State.smoothedVelocity);
 
 	return g_State.smoothedVelocity;
 }
