@@ -116,9 +116,9 @@ bool SkipTimegateIntro = false;
 bool SkipDellIntro = false;
 
 // Extra
-bool DisablePunkBuster = false;
 bool RedirectSaveFolder = false;
 bool InfiniteFlashlight = false;
+bool DisablePunkBuster = false;
 bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
@@ -194,9 +194,9 @@ static void ReadConfig()
     SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
 
     // Extra
-    DisablePunkBuster = IniHelper::ReadInteger("Extra", "DisablePunkBuster", 1) == 1;
     RedirectSaveFolder = IniHelper::ReadInteger("Extra", "RedirectSaveFolder", 0) == 1;
     InfiniteFlashlight = IniHelper::ReadInteger("Extra", "InfiniteFlashlight", 0) == 1;
+    DisablePunkBuster = IniHelper::ReadInteger("Extra", "DisablePunkBuster", 1) == 1;
     EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
@@ -783,7 +783,7 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
 // MaxFPS & XInputControllerSupport
 // ================================
 
-static int __fastcall MainGameLoop_Hook(int thisPtr, int)
+static int __fastcall MainLoop_Hook(int thisPtr, int)
 {
     if (g_State.isUsingFpsLimiter)
     {
@@ -793,6 +793,17 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
     if (XInputControllerSupport)
     {
         PollController();
+    }
+
+    if (HighFPSFixes)
+    {
+        int* frameStruct = *(int**)(thisPtr + 0x5D0);
+        if (frameStruct)
+        {
+            float frameTime = *(float*)((char*)frameStruct + 0x2C);
+            g_State.currentFrameTime = frameTime;
+            g_State.totalGameTime += g_State.currentFrameTime;
+        }
     }
 
     return MainGameLoop(thisPtr);
@@ -908,7 +919,7 @@ static BOOL WINAPI AdjustWindowRect_Hook(LPRECT lpRect, DWORD dwStyle, BOOL bMen
 {
     if (dwStyle == 0xCF0000)
     {
-        dwStyle = WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+        dwStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     }
 
     return ori_AdjustWindowRect(lpRect, dwStyle, bMenu);
@@ -1096,19 +1107,19 @@ static void ApplyAutoResolution()
     }
 }
 
-static void HookIsFrameComplete()
+static void HookMainLoop()
 {
     g_State.isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!g_State.isUsingFpsLimiter && !XInputControllerSupport) return;
+    if (!g_State.isUsingFpsLimiter && !XInputControllerSupport && !HighFPSFixes) return;
 
     g_State.fpsLimiter.SetTargetFps(MaxFPS);
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x40FB20, &MainGameLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x40FC30, &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x419100, &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x4192B0, &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEAR:    HookHelper::ApplyHook((void*)0x40FB20, &MainLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)0x40FC30, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)0x419100, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)0x4192B0, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
     }
 }
 
@@ -1203,7 +1214,7 @@ static void Init()
     ApplyReducedMipMapBias();
 
     // Misc
-    HookIsFrameComplete();
+    HookMainLoop();
     HookVSyncOverride();
     HookTerminateServer();
     ApplySkipIntroHook();
@@ -1225,7 +1236,7 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
 
         if (FixWindowStyle)
         {
-            dwStyle = WS_POPUP | WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
+            dwStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
             HookHelper::ApplyHookAPI(L"user32.dll", "AdjustWindowRect", &AdjustWindowRect_Hook, (LPVOID*)&ori_AdjustWindowRect);
         }
 

@@ -162,11 +162,13 @@ struct GlobalState
 	// Physics/Velocity
 	// ======================
 	bool useVelocitySmoothing = false;
-	LONGLONG lastVelocityTime = 0;
-	double smoothedVelocity = 0.0;
 	bool inFriction = false;
-	int remainingJumpFrames = 0;
 	bool previousJumpState = false;
+	double lastVelocityTime = 0.0f;
+	double currentFrameTime = 0.0f;
+	double totalGameTime = 0.0f;
+	double smoothedVelocity = 0.0f;
+	double jumpElapsedTime = -1.0f;
 	float waveUpdateAccumulator = 0.0f;
 
 	// ======================
@@ -267,9 +269,9 @@ extern bool SkipTimegateIntro;
 extern bool SkipDellIntro;
 
 // Extra
-extern bool DisablePunkBuster;
 extern bool RedirectSaveFolder;
 extern bool InfiniteFlashlight;
+extern bool DisablePunkBuster;
 extern bool EnableCustomMaxWeaponCapacity;
 extern int MaxWeaponCapacity;
 extern bool DisableHipFireAccuracyPenalty;

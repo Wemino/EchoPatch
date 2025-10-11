@@ -240,8 +240,8 @@ void PollController()
                     else
                     {
                         // Calculate time since last valid input
-                        DWORD elapsedSinceStart = currentTime - btnState.pressStartTime;
-                        DWORD elapsedSinceLastRepeat = currentTime - btnState.lastRepeatTime;
+                        ULONGLONG elapsedSinceStart = currentTime - btnState.pressStartTime;
+                        ULONGLONG elapsedSinceLastRepeat = currentTime - btnState.lastRepeatTime;
 
                         if (elapsedSinceStart > 500 && elapsedSinceLastRepeat > 100)
                         {

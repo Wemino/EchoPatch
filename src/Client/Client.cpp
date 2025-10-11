@@ -132,26 +132,27 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 	// Detect jump start
 	if (!g_State.previousJumpState && *pJumped)
 	{
-		g_State.remainingJumpFrames = 3;
+		g_State.jumpElapsedTime = 0.0;
 	}
 
 	UpdateOnGround(thisPtr);
 
-	// Maintain jump state for 3 frames
-	if (g_State.remainingJumpFrames > 0)
+	// Maintain jump state for a few frames
+	if (g_State.jumpElapsedTime >= 0.0)
 	{
-		*pJumped = true;
-		g_State.remainingJumpFrames--;
+		if (g_State.jumpElapsedTime < TARGET_FRAME_TIME)
+		{
+			*pJumped = true;
+			g_State.jumpElapsedTime += g_State.currentFrameTime;
+		}
+		else
+		{
+			g_State.jumpElapsedTime = -1.0; // Mark as inactive
+		}
 	}
 
 	// Update tracking state
 	g_State.previousJumpState = *pJumped;
-
-	// Reset counter if not jumping
-	if (!g_State.previousJumpState)
-	{
-		g_State.remainingJumpFrames = 0;
-	}
 }
 
 static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
@@ -173,22 +174,11 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	static const double INV_PERF_FREQ = []()
-	{
-		LARGE_INTEGER freq;
-		QueryPerformanceFrequency(&freq);
-		return 1.0 / static_cast<double>(freq.QuadPart);
-	}();
-
 	// Get current time and raw velocity
-	LARGE_INTEGER currentTime;
-	QueryPerformanceCounter(&currentTime);
 	const double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
 
-	// Calculate frame time
-	const LONGLONG timeDelta = currentTime.QuadPart - g_State.lastVelocityTime;
-	g_State.lastVelocityTime = currentTime.QuadPart;
-	const double frameTime = static_cast<double>(timeDelta) * INV_PERF_FREQ;
+	const double frameTime = g_State.currentFrameTime - g_State.lastVelocityTime;
+	g_State.lastVelocityTime = g_State.currentFrameTime;
 
 	// Scale velocity based on frame time
 	const double timeScale = std::clamp(TARGET_FRAME_TIME / frameTime, 0.8, 1.2);
@@ -207,36 +197,26 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 
 static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
 {
-	// Get current time in seconds
-	static const double INV_PERF_FREQ = []()
-	{
-		LARGE_INTEGER freq;
-		QueryPerformanceFrequency(&freq);
-		return 1.0 / static_cast<double>(freq.QuadPart);
-	}();
-
-	LARGE_INTEGER currentTime;
-	QueryPerformanceCounter(&currentTime);
-	double now = static_cast<double>(currentTime.QuadPart) * INV_PERF_FREQ;
-
 	// Build an order-independent 64-bit key for this body pair
 	uint64_t key = (hBody1 < hBody2) ? (uint64_t(hBody2) << 32) | hBody1 : (uint64_t(hBody1) << 32) | hBody2;
 
-	// Lookup last splash timestamp
+	// Lookup last splash time
 	auto& splashMap = g_State.polyGridLastSplashTime;
 	auto it = splashMap.find(key);
 
+	double currentGameTime = g_State.totalGameTime;
+
 	// If first splash or interval elapsed, forward & record
-	if (it == splashMap.end() || (now - it->second) >= TARGET_FRAME_TIME)
+	if (it == splashMap.end() || (currentGameTime - it->second) >= TARGET_FRAME_TIME)
 	{
 		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
-		splashMap[key] = now;
+		splashMap[key] = currentGameTime;
 
 		// Evict all entries if cache is full
 		if (splashMap.size() > 50)
 		{
 			splashMap.clear();
-			splashMap[key] = now;  // Re-add current entry
+			splashMap[key] = currentGameTime;  // Re-add current entry
 		}
 	}
 }
@@ -768,7 +748,7 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 			if (g_State.healthAdditionalIntIndex == 2)
 			{
 				g_State.updateLayoutReturnValue = true;
-				g_State.int32ToUpdate = 14 * g_State.scalingFactor;
+				g_State.int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
 			}
 			else
 			{
