@@ -46,17 +46,17 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > **Note**: The base resolution (1024×768) is used as the reference for scaling, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
 ## Fix High FPS Issues
-Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS:
-- Ragdoll physics instability above 60 FPS.
-- Water physics instability above 120 FPS.
-- Excessive water splash effect repetitions above 60 FPS.
-- Frozen FX effects above 120 FPS.
-- Oversized particles above 120 FPS.
-- Overly dampened velocity when jumping out of water above 60 FPS.
-- Velocity dampening when jumping and landing above 120 FPS.
-- Walking animation prematurely reverting to idle, causing camera stutter above 120 FPS.
-- Inability to perform a jump kick above 120 FPS.
-- Excessive sliding on sloped surfaces above 60 FPS.
+Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS (particularly when using Slow-Mo):
+- Ragdoll physics instability.
+- Water physics instability.
+- Excessive water splash effect repetitions.
+- Frozen FX effects.
+- Oversized particles.
+- Overly dampened velocity when jumping out of water.
+- Velocity dampening when jumping and landing.
+- Walking animation prematurely reverting to idle, causing camera stutter.
+- Inability to perform a jump kick.
+- Excessive sliding on sloped surfaces.
 
 ## Optimized Save Performance
 Dramatically reduces save times by buffering file operations in memory instead of writing directly to disk.  
@@ -212,3 +212,4 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
+
