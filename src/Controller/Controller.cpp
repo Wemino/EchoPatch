@@ -4,6 +4,13 @@
 #include "Controller.hpp"
 #include "../Client/Client.hpp"
 
+typedef DWORD(WINAPI* XInputGetStateFunc)(DWORD, XINPUT_STATE*);
+typedef DWORD(WINAPI* XInputSetStateFunc)(DWORD, XINPUT_VIBRATION*);
+
+static HINSTANCE hXInput = nullptr;
+static XInputGetStateFunc pXInputGetState = nullptr;
+static XInputSetStateFunc pXInputSetState = nullptr;
+
 ControllerState g_Controller;
 
 std::pair<WORD, int> g_buttonMappings[] =
@@ -35,6 +42,47 @@ static constexpr int MENU_NAVIGATION_MAP[][2] =
     {XINPUT_GAMEPAD_A,          VK_RETURN},
     {XINPUT_GAMEPAD_B,          VK_ESCAPE}
 };
+
+bool InitializeXInput()
+{
+    const char* dllNames[] =
+    {
+        "xinput1_4.dll",
+        "xinput1_3.dll",
+        "xinput9_1_0.dll"
+    };
+
+    for (const char* dllName : dllNames)
+    {
+        hXInput = LoadLibraryA(dllName);
+        if (hXInput)
+        {
+            pXInputGetState = (XInputGetStateFunc)GetProcAddress(hXInput, "XInputGetState");
+            pXInputSetState = (XInputSetStateFunc)GetProcAddress(hXInput, "XInputSetState");
+
+            if (pXInputGetState)
+            {
+                return true;
+            }
+
+            FreeLibrary(hXInput);
+            hXInput = nullptr;
+        }
+    }
+
+    return false;
+}
+
+void ShutdownXInput()
+{
+    if (hXInput)
+    {
+        FreeLibrary(hXInput);
+        hXInput = nullptr;
+        pXInputGetState = nullptr;
+        pXInputSetState = nullptr;
+    }
+}
 
 static void HandleControllerButton(WORD button, int commandId)
 {
@@ -118,7 +166,7 @@ void PollController()
     bool wasConnected = g_Controller.isConnected;
 
     // Update controller state once per frame
-    g_Controller.isConnected = XInputGetState(0, &g_Controller.state) == ERROR_SUCCESS;
+    g_Controller.isConnected = pXInputGetState(0, &g_Controller.state) == ERROR_SUCCESS;
 
     // Check for connection state change
     if (wasConnected != g_Controller.isConnected)

@@ -36,6 +36,6 @@ extern ControllerState g_Controller;
 // Button mapping table exposed for config updates
 extern std::pair<WORD, int> g_buttonMappings[16];
 
-// Polling/interaction with game commands (called from Core game loop hook)
 void PollController();
-
+bool InitializeXInput();
+void ShutdownXInput();

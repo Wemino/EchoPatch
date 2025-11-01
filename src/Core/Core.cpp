@@ -1196,6 +1196,12 @@ static void Init()
         SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
     }
 
+    // Load XInput
+    if (XInputControllerSupport)
+    {
+        XInputControllerSupport = InitializeXInput();
+    }
+
     // Get the handle of the client as soon as it is loaded
     ApplyClientHook();
 
@@ -1285,6 +1291,11 @@ bool OnProcessAttach(HMODULE hModule)
 void OnProcessDetach()
 {
     MH_Uninitialize();
+
+    if (XInputControllerSupport)
+    {
+        ShutdownXInput();
+    }
 }
 
 #pragma endregion
