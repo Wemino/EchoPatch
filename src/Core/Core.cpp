@@ -59,7 +59,7 @@ bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
 bool FixScriptedAnimationCrash = false;
-bool CheckLAAPatch = false;
+int CheckLAAPatch = 0;
 
 // Graphics
 float MaxFPS = 0;
@@ -137,7 +137,7 @@ static void ReadConfig()
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
-    CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 0) == 1;
+    CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
     MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
@@ -1193,7 +1193,7 @@ static void Init()
     // LAA Patching if needed
     if (CheckLAAPatch)
     {
-        SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL));
+        SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
     }
 
     // Get the handle of the client as soon as it is loaded

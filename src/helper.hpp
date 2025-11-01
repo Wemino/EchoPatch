@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include <io.h>
 #include "ini.hpp"
 #include "Core/DInputProxy.hpp"
 
@@ -315,12 +316,271 @@ namespace SystemHelper
 		g_dinput8.ProxySetup(hOriginal);
 	}
 
+	inline uint32_t MurmurHash3(const uint8_t* data, size_t size, uint32_t seed = 0)
+	{
+		uint32_t h1 = seed;
+		const uint32_t c1 = 0xCC9E2D51;
+		const uint32_t c2 = 0x1B873593;
+		int remaining = (int)size & 3; // mod 4
+		int numBlocks = (int)size >> 2; // div 4
+
+		// Body
+		for (int i = 0; i < numBlocks; i++)
+		{
+			uint32_t k1;
+			memcpy(&k1, data + i * 4, sizeof(uint32_t));
+
+			k1 *= c1;
+			k1 = (k1 << 15) | (k1 >> 17);
+			k1 *= c2;
+
+			h1 ^= k1;
+			h1 = (h1 << 13) | (h1 >> 19);
+			h1 = h1 * 5 + 0xE6546B64;
+		}
+
+		// Tail
+		if (remaining > 0)
+		{
+			uint32_t k1 = 0;
+			for (int i = 0; i < remaining; i++)
+			{
+				k1 |= (uint32_t)data[numBlocks * 4 + i] << (8 * i);
+			}
+
+			k1 *= c1;
+			k1 = (k1 << 15) | (k1 >> 17);
+			k1 *= c2;
+			h1 ^= k1;
+		}
+
+		// Finalization
+		h1 ^= (uint32_t)size;
+		h1 ^= h1 >> 16;
+		h1 *= 0x85EBCA6B;
+		h1 ^= h1 >> 13;
+		h1 *= 0xC2B2AE35;
+		h1 ^= h1 >> 16;
+		return h1;
+	}
+
+	inline bool ValidatePatchedFile(const std::string& originalPath, const std::string& patchedPath, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize, uint32_t expectedTextHash)
+	{
+		// Read original file
+		std::ifstream origFile(originalPath, std::ios::binary);
+		if (!origFile.is_open())
+		{
+			MessageBoxA(NULL, "Failed to open original file for validation", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+			return false;
+		}
+		std::vector<uint8_t> origData((std::istreambuf_iterator<char>(origFile)), std::istreambuf_iterator<char>());
+		origFile.close();
+
+		// Read patched file
+		std::ifstream patchFile(patchedPath, std::ios::binary);
+		if (!patchFile.is_open())
+		{
+			MessageBoxA(NULL, "Failed to open patched file for validation", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+			return false;
+		}
+		std::vector<uint8_t> patchData((std::istreambuf_iterator<char>(patchFile)), std::istreambuf_iterator<char>());
+		patchFile.close();
+
+		if (origData.empty() || patchData.empty())
+		{
+			MessageBoxA(NULL, "Failed to read files for validation", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+			return false;
+		}
+
+		PIMAGE_DOS_HEADER origDosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(origData.data());
+		PIMAGE_NT_HEADERS origNtHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(origData.data() + origDosHeader->e_lfanew);
+
+		PIMAGE_DOS_HEADER patchDosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(patchData.data());
+		PIMAGE_NT_HEADERS patchNtHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(patchData.data() + patchDosHeader->e_lfanew);
+
+		if (!hasBindSection)
+		{
+			// Only LAA flag and checksum should change
+
+			// Check file sizes match
+			if (origData.size() != patchData.size())
+			{
+				MessageBoxA(NULL, "Validation failed: File size changed when it shouldn't have", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Create temporary copies to compare
+			std::vector<uint8_t> origCopy = origData;
+			std::vector<uint8_t> patchCopy = patchData;
+
+			PIMAGE_DOS_HEADER origDosHeaderCopy = reinterpret_cast<PIMAGE_DOS_HEADER>(origCopy.data());
+			PIMAGE_NT_HEADERS origNtHeadersCopy = reinterpret_cast<PIMAGE_NT_HEADERS>(origCopy.data() + origDosHeaderCopy->e_lfanew);
+
+			PIMAGE_DOS_HEADER patchDosHeaderCopy = reinterpret_cast<PIMAGE_DOS_HEADER>(patchCopy.data());
+			PIMAGE_NT_HEADERS patchNtHeadersCopy = reinterpret_cast<PIMAGE_NT_HEADERS>(patchCopy.data() + patchDosHeaderCopy->e_lfanew);
+
+			// Normalize the fields we expect to change
+			origNtHeadersCopy->FileHeader.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE;
+			origNtHeadersCopy->OptionalHeader.CheckSum = 0;
+			patchNtHeadersCopy->OptionalHeader.CheckSum = 0;
+
+			// Compare entire files
+			if (memcmp(origCopy.data(), patchCopy.data(), origCopy.size()) != 0)
+			{
+				MessageBoxA(NULL, "Validation failed: File differs in more than just LAA flag and checksum", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+		}
+		else
+		{
+			// 1. Hash the .text section in both files
+			if (textSectionFileOffset + textSectionFileSize > origData.size())
+			{
+				MessageBoxA(NULL, "Validation failed: Invalid .text section offset/size", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			uint32_t origTextHash = MurmurHash3(origData.data() + textSectionFileOffset, textSectionFileSize);
+
+			if (textSectionFileOffset + textSectionFileSize > patchData.size())
+			{
+				MessageBoxA(NULL, "Validation failed: Invalid patched .text section offset/size", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			uint32_t patchTextHash = MurmurHash3(patchData.data() + textSectionFileOffset, textSectionFileSize);
+
+			// .text section must be different
+			if (origTextHash == patchTextHash)
+			{
+				MessageBoxA(NULL, "Validation failed: .text section was not updated", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Verify the patched .text section matches the expected hash
+			if (patchTextHash != expectedTextHash)
+			{
+				char errorMsg[512];
+				sprintf_s(errorMsg, "Validation failed: Decrypted .text section hash mismatch!\n\nExpected: 0x%08X\nGot: 0x%08X\n\nThis may indicate a different version of F.E.A.R. or corrupted executable.", expectedTextHash, patchTextHash);
+				MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// 2. Verify other regions that shouldn't change
+
+			// Region 1: DOS header (before DOS stub which gets zeroed)
+			if (memcmp(origData.data(), patchData.data(), sizeof(IMAGE_DOS_HEADER)) != 0)
+			{
+				MessageBoxA(NULL, "Validation failed: DOS header unexpectedly changed", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Region 2: PE headers (excluding fields we intentionally modified)
+			size_t ntHeadersOffset = origDosHeader->e_lfanew;
+
+			// Check PE signature
+			if (origNtHeaders->Signature != patchNtHeaders->Signature)
+			{
+				MessageBoxA(NULL, "Validation failed: PE signature changed", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Check fields in FileHeader (except Characteristics and NumberOfSections)
+			if (origNtHeaders->FileHeader.Machine != patchNtHeaders->FileHeader.Machine ||
+				origNtHeaders->FileHeader.TimeDateStamp != patchNtHeaders->FileHeader.TimeDateStamp ||
+				origNtHeaders->FileHeader.PointerToSymbolTable != patchNtHeaders->FileHeader.PointerToSymbolTable ||
+				origNtHeaders->FileHeader.NumberOfSymbols != patchNtHeaders->FileHeader.NumberOfSymbols ||
+				origNtHeaders->FileHeader.SizeOfOptionalHeader != patchNtHeaders->FileHeader.SizeOfOptionalHeader)
+			{
+				MessageBoxA(NULL, "Validation failed: Unexpected FileHeader changes", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Check OptionalHeader fields (excluding CheckSum, AddressOfEntryPoint, and SizeOfImage)
+			if (origNtHeaders->OptionalHeader.Magic != patchNtHeaders->OptionalHeader.Magic ||
+				origNtHeaders->OptionalHeader.MajorLinkerVersion != patchNtHeaders->OptionalHeader.MajorLinkerVersion ||
+				origNtHeaders->OptionalHeader.MinorLinkerVersion != patchNtHeaders->OptionalHeader.MinorLinkerVersion ||
+				origNtHeaders->OptionalHeader.SizeOfCode != patchNtHeaders->OptionalHeader.SizeOfCode ||
+				origNtHeaders->OptionalHeader.SizeOfInitializedData != patchNtHeaders->OptionalHeader.SizeOfInitializedData ||
+				origNtHeaders->OptionalHeader.BaseOfCode != patchNtHeaders->OptionalHeader.BaseOfCode ||
+				origNtHeaders->OptionalHeader.ImageBase != patchNtHeaders->OptionalHeader.ImageBase)
+			{
+				MessageBoxA(NULL, "Validation failed: Unexpected OptionalHeader changes", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Region 3: Compare sections that aren't .text or .bind
+			PIMAGE_SECTION_HEADER origSections = IMAGE_FIRST_SECTION(origNtHeaders);
+			PIMAGE_SECTION_HEADER patchSections = IMAGE_FIRST_SECTION(patchNtHeaders);
+
+			for (WORD i = 0; i < origNtHeaders->FileHeader.NumberOfSections; i++)
+			{
+				char sectionName[9] = { 0 };
+				memcpy(sectionName, origSections[i].Name, IMAGE_SIZEOF_SHORT_NAME);
+
+				if (strcmp(sectionName, ".text") == 0 || strcmp(sectionName, ".bind") == 0)
+					continue; // Skip .text (already validated) and .bind (removed)
+
+				// Find corresponding section in patched file
+				bool foundMatch = false;
+				for (WORD j = 0; j < patchNtHeaders->FileHeader.NumberOfSections; j++)
+				{
+					char patchSectionName[9] = { 0 };
+					memcpy(patchSectionName, patchSections[j].Name, IMAGE_SIZEOF_SHORT_NAME);
+
+					if (strcmp(sectionName, patchSectionName) == 0)
+					{
+						// Found matching section - verify properties match
+						if (origSections[i].VirtualAddress != patchSections[j].VirtualAddress ||
+							origSections[i].Misc.VirtualSize != patchSections[j].Misc.VirtualSize ||
+							origSections[i].Characteristics != patchSections[j].Characteristics)
+						{
+							char errorMsg[256];
+							sprintf_s(errorMsg, "Validation failed: Section %s properties changed unexpectedly", sectionName);
+							MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+							return false;
+						}
+
+						// Compare actual section data
+						DWORD origOffset = origSections[i].PointerToRawData;
+						DWORD patchOffset = patchSections[j].PointerToRawData;
+						DWORD size = min(origSections[i].SizeOfRawData, patchSections[j].SizeOfRawData);
+
+						if (origOffset + size <= origData.size() && patchOffset + size <= patchData.size())
+						{
+							if (memcmp(origData.data() + origOffset, patchData.data() + patchOffset, size) != 0)
+							{
+								char errorMsg[256];
+								sprintf_s(errorMsg, "Validation failed: Section %s data changed unexpectedly", sectionName);
+								MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+								return false;
+							}
+						}
+
+						foundMatch = true;
+						break;
+					}
+				}
+
+				if (!foundMatch)
+				{
+					char errorMsg[256];
+					sprintf_s(errorMsg, "Validation failed: Section %s missing in patched file", sectionName);
+					MessageBoxA(NULL, errorMsg, "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
 	// Reference: https://github.com/nipkownix/re4_tweaks/blob/master/dllmain/LAApatch.cpp
-	inline bool PerformLAAPatch(HMODULE hModule)
+	inline bool PerformLAAPatch(HMODULE hModule, bool showConfirmation)
 	{
 		if (!hModule)
 		{
-			MessageBox(NULL, L"Invalid module handle", L"EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			MessageBoxA(NULL, "Invalid module handle", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
 			return false;
 		}
 
@@ -340,6 +600,8 @@ namespace SystemHelper
 		PIMAGE_SECTION_HEADER textSectionHeader = nullptr;
 		DWORD textSectionRVA = 0;
 		DWORD textSectionSize = 0;
+		DWORD textSectionFileOffset = 0;
+		DWORD textSectionFileSize = 0;
 		char executableName[MAX_PATH];
 
 		// Extract the executable name for later use
@@ -370,10 +632,24 @@ namespace SystemHelper
 				return false;
 			}
 
+			// Validate file size before accessing headers
+			if (fileBuffer.size() < sizeof(IMAGE_DOS_HEADER))
+			{
+				MessageBoxA(NULL, "File too small to be a valid PE", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
 			PIMAGE_DOS_HEADER dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(fileBuffer.data());
 			if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
 			{
 				MessageBoxA(NULL, "Invalid DOS header", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+				return false;
+			}
+
+			// Validate NT headers offset and size
+			if (dosHeader->e_lfanew < 0 || fileBuffer.size() < static_cast<size_t>(dosHeader->e_lfanew) + sizeof(IMAGE_NT_HEADERS))
+			{
+				MessageBoxA(NULL, "Invalid or corrupt PE headers", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
 				return false;
 			}
 
@@ -391,7 +667,7 @@ namespace SystemHelper
 			for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
 			{
 				char sectionName[9] = { 0 };
-				memcpy(sectionName, sectionHeader[i].Name, 8);
+				memcpy(sectionName, sectionHeader[i].Name, IMAGE_SIZEOF_SHORT_NAME);
 
 				if (strcmp(sectionName, ".bind") == 0)
 				{
@@ -402,6 +678,8 @@ namespace SystemHelper
 				{
 					textSectionRVA = sectionHeader[i].VirtualAddress;
 					textSectionSize = sectionHeader[i].Misc.VirtualSize;
+					textSectionFileOffset = sectionHeader[i].PointerToRawData;
+					textSectionFileSize = sectionHeader[i].SizeOfRawData;
 				}
 			}
 		}
@@ -411,29 +689,21 @@ namespace SystemHelper
 			return true; // No need to modify
 		}
 
-		// If SteamDRM (.bind section) is detected
-		if (hasBindSection)
+		// Prompt user before patching if confirmation is enabled
+		if (showConfirmation)
 		{
-			char steamDrmMessage[512];
-			sprintf_s(steamDrmMessage,
-				"SteamDRM protection has been detected in '%s'.\n\n"
-				"You have two options:\n"
-				"- Press YES to continue with the current patcher (less reliable)\n"
-				"- Press NO to abort and use Steamless to remove the DRM first (recommended)\n\n"
-				"Using Steamless for proper unpacking before applying the LAA patch is recommended for better compatibility.",
+			char promptMsg[1024];
+			sprintf_s(promptMsg, sizeof(promptMsg),
+				"Your game executable is missing the 4GB/LAA patch. This allows the game to use 4GB of memory instead of 2GB, which prevents crashes when loading levels.\n\n"
+				"EchoPatch will patch %s and create a backup.\n\n"
+				"Apply patch and restart the game?\n\n"
+				"(This check can be disabled by setting CheckLAAPatch=0 in the [Fixes] section of EchoPatch.ini)",
 				executableName);
 
-			int result = MessageBoxA(NULL, steamDrmMessage, "EchoPatch - LAA Patcher", MB_YESNO | MB_ICONWARNING);
-			if (result == IDNO)
+			if (MessageBoxA(NULL, promptMsg, "4GB/Large Address Aware patch missing!", MB_YESNO | MB_ICONEXCLAMATION) != IDYES)
 			{
-				// User chose to use Steamless instead
-				MessageBoxA(NULL,
-					"Operation aborted. Please use Steamless first to unpack the executable, then run this patcher again.",
-					"EchoPatch - Operation Cancelled",
-					MB_ICONINFORMATION);
 				return false;
 			}
-			// If user pressed Yes, continue with current patcher
 		}
 
 		// Setup file paths
@@ -504,9 +774,17 @@ namespace SystemHelper
 		// Set checksum to 0 and skip calculation
 		ntHeaders->OptionalHeader.CheckSum = 0;
 
-		// Handle .bind section if present
+		// Handle .bind section if present (integrity check over FileHeader.Characteristics)
 		if (hasBindSection)
 		{
+			// Zero out the DOS stub data (between DOS header and NT headers)
+			DWORD dosStubOffset = sizeof(IMAGE_DOS_HEADER);
+			DWORD dosStubSize = dosHeader->e_lfanew - dosStubOffset;
+			if (dosStubSize > 0)
+			{
+				memset(exeData.data() + dosStubOffset, 0, dosStubSize);
+			}
+
 			// Set the AddressOfEntryPoint to 0x13E428 for F.E.A.R. (Steam)
 			ntHeaders->OptionalHeader.AddressOfEntryPoint = 0x13E428;
 
@@ -518,7 +796,7 @@ namespace SystemHelper
 			for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
 			{
 				char sectionName[9] = { 0 };
-				memcpy(sectionName, sectionHeader[i].Name, 8);
+				memcpy(sectionName, sectionHeader[i].Name, IMAGE_SIZEOF_SHORT_NAME);
 
 				if (strcmp(sectionName, ".bind") == 0)
 				{
@@ -533,49 +811,81 @@ namespace SystemHelper
 
 			if (bindSectionIndex >= 0 && textSection)
 			{
-				// Copy the decrypted .text section from memory to the file
-				BYTE* textSectionInMemory = reinterpret_cast<BYTE*>(hModule) + textSection->VirtualAddress;
+				// Save .bind section info before we modify anything
+				DWORD bindSectionOffset = sectionHeader[bindSectionIndex].PointerToRawData;
+				DWORD bindSectionSize = sectionHeader[bindSectionIndex].SizeOfRawData;
 
-				// Write the in-memory .text section to the file
-				fseek(file, textSection->PointerToRawData, SEEK_SET);
-				if (fwrite(textSectionInMemory, 1, textSection->SizeOfRawData, file) != textSection->SizeOfRawData)
-				{
-					MessageBoxA(NULL, "Failed to write .text section from memory", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
-					fclose(file);
-					DeleteFileA(modulePathNew.c_str());
-					return false;
-				}
+				// Copy the decrypted .text section from memory to the file buffer
+				BYTE* textSectionInMemory = reinterpret_cast<BYTE*>(hModule) + textSection->VirtualAddress;
+				memcpy(exeData.data() + textSection->PointerToRawData, textSectionInMemory, textSection->SizeOfRawData);
 
 				// 'Remove' the .bind section by updating the section count
 				ntHeaders->FileHeader.NumberOfSections--;
+
+				// Shift section headers to remove the .bind section header
+				for (int i = bindSectionIndex; i < ntHeaders->FileHeader.NumberOfSections; i++)
+				{
+					sectionHeader[i] = sectionHeader[i + 1];
+				}
+
+				// Zero out the last section header slot (where .bind metadata was)
+				memset(&sectionHeader[ntHeaders->FileHeader.NumberOfSections], 0, sizeof(IMAGE_SECTION_HEADER));
+
+				// Adjust PointerToRawData for all sections after .bind
+				for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
+				{
+					if (sectionHeader[i].PointerToRawData > bindSectionOffset)
+					{
+						sectionHeader[i].PointerToRawData -= bindSectionSize;
+					}
+				}
+
+				// Update SizeOfImage
+				DWORD newSizeOfImage = 0;
+				for (WORD i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++)
+				{
+					DWORD sectionEnd = sectionHeader[i].VirtualAddress + sectionHeader[i].Misc.VirtualSize;
+					if (sectionEnd > newSizeOfImage)
+					{
+						newSizeOfImage = sectionEnd;
+					}
+				}
+
+				// Round up to SectionAlignment
+				DWORD sectionAlignment = ntHeaders->OptionalHeader.SectionAlignment;
+				newSizeOfImage = (newSizeOfImage + sectionAlignment - 1) & ~(sectionAlignment - 1);
+				ntHeaders->OptionalHeader.SizeOfImage = newSizeOfImage;
+
+				// Remove the .bind section data from the buffer
+				exeData.erase(exeData.begin() + bindSectionOffset, exeData.begin() + bindSectionOffset + bindSectionSize);
+				fileSize -= bindSectionSize;
 			}
 		}
 
-		// Write modified headers back to file
+		// Write modified data back to file
 		fseek(file, 0, SEEK_SET);
-		if (fwrite(exeData.data(), 1, dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS), file) != dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS))
+		if (fwrite(exeData.data(), 1, fileSize, file) != fileSize)
 		{
-			MessageBoxA(NULL, "Failed to write modified headers", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+			MessageBoxA(NULL, "Failed to write modified file", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
 			fclose(file);
 			DeleteFileA(modulePathNew.c_str());
 			return false;
 		}
 
-		// Write section headers
-		PIMAGE_SECTION_HEADER sectionHeader = IMAGE_FIRST_SECTION(ntHeaders);
-		fseek(file, dosHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS), SEEK_SET);
-		if (fwrite(sectionHeader, sizeof(IMAGE_SECTION_HEADER), ntHeaders->FileHeader.NumberOfSections, file) !=
-			ntHeaders->FileHeader.NumberOfSections)
-		{
-			MessageBoxA(NULL, "Failed to write section headers", "EchoPatch - LAAPatcher Error", MB_ICONERROR);
-			fclose(file);
-			DeleteFileA(modulePathNew.c_str());
-			return false;
-		}
+		// Truncate file to new size
+		_chsize_s(_fileno(file), fileSize);
 
 		// Close the file
 		fflush(file);
 		fclose(file);
+
+		// Verify the patched file before replacing original
+		if (!ValidatePatchedFile(modulePath, modulePathNew, hasBindSection, textSectionFileOffset, textSectionFileSize, 0x96EC25CA))
+		{
+			MessageBoxA(NULL, "Patching validation failed. The patched file does not match expected changes. Aborting.", "EchoPatch - LAAPatcher Validation Error", MB_ICONERROR);
+			DeleteFileA(modulePathNew.c_str());
+			return false;
+		}
 
 		// Replace the original file with the patched one
 		BOOL moveResult1 = MoveFileExA(modulePath.c_str(), modulePathBak.c_str(), MOVEFILE_REPLACE_EXISTING);
@@ -608,15 +918,9 @@ namespace SystemHelper
 			return false;
 		}
 
-		MessageBoxA(NULL, "Successfully patched the executable with LAA flag (a backup has been created).\n\nPress OK to relaunch the application for the patch to take effect!", "EchoPatch - LAAPatcher Successful", MB_ICONINFORMATION);
-
-		wchar_t moduleFilePathW[MAX_PATH];
-		MultiByteToWideChar(CP_ACP, 0, moduleFilePathA, -1, moduleFilePathW, MAX_PATH);
-
 		// Relaunch the application
-		if ((int)ShellExecuteW(NULL, L"open", moduleFilePathW, NULL, NULL, SW_SHOWDEFAULT) > 32)
+		if ((int)ShellExecuteA(NULL, "open", moduleFilePathA, NULL, NULL, SW_SHOWDEFAULT) > 32)
 		{
-			// Exit the current instance
 			ExitProcess(0);
 		}
 		else

@@ -222,7 +222,7 @@ extern bool DisableXPWidescreenFiltering;
 extern bool FixKeyboardInputLanguage;
 extern bool WeaponFixes;
 extern bool FixScriptedAnimationCrash;
-extern bool CheckLAAPatch;
+extern int CheckLAAPatch;
 
 // Graphics
 extern float MaxFPS;
