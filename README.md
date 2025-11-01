@@ -10,7 +10,8 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > All features are compatible with Extraction Point and Perseus Mandate.  
 >
 > **Download**: [EchoPatch.zip](https://github.com/Wemino/EchoPatch/releases/latest/download/EchoPatch.zip)  
-> Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.
+> Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.  
+> On first launch, EchoPatch will prompt to apply a [LAA patch](#laa-patcher) if needed to prevent loading issues.
 
 > [!WARNING]
 > The GOG version defaults to a 60 FPS cap.  
@@ -119,9 +120,8 @@ Corrects default control assignment on non‑English layouts by mapping hardware
 Removes 4:3 restriction so all widescreen resolutions are available.
 
 ## LAA Patcher
-Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues.  
-Disabled by default because it modifies the executable on disk, set `CheckLAAPatch = 1` in `EchoPatch.ini` to enable.  
-> **Note**: For the Steam version, running [Steamless](https://github.com/atom0s/Steamless) on `FEAR.exe` before enabling is recommended, but not required.
+Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues such as the "Disconnected from server" error.  
+The behavior of this option can be edited by setting `CheckLAAPatch` in the `[Fixes]` section of `EchoPatch.ini`.
 
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
@@ -212,4 +212,5 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
+
 
