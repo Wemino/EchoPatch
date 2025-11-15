@@ -720,10 +720,10 @@ static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
         switch (g_State.CurrentFEARGame)
         {
             // CreateVertexBuffer: D3DPOOL_MANAGED -> D3DPOOL_SYSTEMMEM
-            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(0x512234, 2); break;
-            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(0x512354, 2); break;
-            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(0x5B5A24, 2); break;
-            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(0x5B6F94, 2); break;
+            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 2); break;
+            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 2); break;
+            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 2); break;
+            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 2); break;
         }
     }
     else
@@ -731,10 +731,10 @@ static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
         switch (g_State.CurrentFEARGame)
         {
             // Should never happen but do it anyway
-            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(0x512234, 1); break;
-            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(0x512354, 1); break;
-            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(0x5B5A24, 1); break;
-            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(0x5B6F94, 1); break;
+            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 1); break;
+            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 1); break;
+            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 1); break;
+            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 1); break;
         }
     }
 
@@ -832,10 +832,10 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* 
     {
         switch (g_State.CurrentFEARGame)
         {
-            case FEAR:    MH_DisableHook((void*)0x510CB0); break;
-            case FEARMP:  MH_DisableHook((void*)0x510DD0); break;
-            case FEARXP:  MH_DisableHook((void*)0x5B3440); break;
-            case FEARXP2: MH_DisableHook((void*)0x5B49C0); break;
+            case FEAR:    MH_DisableHook((void*)(g_State.BaseAddress + 0x110CB0)); break;
+            case FEARMP:  MH_DisableHook((void*)(g_State.BaseAddress + 0x110DD0)); break;
+            case FEARXP:  MH_DisableHook((void*)(g_State.BaseAddress + 0x1B3440)); break;
+            case FEARXP2: MH_DisableHook((void*)(g_State.BaseAddress + 0x1B49C0)); break;
         }
 
         if (SkipAllIntro)
@@ -938,20 +938,20 @@ static void ApplyFixDirectInputFps()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-            MemoryHelper::MakeNOP(0x4840DD, 22);
-            MemoryHelper::MakeNOP(0x484057, 29);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0x840DD, 22);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0x84057, 29);
             break;
         case FEARMP:
-            MemoryHelper::MakeNOP(0x4841FD, 22);
-            MemoryHelper::MakeNOP(0x484177, 29);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0x841FD, 22);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0x84177, 29);
             break;
         case FEARXP:
-            MemoryHelper::MakeNOP(0x4B895D, 22);
-            MemoryHelper::MakeNOP(0x4B88D7, 29);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB895D, 22);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB88D7, 29);
             break;
         case FEARXP2:
-            MemoryHelper::MakeNOP(0x4B99AD, 22);
-            MemoryHelper::MakeNOP(0x4B9927, 29);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB99AD, 22);
+            MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB9927, 29);
             break;
     }
 }
@@ -963,24 +963,24 @@ static void ApplyFixHighFPSPhysics()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-            HookHelper::ApplyHook((void*)0x4A8D30, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
-            HookHelper::ApplyHook((void*)0x4A9940, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint, true);
-            HookHelper::ApplyHook((void*)0x4A9F00, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8D30), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9940), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9F00), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
             break;
         case FEARMP:
-            HookHelper::ApplyHook((void*)0x4A8E50, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-            HookHelper::ApplyHook((void*)0x4A9A60, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
-            HookHelper::ApplyHook((void*)0x4AA020, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8E50), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9A60), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAA020), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP:
-            HookHelper::ApplyHook((void*)0x4FF710, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-            HookHelper::ApplyHook((void*)0x500320, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
-            HookHelper::ApplyHook((void*)0x5008E0, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFF710), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100320), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1008E0), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP2:
-            HookHelper::ApplyHook((void*)0x500780, &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
-            HookHelper::ApplyHook((void*)0x501390, &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
-            HookHelper::ApplyHook((void*)0x501950, &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100780), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x101390), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x101950), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
     }
 }
@@ -995,10 +995,10 @@ static void ApplyOptimizeSaveSpeed()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x41C670, &StreamWrite_Hook, (LPVOID*)&StreamWrite, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x41C790, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x429720, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x429900, &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C670), &StreamWrite_Hook, (LPVOID*)&StreamWrite, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C790), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29720), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29900), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
     }
 }
 
@@ -1008,10 +1008,10 @@ static void ApplyFixNvidiaShadowCorruption()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x4F91E0, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x4F9300, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x58F930, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x590F60, &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF91E0), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF9300), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18F930), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x190F60), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
     }
 }
 
@@ -1022,7 +1022,7 @@ static void ApplyFixScriptedAnimationCrash()
     // Only happen on the first game
     if (g_State.CurrentFEARGame == FEAR)
     {
-        HookHelper::ApplyHook((void*)0x436F10, &GetSocketTransform_Hook, (LPVOID*)&GetSocketTransform, true);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x36F10), &GetSocketTransform_Hook, (LPVOID*)&GetSocketTransform, true);
     }
 }
 
@@ -1032,10 +1032,10 @@ static void ApplyFixKeyboardInputLanguage()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x481E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x481F30, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x4B5DE0, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x4B6E10, &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81F30), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB5DE0), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB6E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
     }
 }
 
@@ -1046,9 +1046,9 @@ static void ApplyReducedMipMapBias()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-        case FEARMP:  MemoryHelper::WriteMemory<float>(0x56D5C4, -0.5f, false); break;
-        case FEARXP:  MemoryHelper::WriteMemory<float>(0x612B94, -0.5f, false); break;
-        case FEARXP2: MemoryHelper::WriteMemory<float>(0x614BA4, -0.5f, false); break;
+        case FEARMP:  MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x16D5C4, -0.5f, false); break;
+        case FEARXP:  MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x212B94, -0.5f, false); break;
+        case FEARXP2: MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x214BA4, -0.5f, false); break;
     }
 }
 
@@ -1056,10 +1056,10 @@ static void ApplyClientHook()
 {
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x47D730, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x47D850, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x4AF260, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x4B02C0, &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D730), &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D850), &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAF260), &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB02C0), &LoadGameDLL_Hook, (LPVOID*)&LoadGameDLL); break;
     }
 }
 
@@ -1067,10 +1067,10 @@ static void ApplySkipIntroHook()
 {
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x510CB0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x510DD0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x5B3440, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x5B49C0, &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x110CB0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x110DD0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B3440), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B49C0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
     }
 }
 
@@ -1079,9 +1079,9 @@ static void ApplyConsoleVariableHook()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-        case FEARMP:  HookHelper::ApplyHook((void*)0x409360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat, true); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x410120, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x410360, &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x9360), &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat, true); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10120), &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10360), &SetConsoleVariableFloat_Hook, (LPVOID*)&SetConsoleVariableFloat); break;
     }
 }
 
@@ -1093,16 +1093,16 @@ static void ApplyAutoResolution()
     {
         case FEAR:
         case FEARMP:
-            MemoryHelper::WriteMemory<int>(0x56ABF4, g_State.screenWidth, false);
-            MemoryHelper::WriteMemory<int>(0x56ABF8, g_State.screenHeight, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x16ABF4, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x16ABF8, g_State.screenHeight, false);
             break;
         case FEARXP:
-            MemoryHelper::WriteMemory<int>(0x60EC2C, g_State.screenWidth, false);
-            MemoryHelper::WriteMemory<int>(0x60EC30, g_State.screenHeight, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x20EC2C, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x20EC30, g_State.screenHeight, false);
             break;
         case FEARXP2:
-            MemoryHelper::WriteMemory<int>(0x610C2C, g_State.screenWidth, false);
-            MemoryHelper::WriteMemory<int>(0x610C30, g_State.screenHeight, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x210C2C, g_State.screenWidth, false);
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x210C30, g_State.screenHeight, false);
             break;
     }
 }
@@ -1116,10 +1116,10 @@ static void HookMainLoop()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x40FB20, &MainLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x40FC30, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x419100, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x4192B0, &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFB20), &MainLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFC30), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x19100), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x192B0), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
     }
 }
 
@@ -1129,10 +1129,10 @@ static void HookVSyncOverride()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x4F8B80, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x4F8CA0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x58F2B0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x5908D0, &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF8B80), &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF8CA0), &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18F2B0), &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1908D0), &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters); break;
     }
 }
 
@@ -1142,10 +1142,10 @@ static void HookTerminateServer()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)0x4634C0, &TerminateServer_Hook, (LPVOID*)&TerminateServer, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)0x4635E0, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x488B00, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x489860, &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x634C0), &TerminateServer_Hook, (LPVOID*)&TerminateServer, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x635E0), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x88B00), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x89860), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
     }
 }
 
@@ -1163,9 +1163,9 @@ static void ApplyForceRenderMode()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-        case FEARMP:  HookHelper::ApplyHook((void*)0x40A800, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode, true); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)0x411710, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)0x4119B0, &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA800), &SetRenderMode_Hook, (LPVOID*)&SetRenderMode, true); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11710), &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x119B0), &SetRenderMode_Hook, (LPVOID*)&SetRenderMode); break;
     }
 }
 
@@ -1175,10 +1175,10 @@ static void ApplyDisableJoystick()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    MemoryHelper::MakeNOP(0x484166, 25); break;
-        case FEARMP:  MemoryHelper::MakeNOP(0x484286, 25); break;
-        case FEARXP:  MemoryHelper::MakeNOP(0x4B89E6, 25); break;
-        case FEARXP2: MemoryHelper::MakeNOP(0x4B9A36, 25); break;
+        case FEAR:    MemoryHelper::MakeNOP(g_State.BaseAddress + 0x84166, 25); break;
+        case FEARMP:  MemoryHelper::MakeNOP(g_State.BaseAddress + 0x84286, 25); break;
+        case FEARXP:  MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB89E6, 25); break;
+        case FEARXP2: MemoryHelper::MakeNOP(g_State.BaseAddress + 0xB9A36, 25); break;
     }
 }
 
@@ -1259,6 +1259,7 @@ bool OnProcessAttach(HMODULE hModule)
     DisableThreadLibraryCalls(hModule);
 
     uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
+    g_State.BaseAddress = base;
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)(base);
     IMAGE_NT_HEADERS* nt = (IMAGE_NT_HEADERS*)(base + dos->e_lfanew);
     DWORD timestamp = nt->FileHeader.TimeDateStamp;

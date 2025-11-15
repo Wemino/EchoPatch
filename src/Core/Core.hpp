@@ -46,6 +46,7 @@ struct GlobalState
 	// Game Identification
 	// ======================
 	FEARGAME CurrentFEARGame = FEAR;
+	uintptr_t BaseAddress = 0;
 	bool IsOriginalGame() const { return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP; }
 	bool IsExpansion() const { return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2; }
 
