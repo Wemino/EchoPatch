@@ -116,7 +116,7 @@ Supports Xbox, PlayStation (DualShock 3/4, DualSense), and Nintendo Switch contr
 
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
-> **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.
+> **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.  
 > **Note**: Custom controller mappings can be added via `gamecontrollerdb.txt`.
 
 ## Fix Keyboard Input Initialization
@@ -219,5 +219,6 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
+
 
 
