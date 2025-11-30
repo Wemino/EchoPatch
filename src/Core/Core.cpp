@@ -80,7 +80,9 @@ bool FixWindowStyle = false;
 
 // Controller
 float MouseAimMultiplier = 0.0f;
-bool XInputControllerSupport = false;
+bool SDLGamepadSupport = false;
+bool TouchpadEnabled = false;
+bool TouchpadClickEnabled = false;
 bool HideMouseCursor = false;
 float GPadAimSensitivity = 0.0f;
 float GPadAimEdgeThreshold = 0.0f;
@@ -158,7 +160,9 @@ static void ReadConfig()
 
     // Controller
     MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
-    XInputControllerSupport = IniHelper::ReadInteger("Controller", "XInputControllerSupport", 1) == 1;
+    SDLGamepadSupport = IniHelper::ReadInteger("Controller", "SDLGamepadSupport", 1) == 1;
+    TouchpadEnabled = IniHelper::ReadInteger("Controller", "TouchpadEnabled", 1) == 1;
+    TouchpadClickEnabled = IniHelper::ReadInteger("Controller", "TouchpadClickEnabled", 1) == 1;
     HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 0) == 1;
     GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
     GPadAimEdgeThreshold = IniHelper::ReadFloat("Controller", "GPadAimEdgeThreshold", 0.75f);
@@ -227,31 +231,9 @@ static void ReadConfig()
         SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
     }
 
-    if (XInputControllerSupport)
+    if (SDLGamepadSupport)
     {
-        // Update g_buttonMappings with INI values
-        for (auto& [button, key] : g_buttonMappings)
-        {
-            switch (button)
-            {
-                case XINPUT_GAMEPAD_A: key = GAMEPAD_A; break;
-                case XINPUT_GAMEPAD_B: key = GAMEPAD_B; break;
-                case XINPUT_GAMEPAD_X: key = GAMEPAD_X; break;
-                case XINPUT_GAMEPAD_Y: key = GAMEPAD_Y; break;
-                case XINPUT_GAMEPAD_LEFT_THUMB: key = GAMEPAD_LEFT_THUMB; break;
-                case XINPUT_GAMEPAD_RIGHT_THUMB: key = GAMEPAD_RIGHT_THUMB; break;
-                case XINPUT_GAMEPAD_LEFT_SHOULDER: key = GAMEPAD_LEFT_SHOULDER; break;
-                case XINPUT_GAMEPAD_RIGHT_SHOULDER: key = GAMEPAD_RIGHT_SHOULDER; break;
-                case XINPUT_GAMEPAD_DPAD_UP: key = GAMEPAD_DPAD_UP; break;
-                case XINPUT_GAMEPAD_DPAD_DOWN: key = GAMEPAD_DPAD_DOWN; break;
-                case XINPUT_GAMEPAD_DPAD_LEFT: key = GAMEPAD_DPAD_LEFT; break;
-                case XINPUT_GAMEPAD_DPAD_RIGHT: key = GAMEPAD_DPAD_RIGHT; break;
-                case XINPUT_GAMEPAD_LEFT_TRIGGER: key = GAMEPAD_LEFT_TRIGGER; break;
-                case XINPUT_GAMEPAD_RIGHT_TRIGGER: key = GAMEPAD_RIGHT_TRIGGER; break;
-                case XINPUT_GAMEPAD_BACK: key = GAMEPAD_BACK; break;
-                default: break;
-            }
-        }
+        ConfigureGamepadMappings(GAMEPAD_A, GAMEPAD_B, GAMEPAD_X, GAMEPAD_Y, GAMEPAD_LEFT_THUMB, GAMEPAD_RIGHT_THUMB, GAMEPAD_LEFT_SHOULDER, GAMEPAD_RIGHT_SHOULDER, GAMEPAD_DPAD_UP, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_RIGHT, GAMEPAD_BACK, GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER);
     }
 
     if (HUDScaling)
@@ -408,7 +390,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
         }
     }
 
-    if (XInputControllerSupport)
+    if (SDLGamepadSupport)
     {
         if (strcmp(pszVarName, "GPadAimSensitivity") == 0)
         {
@@ -780,7 +762,7 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
 }
 
 // ================================
-// MaxFPS & XInputControllerSupport
+// MaxFPS & SDLGamepadSupport
 // ================================
 
 static int __fastcall MainLoop_Hook(int thisPtr, int)
@@ -790,7 +772,7 @@ static int __fastcall MainLoop_Hook(int thisPtr, int)
         g_State.fpsLimiter.Limit();
     }
 
-    if (XInputControllerSupport)
+    if (SDLGamepadSupport)
     {
         PollController();
     }
@@ -1110,7 +1092,7 @@ static void ApplyAutoResolution()
 static void HookMainLoop()
 {
     g_State.isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!g_State.isUsingFpsLimiter && !XInputControllerSupport && !HighFPSFixes) return;
+    if (!g_State.isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes) return;
 
     g_State.fpsLimiter.SetTargetFps(MaxFPS);
 
@@ -1171,7 +1153,7 @@ static void ApplyForceRenderMode()
 
 static void ApplyDisableJoystick()
 {
-    if (!XInputControllerSupport) return;
+    if (!SDLGamepadSupport) return;
 
     switch (g_State.CurrentFEARGame)
     {
@@ -1196,10 +1178,10 @@ static void Init()
         SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
     }
 
-    // Load XInput
-    if (XInputControllerSupport)
+    // Load SDL
+    if (SDLGamepadSupport)
     {
-        XInputControllerSupport = InitializeXInput();
+        SDLGamepadSupport = InitializeSDLGamepad();
     }
 
     // Get the handle of the client as soon as it is loaded
@@ -1293,9 +1275,9 @@ void OnProcessDetach()
 {
     MH_Uninitialize();
 
-    if (XInputControllerSupport)
+    if (SDLGamepadSupport)
     {
-        ShutdownXInput();
+        ShutdownSDLGamepad();
     }
 }
 

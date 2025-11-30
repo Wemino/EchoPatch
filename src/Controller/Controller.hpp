@@ -1,41 +1,58 @@
 #pragma once
 
-#include <map>
+#include <SDL3/SDL.h>
+#include <unordered_map>
+
+struct ButtonState
+{
+    bool isPressed = false;
+    bool wasHandled = false;
+    ULONGLONG pressStartTime = 0;
+    ULONGLONG lastRepeatTime = 0;
+};
 
 struct ControllerState
 {
-	XINPUT_STATE state;
-	bool isConnected = false;
+    bool isConnected = false;
+    ULONGLONG menuToGameTransitionTime = 0;
 
-	// Command activation states
-	bool commandActive[117] = { false };
+    std::unordered_map<int, ButtonState> gameButtons;
+    std::unordered_map<int, ButtonState> triggerButtons;
+    ButtonState menuButtons[6];
 
-	// Button state tracking
-	struct ButtonState
-	{
-		bool isPressed = false;
-		bool wasHandled = false;
-		ULONGLONG pressStartTime = 0;
-		ULONGLONG lastRepeatTime = 0;
-	};
+    // ScreenPerformanceAdvanced
+    ButtonState leftShoulderState;
+    ButtonState rightShoulderState;
 
-	// Menu navigation states
-	ButtonState menuButtons[6];
-	ULONGLONG menuToGameTransitionTime = 0;
-
-	// Game button states
-	std::map<WORD, ButtonState> gameButtons;
-
-	// ScreenPerformanceAdvanced
-	ButtonState leftShoulderState;
-	ButtonState rightShoulderState;
+    bool commandActive[117] = { false };
 };
 
 extern ControllerState g_Controller;
 
-// Button mapping table exposed for config updates
-extern std::pair<WORD, int> g_buttonMappings[16];
+struct TouchpadConfig
+{
+    int currentWidth = 0;
+    int currentHeight = 0;
+};
 
+extern TouchpadConfig g_TouchpadConfig;
+
+enum class GamepadStyle
+{
+    Xbox,
+    PlayStation,
+    Nintendo,
+    Unknown
+};
+
+const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
+
+SDL_Gamepad* GetGamepad();
+
+bool InitializeSDLGamepad();
+void ShutdownSDLGamepad();
 void PollController();
-bool InitializeXInput();
-void ShutdownXInput();
+void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
+void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int axisLeftTrigger, int axisRightTrigger);
+const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
+GamepadStyle GetGamepadStyle();

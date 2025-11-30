@@ -2,7 +2,7 @@
   <img src="assets/EchoPatch_Logo.png" style="max-width:75%">
 </p>
 
-Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, XInput controller support, and other quality-of-life enhancements. It aims to be as non-intrusive as possible, with no file modifications and no gameplay changes by default, focusing solely on fixing issues and enhancing the overall experience.
+Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, controller support, and other quality-of-life enhancements. It aims to be as non-intrusive as possible, with no file modifications and no gameplay changes by default, focusing solely on fixing issues and enhancing the overall experience.
 
 ## How to Install
 > [!NOTE]  
@@ -22,7 +22,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > [!WARNING]
 > To launch the game on Steam Deck or Linux, open the game’s properties in Steam and include `WINEDLLOVERRIDES="dinput8=n,b" %command%` in the launch options.
 > 
-> On Steam Deck, change the controller configuration to `Gamepad With Joystick Trackpad` for XInput support.
+> On Steam Deck, change the controller configuration to `Gamepad With Joystick Trackpad` for controller support.
 
 # Features
 
@@ -87,7 +87,9 @@ Addresses several weapon-related issues:
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
-## XInput Controller Support
+## Controller Support
+
+Supports Xbox, PlayStation (DualShock 3/4, DualSense), and Nintendo Switch controllers via SDL3.
 
 | Controller Input                 | Action                         |
 |----------------------------------|--------------------------------|
@@ -95,23 +97,27 @@ Addresses several weapon-related issues:
 | **Right Analog Stick**           | Aim                            |
 | **Left Analog Stick** (Press)    | Use Health Kit                 |
 | **Right Analog Stick** (Press)   | Toggle Flashlight On/Off       |
-| **A Button**                     | Jump                           |
-| **B Button**                     | Crouch                         |
-| **X Button**                     | Reload / Interact / Pick Up    |
-| **Y Button**                     | Toggle Slow-Motion             |
-| **Right Trigger (RT)**           | Fire                           |
-| **Left Trigger (LT)**            | Zoom                           |
-| **Right Bumper (RB)**            | Melee                          |
-| **Left Bumper (LB)**             | Throw Grenade                  |
+| **A / Cross**                    | Jump                           |
+| **B / Circle**                   | Crouch                         |
+| **X / Square**                   | Reload / Interact / Pick Up    |
+| **Y / Triangle**                 | Toggle Slow-Motion             |
+| **RT / R2 / ZR**                 | Fire                           |
+| **LT / L2 / ZL**                 | Zoom                           |
+| **RB / R1 / R**                  | Melee                          |
+| **LB / L1 / L**                  | Throw Grenade                  |
 | **D-Pad Up**                     | Next Weapon                    |
 | **D-Pad Down**                   | Next Grenade                   |
 | **D-Pad Left**                   | Lean Left                      |
 | **D-Pad Right**                  | Lean Right                     |
-| **Back Button**                  | Mission Status                 |
+| **Back / Share / −**             | Mission Status                 |
+
+### Additional Feature (PlayStation controllers)
+- **Touchpad**: Mouse cursor control (DualShock 4/DualSense)
 
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
 > **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.
+> **Note**: Custom controller mappings can be added via `gamecontrollerdb.txt`.
 
 ## Fix Keyboard Input Initialization
 Corrects default control assignment on non‑English layouts by mapping hardware scan codes instead of English key names (preventing some “[unassigned]” entries on first launch or after resetting controls) while leaving the saved bindings in the save file unchanged.
@@ -207,6 +213,7 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 ---
 
 ## Credits
+- [SDL3](https://www.libsdl.org/) for controller support.
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.  
 - [mINI](https://github.com/metayeti/mINI) for INI file handling.  
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  

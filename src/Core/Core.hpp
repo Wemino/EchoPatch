@@ -4,7 +4,6 @@
 #define _USE_MATH_DEFINES
 
 #include <Windows.h>
-#include <Xinput.h>
 #include <string_view>
 #include <string>
 #include <unordered_map>
@@ -25,9 +24,6 @@ extern const DWORD FEARXP2_TIMESTAMP;
 
 static constexpr float BASE_AREA = 1024.0f * 768.0f;
 static constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
-
-static constexpr auto XINPUT_GAMEPAD_LEFT_TRIGGER = 0x400;
-static constexpr auto XINPUT_GAMEPAD_RIGHT_TRIGGER = 0x800;
 
 enum FEARGAME
 {
@@ -244,7 +240,9 @@ extern bool FixWindowStyle;
 
 // Controller
 extern float MouseAimMultiplier;
-extern bool XInputControllerSupport;
+extern bool SDLGamepadSupport;
+extern bool TouchpadEnabled;
+extern bool TouchpadClickEnabled;
 extern bool HideMouseCursor;
 extern float GPadAimSensitivity;
 extern float GPadAimEdgeThreshold;

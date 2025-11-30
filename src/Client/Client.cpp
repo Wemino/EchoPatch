@@ -1,4 +1,4 @@
-#include "../Core/Core.hpp"
+﻿#include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
@@ -63,7 +63,7 @@ void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;
 void(__thiscall* SetOption)(int, int, int, int, int) = nullptr;
 bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullptr;
 
-// XInputControllerSupport
+// SDLGamepadSupport
 bool(__thiscall* IsCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOff)(int, int) = nullptr;
@@ -90,7 +90,7 @@ uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
 // DisableHipFireAccuracyPenalty
 void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
 
-// XInputControllerSupport & HUDScaling
+// SDLGamepadSupport & HUDScaling
 int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
 int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
 
@@ -608,6 +608,11 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 	g_State.currentWidth = *(DWORD*)(thisPtr + 0x18);
 	g_State.currentHeight = *(DWORD*)(thisPtr + 0x1C);
 
+	g_TouchpadConfig.currentWidth = g_State.currentWidth;
+	g_TouchpadConfig.currentHeight = g_State.currentHeight;
+
+	if (!HUDScaling) return;
+
 	// Calculate the new scaling factor
 	g_State.scalingFactor = std::sqrt((g_State.currentWidth * g_State.currentHeight) / BASE_AREA);
 
@@ -867,7 +872,7 @@ static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const cha
 }
 
 // =======================
-// XInputControllerSupport
+// SDLGamepadSupport
 // =======================
 
 static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId)
@@ -887,40 +892,44 @@ static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
 
 static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
 {
-	if (g_Controller.isConnected)
+	SDL_Gamepad* pGamepad = GetGamepad();
+	if (g_Controller.isConnected && pGamepad)
 	{
 		const int DEAD_ZONE = 7849;
-		const auto& gamepad = g_Controller.state.Gamepad;
-
 		switch (commandId)
 		{
 			case 2: // Forward
 			{
-				if (abs(gamepad.sThumbLY) < DEAD_ZONE) return 0.0;
-				return gamepad.sThumbLY / 32768.0;
+				Sint16 leftY = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_LEFTY);
+				if (abs(leftY) < DEAD_ZONE) return 0.0;
+				return -leftY / 32768.0;
 			}
 			case 5: // Strafe
 			{
-				if (abs(gamepad.sThumbLX) < DEAD_ZONE) return 0.0;
-				return gamepad.sThumbLX / 32768.0;
+				Sint16 leftX = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_LEFTX);
+				if (abs(leftX) < DEAD_ZONE) return 0.0;
+				return leftX / 32768.0;
 			}
 			case 22: // Pitch
 			{
-				if (abs(gamepad.sThumbRY) < DEAD_ZONE) return 0.0;
-				double pitchValue = -gamepad.sThumbRY / 32768.0;
-				if (g_State.zoomMag > GPadZoomMagThreshold) pitchValue *= (g_State.zoomMag / GPadZoomMagThreshold);
+				Sint16 rightY = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_RIGHTY);
+				if (abs(rightY) < DEAD_ZONE) return 0.0;
+				double pitchValue = rightY / 32768.0;
+				if (g_State.zoomMag > GPadZoomMagThreshold)
+					pitchValue *= (g_State.zoomMag / GPadZoomMagThreshold);
 				return pitchValue;
 			}
 			case 23: // Yaw
 			{
-				if (abs(gamepad.sThumbRX) < DEAD_ZONE) return 0.0;
-				double yawValue = gamepad.sThumbRX / 32768.0;
-				if (g_State.zoomMag > GPadZoomMagThreshold) yawValue *= (g_State.zoomMag / GPadZoomMagThreshold);
+				Sint16 rightX = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_RIGHTX);
+				if (abs(rightX) < DEAD_ZONE) return 0.0;
+				double yawValue = rightX / 32768.0;
+				if (g_State.zoomMag > GPadZoomMagThreshold)
+					yawValue *= (g_State.zoomMag / GPadZoomMagThreshold);
 				return yawValue;
 			}
 		}
 	}
-
 	return GetExtremalCommandValue(thisPtr, commandId);
 }
 
@@ -971,36 +980,23 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 	// Reload key alias
 	if (commandId == 87) commandId = 88;
 
+	// HUDWeapon
 	bool shortName = false;
-	if (commandId >= 30 && commandId <= 39) { commandId = 77; shortName = true; } // HUDWeapon
-	else if (commandId >= 40 && commandId <= 45) { commandId = 73; shortName = true; } // HUDGrenadeList
-
-	// Find the matching button for this command Id
-	for (size_t i = 0; i < sizeof(g_buttonMappings) / sizeof(g_buttonMappings[0]); ++i)
-	{
-		if (g_buttonMappings[i].second == commandId)
-		{
-			switch (g_buttonMappings[i].first)
-			{
-				case XINPUT_GAMEPAD_A:              return shortName ? L"A" : L"A Button";
-				case XINPUT_GAMEPAD_B:              return shortName ? L"B" : L"B Button";
-				case XINPUT_GAMEPAD_X:              return shortName ? L"X" : L"X Button";
-				case XINPUT_GAMEPAD_Y:              return shortName ? L"Y" : L"Y Button";
-				case XINPUT_GAMEPAD_LEFT_SHOULDER:  return shortName ? L"LB" : L"Left Bumper";
-				case XINPUT_GAMEPAD_RIGHT_SHOULDER: return shortName ? L"RB" : L"Right Bumper";
-				case XINPUT_GAMEPAD_LEFT_TRIGGER:   return shortName ? L"LT" : L"Left Trigger";
-				case XINPUT_GAMEPAD_RIGHT_TRIGGER:  return shortName ? L"RT" : L"Right Trigger";
-				case XINPUT_GAMEPAD_LEFT_THUMB:     return shortName ? L"L3" : L"Left Thumbstick";
-				case XINPUT_GAMEPAD_RIGHT_THUMB:    return shortName ? L"R3" : L"Right Thumbstick";
-				case XINPUT_GAMEPAD_DPAD_UP:        return shortName ? L"D-Up" : L"D-Pad Up";
-				case XINPUT_GAMEPAD_DPAD_DOWN:      return shortName ? L"D-Down" : L"D-Pad Down";
-				case XINPUT_GAMEPAD_DPAD_LEFT:      return shortName ? L"D-Left" : L"D-Pad Left";
-				case XINPUT_GAMEPAD_DPAD_RIGHT:     return shortName ? L"D-Right" : L"D-Pad Right";
-				case XINPUT_GAMEPAD_BACK:           return shortName ? L"Back" : L"Back Button";
-				default: break;
-			}
-		}
+	if (commandId >= 30 && commandId <= 39) 
+	{ 
+		commandId = 77; 
+		shortName = true; 
 	}
+	// HUDGrenadeList
+	else if (commandId >= 40 && commandId <= 45) 
+	{ 
+		commandId = 73; 
+		shortName = true; 
+	}
+
+	const wchar_t* name = GetGamepadButtonName(commandId, shortName);
+	if (name)
+		return name;
 
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
 }
@@ -1081,10 +1077,18 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		}
 		else if (strcmp(String, "ScreenFailure_PressAnyKey") == 0)
 		{
-			return L"Press B to return to the main menu.\nPress any other button to continue.";
+			switch (GetGamepadStyle())
+			{
+				case GamepadStyle::PlayStation:
+					return L"Press Circle to return to the main menu.\nPress any other button to continue.";
+				case GamepadStyle::Nintendo:
+					return L"Press B to return to the main menu.\nPress any other button to continue.";
+				case GamepadStyle::Xbox:
+				default:
+					return L"Press B to return to the main menu.\nPress any other button to continue.";
+			}
 		}
 	}
-
 	return LoadGameString(ptr, String);
 }
 
@@ -1129,7 +1133,7 @@ static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
 }
 
 // =====================================
-//  XInputControllerSupport & HUDScaling
+//  SDLGamepadSupport & HUDScaling
 // =====================================
 
 static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int)
@@ -1301,9 +1305,9 @@ static void ApplyInfiniteFlashlightClientPatch()
     MemoryHelper::MakeNOP(addr_Battery + 0xA, 6);
 }
 
-static void ApplyXInputControllerClientPatch()
+static void ApplyControllerClientPatch()
 {
-    if (!XInputControllerSupport) return;
+    if (!SDLGamepadSupport) return;
 
     DWORD addr_pGameClientShell = ScanModuleSignature(g_State.GameClient, "C1 F8 02 C1 E0 05 2B C2 8B CB BA 01 00 00 00 D3 E2 8B CD 03 C3 50 85 11", "pGameClientShell");
     if (addr_pGameClientShell == 0) return;
@@ -1385,7 +1389,6 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_HUDTerminate = ScanModuleSignature(g_State.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
     DWORD addr_HUDInit = ScanModuleSignature(g_State.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
     DWORD addr_HUDRender = ScanModuleSignature(g_State.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
-    DWORD addr_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
     DWORD addr_LayoutDBGetPosition = ScanModuleSignature(g_State.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
     DWORD addr_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
     DWORD addr_UpdateSlider = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
@@ -1398,7 +1401,6 @@ static void ApplyHUDScalingClientPatch()
     if (addr_HUDTerminate == 0 ||
         addr_HUDInit == 0 ||
         addr_HUDRender == 0 ||
-        addr_ScreenDimsChanged == 0 ||
         addr_LayoutDBGetPosition == 0 ||
         addr_GetRectF == 0 ||
         addr_UpdateSlider == 0 ||
@@ -1413,7 +1415,6 @@ static void ApplyHUDScalingClientPatch()
     HookHelper::ApplyHook((void*)addr_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
     HookHelper::ApplyHook((void*)addr_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
     HookHelper::ApplyHook((void*)addr_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
-    HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
     HookHelper::ApplyHook((void*)addr_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
     HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
     HookHelper::ApplyHook((void*)addr_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
@@ -1580,18 +1581,21 @@ static void ApplyGameDatabaseHook()
 
 static void ApplyClientPatchSet1()
 {
-    if (!HUDScaling && !XInputControllerSupport) return;
+    if (!HUDScaling && !SDLGamepadSupport) return;
 
     DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
     DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+	DWORD addr_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
 
     if (addr_HUDWeaponListUpdateTriggerNames == 0 ||
-        addr_HUDGrenadeListUpdateTriggerNames == 0) {
+        addr_HUDGrenadeListUpdateTriggerNames == 0 ||
+		addr_ScreenDimsChanged == 0) {
         return;
     }
 
     HookHelper::ApplyHook((void*)(addr_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
     HookHelper::ApplyHook((void*)(addr_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+	HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 }
 
 static void ApplyClientPatchSet2()
@@ -1615,7 +1619,7 @@ void ApplyClientPatch()
 	ApplyDisableLetterboxClientPatch();
 	ApplyPersistentWorldClientPatch();
 	ApplyInfiniteFlashlightClientPatch();
-	ApplyXInputControllerClientPatch();
+	ApplyControllerClientPatch();
 	ApplyHUDScalingClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
