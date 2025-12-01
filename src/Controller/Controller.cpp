@@ -9,6 +9,8 @@ ControllerState g_Controller;
 
 static SDL_Gamepad* s_pGamepad = nullptr;
 
+GamepadStyle gamepadStyle;
+
 // ==========================================================
 // Button Mappings
 // ==========================================================
@@ -60,7 +62,7 @@ struct TouchpadState
     float lastY = 0.0f;
 };
 
-static TouchpadState s_touchpadFinger[2];
+static TouchpadState s_touchpadFinger;
 
 // ==========================================================
 // Controller Database
@@ -194,10 +196,13 @@ static inline bool IsStickDirectionPressed(int direction)
     }
 }
 
-GamepadStyle GetGamepadStyle()
+void GetGamepadStyle()
 {
     if (!s_pGamepad)
-        return GamepadStyle::Unknown;
+    {
+        gamepadStyle = GamepadStyle::Unknown;
+        return;
+    }
 
     SDL_GamepadType type = SDL_GetGamepadType(s_pGamepad);
 
@@ -205,19 +210,23 @@ GamepadStyle GetGamepadStyle()
     {
         case SDL_GAMEPAD_TYPE_XBOX360:
         case SDL_GAMEPAD_TYPE_XBOXONE:
-            return GamepadStyle::Xbox;
+            gamepadStyle = GamepadStyle::Xbox;
+            break;
 
         case SDL_GAMEPAD_TYPE_PS3:
         case SDL_GAMEPAD_TYPE_PS4:
         case SDL_GAMEPAD_TYPE_PS5:
-            return GamepadStyle::PlayStation;
+            gamepadStyle = GamepadStyle::PlayStation;
+            break;
 
         case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
         case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
-            return GamepadStyle::Nintendo;
+            gamepadStyle = GamepadStyle::Nintendo;
+            break;
 
         default:
-            return GamepadStyle::Xbox; // Default to Xbox style
+            gamepadStyle = GamepadStyle::Xbox;
+            break;
     }
 }
 
@@ -347,7 +356,7 @@ static const ButtonNameSet s_nintendoNames =
 
 static const ButtonNameSet& GetButtonNameSet()
 {
-    switch (GetGamepadStyle())
+    switch (gamepadStyle)
     {
         case GamepadStyle::PlayStation:
             return s_playstationNames;
@@ -453,6 +462,7 @@ static void ProcessSDLEvents()
             if (!s_pGamepad)
             {
                 s_pGamepad = SDL_OpenGamepad(event.gdevice.which);
+                GetGamepadStyle();
             }
             break;
 
@@ -461,6 +471,7 @@ static void ProcessSDLEvents()
             {
                 SDL_CloseGamepad(s_pGamepad);
                 s_pGamepad = nullptr;
+                GetGamepadStyle();
             }
             break;
         }
@@ -485,14 +496,12 @@ static void ProcessTouchpadMouse()
 
     if (SDL_GetGamepadTouchpadFinger(s_pGamepad, 0, 0, &fingerDown, &x, &y, &pressure))
     {
-        auto& finger = s_touchpadFinger[0];
-
         if (fingerDown)
         {
-            if (finger.wasDown)
+            if (s_touchpadFinger.wasDown)
             {
-                float deltaX = (x - finger.lastX) * g_TouchpadConfig.currentWidth;
-                float deltaY = (y - finger.lastY) * g_TouchpadConfig.currentHeight;
+                float deltaX = (x - s_touchpadFinger.lastX) * g_TouchpadConfig.currentWidth;
+                float deltaY = (y - s_touchpadFinger.lastY) * g_TouchpadConfig.currentHeight;
 
                 if (deltaX != 0.0f || deltaY != 0.0f)
                 {
@@ -505,13 +514,13 @@ static void ProcessTouchpadMouse()
                 }
             }
 
-            finger.lastX = x;
-            finger.lastY = y;
-            finger.wasDown = true;
+            s_touchpadFinger.lastX = x;
+            s_touchpadFinger.lastY = y;
+            s_touchpadFinger.wasDown = true;
         }
         else
         {
-            finger.wasDown = false;
+            s_touchpadFinger.wasDown = false;
         }
     }
 }
@@ -665,7 +674,7 @@ static void ProcessMenuNavigation()
     SDL_GamepadButton confirmButton = SDL_GAMEPAD_BUTTON_SOUTH;
     SDL_GamepadButton cancelButton = SDL_GAMEPAD_BUTTON_EAST;
 
-    if (GetGamepadStyle() == GamepadStyle::Nintendo)
+    if (gamepadStyle == GamepadStyle::Nintendo)
     {
         confirmButton = SDL_GAMEPAD_BUTTON_EAST;
         cancelButton = SDL_GAMEPAD_BUTTON_SOUTH;

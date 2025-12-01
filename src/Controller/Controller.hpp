@@ -45,6 +45,8 @@ enum class GamepadStyle
     Unknown
 };
 
+extern GamepadStyle gamepadStyle;
+
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
 
 SDL_Gamepad* GetGamepad();
@@ -55,4 +57,4 @@ void PollController();
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
 void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int axisLeftTrigger, int axisRightTrigger);
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
-GamepadStyle GetGamepadStyle();
+void GetGamepadStyle();
