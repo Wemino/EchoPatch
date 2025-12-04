@@ -1077,7 +1077,7 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		}
 		else if (strcmp(String, "ScreenFailure_PressAnyKey") == 0)
 		{
-			switch (gamepadStyle)
+			switch (GetGamepadStyle())
 			{
 				case GamepadStyle::PlayStation:
 					return L"Press Circle to return to the main menu.\nPress any other button to continue.";

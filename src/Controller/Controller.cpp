@@ -5,11 +5,20 @@
 #include "Controller.hpp"
 #include "../Client/Client.hpp"
 
+// ==========================================================
+// Global State
+// ==========================================================
+
 ControllerState g_Controller;
+TouchpadConfig g_TouchpadConfig;
+
+// ==========================================================
+// Static State
+// ==========================================================
 
 static SDL_Gamepad* s_pGamepad = nullptr;
-
-GamepadStyle gamepadStyle;
+static GamepadCapabilities s_capabilities;
+static GyroState s_gyroState;
 
 // ==========================================================
 // Button Mappings
@@ -53,8 +62,6 @@ static constexpr ULONGLONG TRANSITION_GRACE_PERIOD = 200;
 // Touchpad State
 // ==========================================================
 
-TouchpadConfig g_TouchpadConfig;
-
 struct TouchpadState
 {
     bool wasDown = false;
@@ -89,6 +96,74 @@ static bool LoadGamepadMappings()
 }
 
 // ==========================================================
+// Capability Detection
+// ==========================================================
+
+static GamepadStyle DetectGamepadStyle(SDL_Gamepad* pGamepad)
+{
+    if (!pGamepad)
+        return GamepadStyle::Unknown;
+
+    SDL_GamepadType type = SDL_GetGamepadType(pGamepad);
+
+    switch (type)
+    {
+        case SDL_GAMEPAD_TYPE_XBOX360:
+        case SDL_GAMEPAD_TYPE_XBOXONE:
+            return GamepadStyle::Xbox;
+
+        case SDL_GAMEPAD_TYPE_PS3:
+        case SDL_GAMEPAD_TYPE_PS4:
+        case SDL_GAMEPAD_TYPE_PS5:
+            return GamepadStyle::PlayStation;
+
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+            return GamepadStyle::Nintendo;
+
+        default:
+            return GamepadStyle::Xbox;
+    }
+}
+
+static bool DetectTouchpadSupport(SDL_Gamepad* pGamepad)
+{
+    if (!pGamepad)
+        return false;
+
+    return SDL_GetNumGamepadTouchpads(pGamepad) > 0;
+}
+
+static bool DetectGyroSupport(SDL_Gamepad* pGamepad)
+{
+    if (!pGamepad)
+        return false;
+
+    return SDL_GamepadHasSensor(pGamepad, SDL_SENSOR_GYRO);
+}
+
+static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
+{
+    s_capabilities = GamepadCapabilities();
+
+    if (!pGamepad)
+        return;
+
+    s_capabilities.style = DetectGamepadStyle(pGamepad);
+    s_capabilities.hasTouchpad = DetectTouchpadSupport(pGamepad);
+    s_capabilities.hasGyro = DetectGyroSupport(pGamepad);
+    s_capabilities.name = SDL_GetGamepadName(pGamepad);
+    s_capabilities.vendorId = SDL_GetGamepadVendor(pGamepad);
+    s_capabilities.productId = SDL_GetGamepadProduct(pGamepad);
+
+    // Enable gyro sensor if supported
+    if (s_capabilities.hasGyro)
+    {
+        SDL_SetGamepadSensorEnabled(pGamepad, SDL_SENSOR_GYRO, true);
+    }
+}
+
+// ==========================================================
 // Initialization / Shutdown
 // ==========================================================
 
@@ -112,12 +187,71 @@ void ShutdownSDLGamepad()
         s_pGamepad = nullptr;
     }
 
+    s_capabilities = GamepadCapabilities();
+    s_gyroState = GyroState();
+
     SDL_Quit();
 }
+
+// ==========================================================
+// Accessors
+// ==========================================================
 
 SDL_Gamepad* GetGamepad()
 {
     return s_pGamepad;
+}
+
+const GamepadCapabilities& GetCapabilities()
+{
+    return s_capabilities;
+}
+
+GamepadStyle GetGamepadStyle()
+{
+    return s_capabilities.style;
+}
+
+bool HasTouchpad()
+{
+    return s_capabilities.hasTouchpad;
+}
+
+bool HasGyro()
+{
+    return s_capabilities.hasGyro;
+}
+
+const GyroState& GetGyroState()
+{
+    return s_gyroState;
+}
+
+bool IsControllerConnected()
+{
+    return s_pGamepad && SDL_GamepadConnected(s_pGamepad);
+}
+
+// ==========================================================
+// Gyro Processing
+// ==========================================================
+
+void ProcessGyro()
+{
+    s_gyroState.isValid = false;
+
+    if (!s_pGamepad || !s_capabilities.hasGyro)
+        return;
+
+    float data[3] = { 0.0f, 0.0f, 0.0f };
+
+    if (SDL_GetGamepadSensorData(s_pGamepad, SDL_SENSOR_GYRO, data, 3))
+    {
+        s_gyroState.x = data[0];
+        s_gyroState.y = data[1];
+        s_gyroState.z = data[2];
+        s_gyroState.isValid = true;
+    }
 }
 
 // ==========================================================
@@ -196,40 +330,6 @@ static inline bool IsStickDirectionPressed(int direction)
     }
 }
 
-void GetGamepadStyle()
-{
-    if (!s_pGamepad)
-    {
-        gamepadStyle = GamepadStyle::Unknown;
-        return;
-    }
-
-    SDL_GamepadType type = SDL_GetGamepadType(s_pGamepad);
-
-    switch (type)
-    {
-        case SDL_GAMEPAD_TYPE_XBOX360:
-        case SDL_GAMEPAD_TYPE_XBOXONE:
-            gamepadStyle = GamepadStyle::Xbox;
-            break;
-
-        case SDL_GAMEPAD_TYPE_PS3:
-        case SDL_GAMEPAD_TYPE_PS4:
-        case SDL_GAMEPAD_TYPE_PS5:
-            gamepadStyle = GamepadStyle::PlayStation;
-            break;
-
-        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
-        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
-            gamepadStyle = GamepadStyle::Nintendo;
-            break;
-
-        default:
-            gamepadStyle = GamepadStyle::Xbox;
-            break;
-    }
-}
-
 // ==========================================================
 // Configuration
 // ==========================================================
@@ -267,6 +367,10 @@ void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLef
         }
     }
 }
+
+// ==========================================================
+// Button Names
+// ==========================================================
 
 struct ButtonNames
 {
@@ -356,7 +460,7 @@ static const ButtonNameSet s_nintendoNames =
 
 static const ButtonNameSet& GetButtonNameSet()
 {
-    switch (gamepadStyle)
+    switch (s_capabilities.style)
     {
         case GamepadStyle::PlayStation:
             return s_playstationNames;
@@ -451,6 +555,33 @@ const wchar_t* GetGamepadButtonName(int commandId, bool shortName)
 // Event Processing
 // ==========================================================
 
+static void OnGamepadConnected(SDL_JoystickID deviceId)
+{
+    if (s_pGamepad)
+        return;
+
+    s_pGamepad = SDL_OpenGamepad(deviceId);
+    if (s_pGamepad)
+    {
+        LoadGamepadCapabilities(s_pGamepad);
+    }
+}
+
+static void OnGamepadDisconnected(SDL_JoystickID deviceId)
+{
+    if (!s_pGamepad)
+        return;
+
+    if (deviceId == SDL_GetGamepadID(s_pGamepad))
+    {
+        SDL_CloseGamepad(s_pGamepad);
+        s_pGamepad = nullptr;
+        s_capabilities = GamepadCapabilities();
+        s_gyroState = GyroState();
+        s_touchpadFinger = TouchpadState();
+    }
+}
+
 static void ProcessSDLEvents()
 {
     SDL_Event event;
@@ -459,21 +590,12 @@ static void ProcessSDLEvents()
         switch (event.type)
         {
             case SDL_EVENT_GAMEPAD_ADDED:
-            if (!s_pGamepad)
-            {
-                s_pGamepad = SDL_OpenGamepad(event.gdevice.which);
-                GetGamepadStyle();
-            }
-            break;
+                OnGamepadConnected(event.gdevice.which);
+                break;
 
             case SDL_EVENT_GAMEPAD_REMOVED:
-            if (s_pGamepad && event.gdevice.which == SDL_GetGamepadID(s_pGamepad))
-            {
-                SDL_CloseGamepad(s_pGamepad);
-                s_pGamepad = nullptr;
-                GetGamepadStyle();
-            }
-            break;
+                OnGamepadDisconnected(event.gdevice.which);
+                break;
         }
     }
 }
@@ -484,11 +606,7 @@ static void ProcessSDLEvents()
 
 static void ProcessTouchpadMouse()
 {
-    if (!s_pGamepad || !TouchpadEnabled)
-        return;
-
-    int numTouchpads = SDL_GetNumGamepadTouchpads(s_pGamepad);
-    if (numTouchpads < 1)
+    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
         return;
 
     bool fingerDown = false;
@@ -527,7 +645,7 @@ static void ProcessTouchpadMouse()
 
 static void ProcessTouchpadClick()
 {
-    if (!s_pGamepad || !TouchpadClickEnabled)
+    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadClickEnabled)
         return;
 
     static bool s_wasTouchpadPressed = false;
@@ -674,7 +792,7 @@ static void ProcessMenuNavigation()
     SDL_GamepadButton confirmButton = SDL_GAMEPAD_BUTTON_SOUTH;
     SDL_GamepadButton cancelButton = SDL_GAMEPAD_BUTTON_EAST;
 
-    if (gamepadStyle == GamepadStyle::Nintendo)
+    if (s_capabilities.style == GamepadStyle::Nintendo)
     {
         confirmButton = SDL_GAMEPAD_BUTTON_EAST;
         cancelButton = SDL_GAMEPAD_BUTTON_SOUTH;
@@ -765,7 +883,7 @@ void PollController()
 
     // Update connection state
     bool wasConnected = g_Controller.isConnected;
-    g_Controller.isConnected = s_pGamepad && SDL_GamepadConnected(s_pGamepad);
+    g_Controller.isConnected = IsControllerConnected();
 
     if (wasConnected != g_Controller.isConnected)
     {
@@ -800,6 +918,7 @@ void PollController()
         return;
     }
 
+    ProcessGyro();
     ProcessTouchpadMouse();
     ProcessTouchpadClick();
 

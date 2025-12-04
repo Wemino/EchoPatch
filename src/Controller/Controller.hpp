@@ -3,12 +3,48 @@
 #include <SDL3/SDL.h>
 #include <unordered_map>
 
+// ==========================================================
+// Types and Enums
+// ==========================================================
+
+enum class GamepadStyle
+{
+    Xbox,
+    PlayStation,
+    Nintendo,
+    Unknown
+};
+
+struct GamepadCapabilities
+{
+    GamepadStyle style = GamepadStyle::Unknown;
+    bool hasTouchpad = false;
+    bool hasGyro = false;
+    const char* name = nullptr;
+    Uint16 vendorId = 0;
+    Uint16 productId = 0;
+};
+
+struct GyroState
+{
+    float x = 0.0f;  // Pitch
+    float y = 0.0f;  // Yaw
+    float z = 0.0f;  // Roll
+    bool isValid = false;
+};
+
 struct ButtonState
 {
     bool isPressed = false;
     bool wasHandled = false;
     ULONGLONG pressStartTime = 0;
     ULONGLONG lastRepeatTime = 0;
+};
+
+struct TouchpadConfig
+{
+    int currentWidth = 0;
+    int currentHeight = 0;
 };
 
 struct ControllerState
@@ -27,34 +63,47 @@ struct ControllerState
     bool commandActive[117] = { false };
 };
 
+// ==========================================================
+// Global State (extern)
+// ==========================================================
+
 extern ControllerState g_Controller;
-
-struct TouchpadConfig
-{
-    int currentWidth = 0;
-    int currentHeight = 0;
-};
-
 extern TouchpadConfig g_TouchpadConfig;
 
-enum class GamepadStyle
-{
-    Xbox,
-    PlayStation,
-    Nintendo,
-    Unknown
-};
-
-extern GamepadStyle gamepadStyle;
-
-const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
-
-SDL_Gamepad* GetGamepad();
+// ==========================================================
+// Initialization / Shutdown
+// ==========================================================
 
 bool InitializeSDLGamepad();
 void ShutdownSDLGamepad();
+
+// ==========================================================
+// Accessors
+// ==========================================================
+
+SDL_Gamepad* GetGamepad();
+const GamepadCapabilities& GetCapabilities();
+GamepadStyle GetGamepadStyle();
+bool HasTouchpad();
+bool HasGyro();
+const GyroState& GetGyroState();
+bool IsControllerConnected();
+
+// ==========================================================
+// Main Poll Function
+// ==========================================================
+
 void PollController();
-void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
+
+// ==========================================================
+// Configuration
+// ==========================================================
+
 void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int axisLeftTrigger, int axisRightTrigger);
+
+// ==========================================================
+// Utilities
+// ==========================================================
+
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
-void GetGamepadStyle();
+void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
