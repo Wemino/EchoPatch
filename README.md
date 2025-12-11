@@ -11,7 +11,8 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 >
 > **Download**: [EchoPatch.zip](https://github.com/Wemino/EchoPatch/releases/latest/download/EchoPatch.zip)  
 > Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.  
-> On first launch, EchoPatch will prompt to apply a [LAA patch](#laa-patcher) if needed to prevent loading issues.
+> On first launch, EchoPatch will prompt to apply a [LAA patch](#laa-patcher) if needed to prevent loading issues.  
+> This prompt will not appear for the GOG version, as the LAA patch is already applied there.
 
 > [!WARNING]
 > The GOG version defaults to a 60 FPS cap.  
@@ -149,7 +150,21 @@ Improves resolution quality of reflective surfaces and displays.
 </div>
 
 ## No Model LOD Bias
-Renders the highest quality models at all distances by disabling LOD bias.
+Disable LOD bias to render models at full quality at any distance.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/NoLODBias_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/NoLODBias_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">No Model LOD Bias</td>
+    </tr>
+  </table>
+</div>
+
 
 ## Reduced Mipmap Bias
 Improves texture sharpness at a distance by reducing mipmap bias.
