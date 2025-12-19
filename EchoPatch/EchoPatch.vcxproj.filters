@@ -22,7 +22,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\FpsLimiter.hpp" />
     <ClInclude Include="..\src\helper.hpp" />
     <ClInclude Include="..\src\Client\Client.hpp">
       <Filter>Client</Filter>
@@ -41,6 +40,18 @@
     </ClInclude>
     <ClInclude Include="..\src\Server\Server.hpp">
       <Filter>Server</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\FpsLimiter.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ini.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\LAAPatcher.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\MinHook.hpp">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -61,6 +72,9 @@
     </Filter>
     <Filter Include="Core">
       <UniqueIdentifier>{616feba7-8988-4f4c-b533-ff91de518d4b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{1bf6db24-eac6-4f63-baa0-e50d2c75f4ea}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
