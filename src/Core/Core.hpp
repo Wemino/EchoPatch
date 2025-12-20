@@ -8,7 +8,8 @@
 #include <string>
 #include <unordered_map>
 
-#include "../FpsLimiter.hpp"
+#include "FpsLimiter.hpp"
+#include "LAAPatcher.hpp"
 
 // Pointers to core engine functions other modules call
 extern int(__stdcall* SetConsoleVariableFloat)(const char*, float);
@@ -135,6 +136,8 @@ struct GlobalState
 	int maxCurrentType = 0;
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
+	bool updateGyroCamera = false;
+	bool isAiming = false;
 
 	// ======================
 	// Server State
@@ -241,8 +244,11 @@ extern bool FixWindowStyle;
 // Controller
 extern float MouseAimMultiplier;
 extern bool SDLGamepadSupport;
+extern bool GyroEnabled;
+extern int GyroAimingMode;
+extern float GyroSensitivity;
+extern float GyroSmoothing;
 extern bool TouchpadEnabled;
-extern bool TouchpadClickEnabled;
 extern bool HideMouseCursor;
 extern float GPadAimSensitivity;
 extern float GPadAimEdgeThreshold;

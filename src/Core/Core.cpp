@@ -81,8 +81,11 @@ bool FixWindowStyle = false;
 // Controller
 float MouseAimMultiplier = 0.0f;
 bool SDLGamepadSupport = false;
+bool GyroEnabled = false;
+int GyroAimingMode = 0;
+float GyroSensitivity = 0.0f;
+float GyroSmoothing = 0.0f;
 bool TouchpadEnabled = false;
-bool TouchpadClickEnabled = false;
 bool HideMouseCursor = false;
 float GPadAimSensitivity = 0.0f;
 float GPadAimEdgeThreshold = 0.0f;
@@ -161,8 +164,11 @@ static void ReadConfig()
     // Controller
     MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
     SDLGamepadSupport = IniHelper::ReadInteger("Controller", "SDLGamepadSupport", 1) == 1;
+    GyroEnabled = IniHelper::ReadInteger("Controller", "GyroEnabled", 0) == 1;
+    GyroAimingMode = IniHelper::ReadInteger("Controller", "GyroAimingMode", 0);
+    GyroSensitivity = IniHelper::ReadFloat("Controller", "GyroSensitivity", 1.0f);
+    GyroSmoothing = IniHelper::ReadFloat("Controller", "GyroSmoothing", 0.016f);
     TouchpadEnabled = IniHelper::ReadInteger("Controller", "TouchpadEnabled", 1) == 1;
-    TouchpadClickEnabled = IniHelper::ReadInteger("Controller", "TouchpadClickEnabled", 1) == 1;
     HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 0) == 1;
     GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
     GPadAimEdgeThreshold = IniHelper::ReadFloat("Controller", "GPadAimEdgeThreshold", 0.75f);
@@ -317,6 +323,11 @@ static void ReadConfig()
 
     // If we need to hook the function used to unload the server
     g_State.needServerTermHooking = EnableCustomMaxWeaponCapacity;
+
+    // Gyro Config
+    SetGyroEnabled(GyroEnabled);
+    SetGyroSensitivity(GyroSensitivity);
+    SetGyroSmoothing(GyroSmoothing);
 }
 
 #pragma region Helper
@@ -415,6 +426,10 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
         else if (strcmp(pszVarName, "GPadAimAspectRatio") == 0)
         {
             fValue = GPadAimAspectRatio;
+        }
+        else if (GyroEnabled && strcmp(pszVarName, "MouseInvertY") == 0)
+        {
+            SetGyroInvertY(fValue == 1.0f);
         }
     }
 
@@ -1175,7 +1190,7 @@ static void Init()
     // LAA Patching if needed
     if (CheckLAAPatch)
     {
-        SystemHelper::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
+        LAAPatcher::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
     }
 
     // Load SDL

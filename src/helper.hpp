@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <io.h>
 #include "ini.hpp"
 #include "Core/DInputProxy.hpp"
 

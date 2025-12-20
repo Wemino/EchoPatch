@@ -81,6 +81,10 @@ void(__thiscall* SetCurrentType)(int, int) = nullptr;
 void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
 void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
 void(__thiscall* MsgBoxHide)(int, int) = nullptr;
+void(__thiscall* ApplyLocalRotationOffset)(int, float*) = nullptr;
+void(__thiscall* UpdatePlayerMovement)(int) = nullptr;
+void(__thiscall* BeginAim)(BYTE*) = nullptr;
+void(__thiscall* EndAim)(BYTE*) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
@@ -1067,6 +1071,47 @@ static void __cdecl HUDSwapUpdateTriggerName_Hook()
 	HUDSwapUpdateTriggerName();
 }
 
+static void __fastcall UpdatePlayerMovement_Hook(int thisPtr, int)
+{
+	g_State.updateGyroCamera = true;
+	UpdatePlayerMovement(thisPtr);
+	g_State.updateGyroCamera = false;
+}
+
+static void __fastcall ApplyLocalRotationOffset_Hook(int thisPtr, int, float* vPYROffset)
+{
+	if (g_State.updateGyroCamera && g_Controller.isConnected && IsGyroEnabled())
+	{
+		bool shouldApplyGyro = (GyroAimingMode == 0) 
+			|| (GyroAimingMode == 1 && g_State.isAiming) 
+			|| (GyroAimingMode == 2 && !g_State.isAiming);
+
+		if (shouldApplyGyro)
+		{
+			float gyroYaw = 0.0f;
+			float gyroPitch = 0.0f;
+
+			GetProcessedGyroDelta(gyroYaw, gyroPitch);
+			vPYROffset[0] += gyroPitch;
+			vPYROffset[1] += gyroYaw;
+		}
+	}
+
+	ApplyLocalRotationOffset(thisPtr, vPYROffset);
+}
+
+static void __fastcall BeginAim_Hook(BYTE* thisPtr, int)
+{
+	BeginAim(thisPtr);
+	g_State.isAiming = *thisPtr;
+}
+
+static void __fastcall EndAim_Hook(BYTE* thisPtr, int)
+{
+	EndAim(thisPtr);
+	g_State.isAiming = *thisPtr;
+}
+
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
 	if (g_Controller.isConnected)
@@ -1372,6 +1417,26 @@ static void ApplyControllerClientPatch()
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
     g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0x25);
+
+	if (GyroEnabled)
+	{
+		DWORD addr_ApplyLocalRotationOffset = ScanModuleSignature(g_State.GameClient, "DA E9 DF E0 F6 C4 44 7A 24 D9 ?? 04 D9", "ApplyLocalRotationOffset", 2);
+		DWORD addr_UpdatePlayerMovement = ScanModuleSignature(g_State.GameClient, "83 EC 0C 56 8B F1 E8 ?? ?? ?? ?? 8A 88 9E 05 00 00", "UpdatePlayerMovement");
+		DWORD addr_BeginAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 48 28 8B 81 5C 01 00 00", "BeginAim");
+		DWORD addr_EndAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 88 F4 05 00 00 85 C9", "EndAim");
+
+		if (addr_ApplyLocalRotationOffset == 0 ||
+			addr_UpdatePlayerMovement == 0 ||
+			addr_BeginAim == 0 ||
+			addr_EndAim == 0) {
+			return;
+		}
+
+		HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
+		HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
+		HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
+		HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
+	}
 
     if (!HideMouseCursor) return;
 

@@ -1,5 +1,4 @@
 #pragma once
-
 #include <SDL3/SDL.h>
 #include <unordered_map>
 
@@ -20,6 +19,7 @@ struct GamepadCapabilities
     GamepadStyle style = GamepadStyle::Unknown;
     bool hasTouchpad = false;
     bool hasGyro = false;
+    bool hasAccel = false;
     const char* name = nullptr;
     Uint16 vendorId = 0;
     Uint16 productId = 0;
@@ -27,9 +27,9 @@ struct GamepadCapabilities
 
 struct GyroState
 {
-    float x = 0.0f;  // Pitch
-    float y = 0.0f;  // Yaw
-    float z = 0.0f;  // Roll
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
     bool isValid = false;
 };
 
@@ -51,15 +51,11 @@ struct ControllerState
 {
     bool isConnected = false;
     ULONGLONG menuToGameTransitionTime = 0;
-
     std::unordered_map<int, ButtonState> gameButtons;
     std::unordered_map<int, ButtonState> triggerButtons;
     ButtonState menuButtons[6];
-
-    // ScreenPerformanceAdvanced
     ButtonState leftShoulderState;
     ButtonState rightShoulderState;
-
     bool commandActive[117] = { false };
 };
 
@@ -78,16 +74,43 @@ bool InitializeSDLGamepad();
 void ShutdownSDLGamepad();
 
 // ==========================================================
-// Accessors
+// Accessors - Controller
 // ==========================================================
 
 SDL_Gamepad* GetGamepad();
 const GamepadCapabilities& GetCapabilities();
 GamepadStyle GetGamepadStyle();
-bool HasTouchpad();
-bool HasGyro();
-const GyroState& GetGyroState();
 bool IsControllerConnected();
+
+// ==========================================================
+// Accessors - Gyro
+// ==========================================================
+
+bool HasGyro();
+bool IsGyroEnabled();
+const GyroState& GetGyroState();
+
+// ==========================================================
+// Accessors - Touchpad
+// ==========================================================
+
+bool HasTouchpad();
+
+// ==========================================================
+// Configuration - Gyro
+// ==========================================================
+
+void SetGyroEnabled(bool enabled);
+void SetGyroSensitivity(float sensitivity);
+void SetGyroSmoothing(float smoothing);
+void SetGyroInvertY(bool invert);
+void ResetGyroState();
+
+// ==========================================================
+// Processing - Gyro
+// ==========================================================
+
+void GetProcessedGyroDelta(float& outYaw, float& outPitch);
 
 // ==========================================================
 // Main Poll Function
