@@ -1225,6 +1225,22 @@ static void ApplyFixKeyboardInputLanguage()
     }
 }
 
+static void ApplyFixWindow()
+{
+    if (!FixWindowStyle) return;
+
+    HookHelper::ApplyHookAPI(L"user32.dll", "AdjustWindowRect", &AdjustWindowRect_Hook, (LPVOID*)&ori_AdjustWindowRect);
+
+    // Remove 'DISCL_NOWINKEY'
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x81B4B, 6); break;
+        case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x81C6B, 6); break;
+        case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0xB58CB, 6); break;
+        case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0xB68FB, 6); break;
+    }
+}
+
 static void ApplyReducedMipMapBias()
 {
     if (!ReducedMipMapBias) return;
@@ -1494,6 +1510,7 @@ static void Init()
     ApplyFixNvidiaShadowCorruption();
     ApplyFixKeyboardInputLanguage();
     ApplyFixScriptedAnimationCrash();
+    ApplyFixWindow();
 
     // Display
     ApplyAutoResolution();
@@ -1525,7 +1542,6 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
         if (FixWindowStyle)
         {
             dwStyle = WS_POPUP | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-            HookHelper::ApplyHookAPI(L"user32.dll", "AdjustWindowRect", &AdjustWindowRect_Hook, (LPVOID*)&ori_AdjustWindowRect);
         }
 
         g_State.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
