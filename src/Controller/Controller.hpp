@@ -57,6 +57,7 @@ struct ControllerState
     ButtonState leftShoulderState;
     ButtonState rightShoulderState;
     bool commandActive[117] = { false };
+    bool usingControllerInput = false;
 };
 
 // ==========================================================
@@ -130,3 +131,5 @@ void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLef
 
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
+void OnKeyboardMouseInput();
+bool ShouldShowControllerPrompts();

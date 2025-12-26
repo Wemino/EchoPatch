@@ -965,7 +965,7 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 
 static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int, int commandId)
 {
-	if (!g_Controller.isConnected || g_State.isLoadingDefault)
+	if (!ShouldShowControllerPrompts() || g_State.isLoadingDefault)
 		return GetTriggerNameFromCommandID(thisPtr, commandId);
 
 	// Left Thumbstick movement
@@ -1102,7 +1102,7 @@ static void __fastcall EndAim_Hook(BYTE* thisPtr, int)
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
-	if (g_Controller.isConnected)
+	if (ShouldShowControllerPrompts())
 	{
 		if (strcmp(String, "IDS_QUICKSAVE") == 0)
 		{
@@ -1122,6 +1122,7 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 			}
 		}
 	}
+
 	return LoadGameString(ptr, String);
 }
 
@@ -1251,6 +1252,19 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 	{
 		SetInputState(!g_State.wasInputDisabled);
 		g_State.wasConsoleOpened = false;
+	}
+
+	if (SDLGamepadSupport)
+	{
+		switch (Msg)
+		{
+			case WM_KEYDOWN:
+			case WM_LBUTTONDOWN:
+			case WM_RBUTTONDOWN:
+			case WM_MBUTTONDOWN:
+				OnKeyboardMouseInput();
+				break;
+		}
 	}
 
 	return HookedWindowProc(hWnd, Msg, wParam, lParam);

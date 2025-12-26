@@ -809,80 +809,6 @@ void GetProcessedGyroDelta(float& outYaw, float& outPitch)
 }
 
 // ==========================================================
-// Processing - Touchpad
-// ==========================================================
-
-static void ProcessTouchpadMouse()
-{
-    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
-        return;
-
-    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
-    {
-        bool fingerDown = false;
-        float x = 0.0f, y = 0.0f, pressure = 0.0f;
-
-        if (SDL_GetGamepadTouchpadFinger(s_pGamepad, touchpadIndex, 0, &fingerDown, &x, &y, &pressure))
-        {
-            if (fingerDown)
-            {
-                if (s_touchpadFinger[touchpadIndex].wasDown)
-                {
-                    float deltaX = (x - s_touchpadFinger[touchpadIndex].lastX) * g_TouchpadConfig.currentWidth;
-                    float deltaY = (y - s_touchpadFinger[touchpadIndex].lastY) * g_TouchpadConfig.currentHeight;
-
-                    if (deltaX != 0.0f || deltaY != 0.0f)
-                    {
-                        INPUT input = {};
-                        input.type = INPUT_MOUSE;
-                        input.mi.dwFlags = MOUSEEVENTF_MOVE;
-                        input.mi.dx = static_cast<LONG>(deltaX);
-                        input.mi.dy = static_cast<LONG>(deltaY);
-                        SendInput(1, &input, sizeof(INPUT));
-                    }
-                }
-
-                s_touchpadFinger[touchpadIndex].lastX = x;
-                s_touchpadFinger[touchpadIndex].lastY = y;
-                s_touchpadFinger[touchpadIndex].wasDown = true;
-            }
-            else
-            {
-                s_touchpadFinger[touchpadIndex].wasDown = false;
-            }
-        }
-    }
-}
-
-static void ProcessTouchpadClick()
-{
-    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
-        return;
-
-    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
-    {
-        bool isPressed = SDL_GetGamepadButton(s_pGamepad, SDL_GAMEPAD_BUTTON_TOUCHPAD);
-
-        if (isPressed && !s_wasTouchpadPressed[touchpadIndex])
-        {
-            INPUT input = {};
-            input.type = INPUT_MOUSE;
-            input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-            SendInput(1, &input, sizeof(INPUT));
-        }
-        else if (!isPressed && s_wasTouchpadPressed[touchpadIndex])
-        {
-            INPUT input = {};
-            input.type = INPUT_MOUSE;
-            input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
-            SendInput(1, &input, sizeof(INPUT));
-        }
-
-        s_wasTouchpadPressed[touchpadIndex] = isPressed;
-    }
-}
-
-// ==========================================================
 // Internal Helpers
 // ==========================================================
 
@@ -950,11 +876,113 @@ static inline bool IsStickDirectionPressed(int direction)
 
     switch (direction)
     {
-        case 0: return (ly < -STICK_DEADZONE) || (ry < -STICK_DEADZONE); // Up
-        case 1: return (ly > STICK_DEADZONE) || (ry > STICK_DEADZONE);  // Down
-        case 2: return (lx < -STICK_DEADZONE) || (rx < -STICK_DEADZONE); // Left
-        case 3: return (lx > STICK_DEADZONE) || (rx > STICK_DEADZONE);  // Right
-        default: return false;
+    case 0: return (ly < -STICK_DEADZONE) || (ry < -STICK_DEADZONE); // Up
+    case 1: return (ly > STICK_DEADZONE) || (ry > STICK_DEADZONE);  // Down
+    case 2: return (lx < -STICK_DEADZONE) || (rx < -STICK_DEADZONE); // Left
+    case 3: return (lx > STICK_DEADZONE) || (rx > STICK_DEADZONE);  // Right
+    default: return false;
+    }
+}
+
+// ==========================================================
+// Input Mode Tracking
+// ==========================================================
+
+static void UpdateInputMode(bool usingController)
+{
+    if (g_Controller.usingControllerInput != usingController)
+    {
+        g_Controller.usingControllerInput = usingController;
+        NotifyHUDConnectionChange();
+    }
+}
+
+void OnKeyboardMouseInput()
+{
+    if (g_Controller.usingControllerInput && g_Controller.isConnected)
+    {
+        UpdateInputMode(false);
+    }
+}
+
+bool ShouldShowControllerPrompts()
+{
+    return g_Controller.isConnected && g_Controller.usingControllerInput;
+}
+
+// ==========================================================
+// Processing - Touchpad
+// ==========================================================
+
+static void ProcessTouchpadMouse()
+{
+    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
+        return;
+
+    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
+    {
+        bool fingerDown = false;
+        float x = 0.0f, y = 0.0f, pressure = 0.0f;
+
+        if (SDL_GetGamepadTouchpadFinger(s_pGamepad, touchpadIndex, 0, &fingerDown, &x, &y, &pressure))
+        {
+            if (fingerDown)
+            {
+                if (s_touchpadFinger[touchpadIndex].wasDown)
+                {
+                    float deltaX = (x - s_touchpadFinger[touchpadIndex].lastX) * g_TouchpadConfig.currentWidth;
+                    float deltaY = (y - s_touchpadFinger[touchpadIndex].lastY) * g_TouchpadConfig.currentHeight;
+
+                    if (deltaX != 0.0f || deltaY != 0.0f)
+                    {
+                        UpdateInputMode(true);
+
+                        INPUT input = {};
+                        input.type = INPUT_MOUSE;
+                        input.mi.dwFlags = MOUSEEVENTF_MOVE;
+                        input.mi.dx = static_cast<LONG>(deltaX);
+                        input.mi.dy = static_cast<LONG>(deltaY);
+                        SendInput(1, &input, sizeof(INPUT));
+                    }
+                }
+
+                s_touchpadFinger[touchpadIndex].lastX = x;
+                s_touchpadFinger[touchpadIndex].lastY = y;
+                s_touchpadFinger[touchpadIndex].wasDown = true;
+            }
+            else
+            {
+                s_touchpadFinger[touchpadIndex].wasDown = false;
+            }
+        }
+    }
+}
+
+static void ProcessTouchpadClick()
+{
+    if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
+        return;
+
+    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
+    {
+        bool isPressed = SDL_GetGamepadButton(s_pGamepad, SDL_GAMEPAD_BUTTON_TOUCHPAD);
+
+        if (isPressed && !s_wasTouchpadPressed[touchpadIndex])
+        {
+            INPUT input = {};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+            SendInput(1, &input, sizeof(INPUT));
+        }
+        else if (!isPressed && s_wasTouchpadPressed[touchpadIndex])
+        {
+            INPUT input = {};
+            input.type = INPUT_MOUSE;
+            input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+            SendInput(1, &input, sizeof(INPUT));
+        }
+
+        s_wasTouchpadPressed[touchpadIndex] = isPressed;
     }
 }
 
@@ -1253,6 +1281,8 @@ void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     // Button just pressed
     if (isPressed && !btnState.isPressed)
     {
+        UpdateInputMode(true);
+
         if (commandId == -1)
         {
             PostMessage(g_State.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
@@ -1306,6 +1336,7 @@ inline void HandleGamepadTrigger(SDL_GamepadAxis axis, int commandId)
 
     if (isPressed && !btnState.isPressed)
     {
+        UpdateInputMode(true);
         g_Controller.commandActive[commandId] = true;
         OnCommandOn(g_State.g_pGameClientShell, commandId);
         btnState.wasHandled = true;
@@ -1402,6 +1433,7 @@ inline void ProcessMenuNavigation()
 
             if (pressed)
             {
+                UpdateInputMode(true);
                 btnState.pressStartTime = currentTime;
                 btnState.lastRepeatTime = currentTime;
             }
@@ -1447,6 +1479,11 @@ void PollController()
 
     if (wasConnected != g_Controller.isConnected)
     {
+        if (!g_Controller.isConnected)
+        {
+            g_Controller.usingControllerInput = false;
+        }
+
         NotifyHUDConnectionChange();
     }
 
