@@ -20,6 +20,24 @@
     <ClCompile Include="..\src\Server\Server.cpp">
       <Filter>Server</Filter>
     </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui_draw.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui_impl_dx9.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui_impl_win32.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui_tables.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\include\imgui\imgui_widgets.cpp">
+      <Filter>imgui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\helper.hpp" />
@@ -53,6 +71,33 @@
     <ClInclude Include="..\include\MinHook.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\ConsoleMgr.hpp">
+      <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imconfig.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imgui.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imgui_impl_dx9.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imgui_impl_win32.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imgui_internal.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imstb_rectpack.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imstb_textedit.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\imgui\imstb_truetype.h">
+      <Filter>imgui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini" />
@@ -75,6 +120,9 @@
     </Filter>
     <Filter Include="include">
       <UniqueIdentifier>{1bf6db24-eac6-4f63-baa0-e50d2c75f4ea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="imgui">
+      <UniqueIdentifier>{ed403466-fe95-4ed9-9a05-bba46fc5373e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

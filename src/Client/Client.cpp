@@ -72,21 +72,21 @@ double(__thiscall* GetZoomMag)(int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t* (__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
-bool(__thiscall* ChangeState)(int, int, int) = nullptr;
 void(__thiscall* UseCursor)(int, bool) = nullptr;
 bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
 void(__cdecl* HUDSwapUpdateTriggerName)() = nullptr;
-void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
-void(__thiscall* MsgBoxHide)(int, int) = nullptr;
 void(__thiscall* ApplyLocalRotationOffset)(int, float*) = nullptr;
 void(__thiscall* UpdatePlayerMovement)(int) = nullptr;
 void(__thiscall* BeginAim)(BYTE*) = nullptr;
 void(__thiscall* EndAim)(BYTE*) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
+
+// ConsoleEnabled
+void(__stdcall* SetInputState)(bool) = nullptr;
 
 // EnableCustomMaxWeaponCapacity
 uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;
@@ -100,6 +100,12 @@ int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
 
 // EnableCustomMaxWeaponCapacity & WeaponFixes
 void(__thiscall* OnEnterWorld)(int) = nullptr;
+
+// SDLGamepadSupport & ConsoleEnabled
+static int(__stdcall* HookedWindowProc)(HWND, UINT, WPARAM, LPARAM) = nullptr;
+bool(__thiscall* ChangeState)(int, int, int) = nullptr;
+void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
+void(__thiscall* MsgBoxHide)(int, int) = nullptr;
 
 #pragma region Client Hooks
 
@@ -943,18 +949,6 @@ static double __fastcall GetZoomMag_Hook(int thisPtr)
 	return g_State.zoomMag;
 }
 
-static void __fastcall MsgBoxShow_Hook(int thisPtr, int, const wchar_t* pString, int pCreate, int nFontSize, bool bDefaultReturn)
-{
-    MsgBoxShow(thisPtr, pString, pCreate, nFontSize, bDefaultReturn);
-    g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
-}
-
-static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
-{
-    MsgBoxHide(thisPtr, a2);
-    g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
-}
-
 static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int nNewType)
 {
 	// If we can open a door or pick up an item
@@ -1003,12 +997,6 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 		return name;
 
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
-}
-
-static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
-{
-	g_State.isPlaying = state == 1;
-	return ChangeState(thisPtr, state, screenId);
 }
 
 static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor)
@@ -1158,6 +1146,16 @@ static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
 	return res;
 }
 
+// =======================
+// ConsoleEnabled
+// =======================
+
+static void __stdcall SetInputState_Hook(bool bAllowInput)
+{
+	g_State.wasInputDisabled = !bAllowInput;
+	SetInputState(bAllowInput);
+}
+
 // =============================
 // EnableCustomMaxWeaponCapacity
 // =============================
@@ -1211,6 +1209,69 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 	{
 		SetWeaponCapacityServer(g_State.CPlayerInventory, MaxWeaponCapacity);
 	}
+}
+
+// ============================================
+//  SDLGamepadSupport & ConsoleEnabled
+// ============================================
+
+static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+	// Block input to game UI when console is visible
+	if (g_State.isConsoleOpen)
+	{
+		if (!g_State.wasConsoleOpened)
+		{
+			SetInputState(false);
+			g_State.wasConsoleOpened = true;
+		}
+
+		if (Msg == WM_MOUSEWHEEL)
+		{
+			ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam);
+			return 0;
+		}
+
+		switch (Msg)
+		{
+			case WM_MOUSEMOVE:
+			case WM_LBUTTONDOWN:
+			case WM_LBUTTONUP:
+			case WM_LBUTTONDBLCLK:
+			case WM_RBUTTONDOWN:
+			case WM_RBUTTONUP:
+			case WM_RBUTTONDBLCLK:
+			case WM_MBUTTONDOWN:
+			case WM_MBUTTONUP:
+			case WM_MBUTTONDBLCLK:
+				return 0;
+		}
+	}
+	else if (g_State.wasConsoleOpened)
+	{
+		SetInputState(!g_State.wasInputDisabled);
+		g_State.wasConsoleOpened = false;
+	}
+
+	return HookedWindowProc(hWnd, Msg, wParam, lParam);
+}
+
+static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
+{
+	g_State.isPlaying = state == 1;
+	return ChangeState(thisPtr, state, screenId);
+}
+
+static void __fastcall MsgBoxShow_Hook(int thisPtr, int, const wchar_t* pString, int pCreate, int nFontSize, bool bDefaultReturn)
+{
+	MsgBoxShow(thisPtr, pString, pCreate, nFontSize, bDefaultReturn);
+	g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
+}
+
+static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
+{
+	MsgBoxHide(thisPtr, a2);
+	g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
 }
 
 #pragma endregion
@@ -1361,7 +1422,6 @@ static void ApplyControllerClientPatch()
     DWORD addr_OnCommandOff = addr_pGameClientShell + MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x28) + 0x2C;
     DWORD addr_GetExtremalCommandValue = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 57 8B F9 8B 77 04 3B 77 08 C7 44 24 08 00 00 00 00", "GetExtremalCommandValue");
     DWORD addr_IsCommandOn = ScanModuleSignature(g_State.GameClient, "8B D1 8A 42 4C 84 C0 56 74 58", "IsCommandOn");
-    DWORD addr_ChangeState = ScanModuleSignature(g_State.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
     DWORD addr_HUDActivateObjectSetObject = ScanModuleSignature(g_State.GameClient, "8B 86 D4 02 00 00 3B C3 8D BE C8 02 00 00 74 0F", "HUDActivateObjectSetObject", 1);
     DWORD addr_HUDSwapUpdate = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 84 01", "HUDSwapUpdate");
     DWORD addr_SetOperatingTurret = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 89 81 F4 05 00 00 8B 0D ?? ?? ?? ?? 8B 11 FF 52 3C C2 04 00", "SetOperatingTurret");
@@ -1370,8 +1430,6 @@ static void ApplyControllerClientPatch()
     DWORD addr_SetCurrentType = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
     DWORD addr_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
     DWORD addr_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
-    DWORD addr_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
-    DWORD addr_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
     DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
     DWORD addr_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
     addr_GetZoomMag = MemoryHelper::ResolveRelativeAddress(addr_GetZoomMag, 0xD);
@@ -1380,7 +1438,6 @@ static void ApplyControllerClientPatch()
         addr_OnCommandOff == 0 ||
         addr_GetExtremalCommandValue == 0 ||
         addr_IsCommandOn == 0 ||
-        addr_ChangeState == 0 ||
         addr_HUDActivateObjectSetObject == 0 ||
         addr_HUDSwapUpdate == 0 ||
         addr_SetOperatingTurret == 0 ||
@@ -1389,8 +1446,6 @@ static void ApplyControllerClientPatch()
         addr_SetCurrentType == 0 ||
         addr_HUDSwapUpdateTriggerName == 0 ||
         addr_GetZoomMag == 0 ||
-        addr_MsgBoxShow == 0 ||
-        addr_MsgBoxHide == 0 ||
         addr_DEditLoadModule == 0 ||
         addr_PerformanceScreenId == 0) {
         return;
@@ -1404,15 +1459,12 @@ static void ApplyControllerClientPatch()
     HookHelper::ApplyHook((void*)addr_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
     HookHelper::ApplyHook((void*)addr_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
     HookHelper::ApplyHook((void*)addr_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
-    HookHelper::ApplyHook((void*)(addr_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
     HookHelper::ApplyHook((void*)addr_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
     HookHelper::ApplyHook((void*)addr_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
     HookHelper::ApplyHook((void*)addr_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
     HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
     HookHelper::ApplyHook((void*)addr_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
     HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
-    HookHelper::ApplyHook((void*)addr_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
-    HookHelper::ApplyHook((void*)addr_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
     HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
@@ -1589,6 +1641,18 @@ static void ApplyWeaponFixesClientPatch()
     g_State.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(addr_kAP_ACT_Fire_Id + 0x7);
 }
 
+static void ApplyConsoleClientPatch()
+{
+	if (!ConsoleEnabled) return;
+
+	DWORD addr = ScanModuleSignature(g_State.GameClient, "E8 ?? ?? ?? ?? 8A 4C 24 04 88 48 4C C2 04 00 CC", "SetInputState");
+
+	if (addr != 0)
+	{
+		HookHelper::ApplyHook((void*)addr, &SetInputState_Hook, (LPVOID*)&SetInputState);
+	}
+}
+
 static void ApplyClientFXHook()
 {
     if (!HighFPSFixes) return;
@@ -1675,6 +1739,28 @@ static void ApplyClientPatchSet2()
     }
 }
 
+static void ApplyClientPatchSet3()
+{
+	if (!SDLGamepadSupport && !ConsoleEnabled) return;
+
+	DWORD addr_HookedWindowProc = ScanModuleSignature(g_State.GameClient, "56 8B 74 24 0C 81 FE 03 02 00 00 57 8B 7C 24 14", "HookedWindowProc");
+	DWORD addr_ChangeState = ScanModuleSignature(g_State.GameClient, "8B 44 24 0C 53 8B 5C 24 0C 57 8B 7E 08", "ChangeState");
+	DWORD addr_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow");
+	DWORD addr_MsgBoxHide = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 78 05 00 00 84 C0 0F 84", "MsgBoxHide");
+
+	if (addr_HookedWindowProc == 0 ||
+		addr_ChangeState == 0 ||
+		addr_MsgBoxShow == 0 ||
+		addr_MsgBoxHide == 0) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)addr_HookedWindowProc, &HookedWindowProc_Hook, (LPVOID*)&HookedWindowProc);
+	HookHelper::ApplyHook((void*)(addr_ChangeState - 0x13), &ChangeState_Hook, (LPVOID*)&ChangeState);
+	HookHelper::ApplyHook((void*)addr_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
+	HookHelper::ApplyHook((void*)addr_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
+}
+
 void ApplyClientPatch()
 {
 	ApplyHighFPSFixesClientPatch();
@@ -1691,12 +1777,14 @@ void ApplyClientPatch()
 	ApplyAutoResolutionClientCheck();
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyWeaponFixesClientPatch();
+	ApplyConsoleClientPatch();
 	ApplyClientFXHook();
 	ApplyDisablePunkBuster();
 	ApplyDisableHipFireAccuracyPenalty();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
 	ApplyClientPatchSet2();
+	ApplyClientPatchSet3();
 }
 
 #pragma endregion

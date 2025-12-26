@@ -11,6 +11,10 @@
 #include "FpsLimiter.hpp"
 #include "LAAPatcher.hpp"
 
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_dx9.h"
+#include "imgui/imgui_impl_win32.h"
+
 // Pointers to core engine functions other modules call
 extern int(__stdcall* SetConsoleVariableFloat)(const char*, float);
 
@@ -172,6 +176,13 @@ struct GlobalState
 	float waveUpdateAccumulator = 0.0f;
 
 	// ======================
+	// Console
+	// ======================
+	bool isConsoleOpen = false;
+	bool wasConsoleOpened = false;
+	bool wasInputDisabled = false;
+
+	// ======================
 	// PolyGrid Timing
 	// ======================
 	static inline std::unordered_map<uint64_t, double> polyGridLastSplashTime;
@@ -273,6 +284,11 @@ extern bool SkipNvidiaIntro;
 extern bool SkipTimegateIntro;
 extern bool SkipDellIntro;
 
+// Console
+extern bool ConsoleEnabled;
+extern bool HighResolutionScaling;
+extern bool LogOutputToFile;
+
 // Extra
 extern bool RedirectSaveFolder;
 extern bool InfiniteFlashlight;
@@ -288,3 +304,6 @@ DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, const char
 // Core entry points used by dllmain
 bool OnProcessAttach(HMODULE hModule);
 void OnProcessDetach();
+
+// imgui
+IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);

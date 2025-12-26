@@ -6,6 +6,7 @@
 #include "MinHook.hpp"
 #include "ini.hpp"
 #include "DInputProxy.hpp"
+#include "ConsoleMgr.hpp"
 #include "../helper.hpp"
 
 // ======================
@@ -45,6 +46,14 @@ int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 char(__thiscall* GetSocketTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
+bool(__cdecl* EndScene)() = nullptr;
+bool(__thiscall* ResetDevice)(void*, void*, unsigned char) = nullptr;
+int(__stdcall* WindowProc)(HWND, UINT, WPARAM, LPARAM) = nullptr;
+int(__cdecl* ConsoleOutput)(int, int, char*) = nullptr;
+int(__stdcall* RegisterConsoleProgramClient)(char*, int) = nullptr;
+int(__stdcall* RegisterConsoleProgramServer)(char*, int) = nullptr;
+int(__stdcall* UnregisterConsoleProgramClient)(char*) = nullptr;
+int(__stdcall* UnregisterConsoleProgramServer)(char*) = nullptr;
 
 // =============================
 // Ini Variables
@@ -119,6 +128,11 @@ bool SkipWBGamesIntro = false;
 bool SkipNvidiaIntro = false;
 bool SkipTimegateIntro = false;
 bool SkipDellIntro = false;
+
+// Console
+bool ConsoleEnabled = false;
+bool HighResolutionScaling = false;
+bool LogOutputToFile = false;
 
 // Extra
 bool RedirectSaveFolder = false;
@@ -202,6 +216,11 @@ static void ReadConfig()
     SkipNvidiaIntro = IniHelper::ReadInteger("SkipIntro", "SkipNvidiaIntro", 1) == 1;
     SkipTimegateIntro = IniHelper::ReadInteger("SkipIntro", "SkipTimegateIntro", 1) == 1;
     SkipDellIntro = IniHelper::ReadInteger("SkipIntro", "SkipDellIntro", 1) == 1;
+
+    // Console
+    ConsoleEnabled = IniHelper::ReadInteger("Console", "ConsoleEnabled", 0) == 1;
+    HighResolutionScaling = IniHelper::ReadInteger("Console", "HighResolutionScaling", 1) == 1;
+    LogOutputToFile = IniHelper::ReadInteger("Console", "LogOutputToFile", 0) == 1;
 
     // Extra
     RedirectSaveFolder = IniHelper::ReadInteger("Extra", "RedirectSaveFolder", 0) == 1;
@@ -765,6 +784,171 @@ static char __fastcall GetSocketTransform_Hook(DWORD* thisp, int, unsigned int n
     return GetSocketTransform(thisp, nodeIndex, outTransform, a4);
 }
 
+// =======================
+// ConsoleEnabled
+// =======================
+
+static bool __cdecl EndScene_Hook()
+{
+    Console::OnEndScene();
+    return EndScene();
+}
+
+static bool __fastcall ResetDevice_Hook(DWORD* thisPtr, int, void* a2, unsigned char a3)
+{
+    Console::OnBeforeReset();
+    bool result = ResetDevice(thisPtr, a2, a3);
+    Console::OnAfterReset(result != 0);
+    return result;
+}
+
+static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+{
+    bool consoleVisible = Console::IsInitialized() && g_State.isConsoleOpen;
+
+    if (consoleVisible)
+    {
+        ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam);
+
+        switch (Msg)
+        {
+            case WM_SYSKEYDOWN:
+            case WM_SYSKEYUP:
+                if (wParam == VK_F4)
+                    break;
+                return 0;
+
+            case WM_KEYDOWN:
+            case WM_KEYUP:
+            case WM_CHAR:
+                return 0;
+        }
+    }
+
+    int result = WindowProc(hWnd, Msg, wParam, lParam);
+
+    if (Msg == WM_ACTIVATEAPP && wParam && consoleVisible)
+    {
+        Console::OnWindowReactivated();
+    }
+
+    return result;
+}
+
+static int __cdecl ConsoleOutput_Hook(int a1, int a2, char* Source)
+{
+    if (Source && Source[0])
+    {
+        size_t len = strlen(Source);
+        if (len > 0 && Source[len - 1] == '\n')
+        {
+            char buffer[512];
+            strncpy(buffer, Source, sizeof(buffer) - 1);
+            buffer[sizeof(buffer) - 1] = '\0';
+            if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
+            {
+                buffer[strlen(buffer) - 1] = '\0';
+            }
+
+            Console::AddOutput("%s", buffer);
+        }
+        else
+        {
+            Console::AddOutput("%s", Source);
+        }
+    }
+
+    return ConsoleOutput(a1, a2, Source);
+}
+
+static char __cdecl SetCvarString_Hook(int a1, const char* name, char* value)
+{
+    if (name && name[0] && value)
+    {
+        auto it = FindCvarCaseInsensitive(std::string(name));
+        if (it != g_dynamicCvars.end())
+        {
+            it->second = { value, a1, CvarType::String };
+        }
+        else
+        {
+            g_dynamicCvars[name] = { value, a1, CvarType::String };
+        }
+    }
+
+    return SetCvarString(a1, name, value);
+}
+
+static char __cdecl SetCvarFloat_Hook(int a1, const char* name, int valueInt)
+{
+    if (name && name[0])
+    {
+        float value = *(float*)&valueInt;
+        char buf[32];
+        snprintf(buf, sizeof(buf), "%.2f", value);
+
+        auto it = FindCvarCaseInsensitive(std::string(name));
+        if (it != g_dynamicCvars.end())
+        {
+            it->second = { buf, a1, CvarType::Float };
+        }
+        else
+        {
+            g_dynamicCvars[name] = { buf, a1, CvarType::Float };
+        }
+    }
+
+    return SetCvarFloat(a1, name, valueInt);
+}
+
+static int __stdcall RegisterConsoleProgramClient_Hook(char* name, int funcPtr)
+{
+    int result = RegisterConsoleProgramClient(name, funcPtr);
+
+    if (result == 0 && name && name[0])
+    {
+        g_consolePrograms.insert(name);
+    }
+
+    return result;
+}
+
+static int __stdcall RegisterConsoleProgramServer_Hook(char* name, int funcPtr)
+{
+    int result = RegisterConsoleProgramServer(name, funcPtr);
+
+    if (result == 0 && name && name[0])
+    {
+        g_consolePrograms.insert(name);
+    }
+
+    return result;
+}
+
+static int __stdcall UnregisterConsoleProgramClient_Hook(char* name)
+{
+    int result = UnregisterConsoleProgramClient(name);
+
+    if (result == 0 && name && name[0])
+    {
+        g_consolePrograms.erase(name);
+    }
+
+    return result;
+}
+
+static int __stdcall UnregisterConsoleProgramServer_Hook(char* name)
+{
+    int result = UnregisterConsoleProgramServer(name);
+
+    if (result == 0 && name && name[0])
+    {
+        g_consolePrograms.erase(name);
+    }
+
+    return result;
+}
+
 // ========================
 // DynamicVsync
 // ========================
@@ -790,6 +974,11 @@ static int __fastcall MainLoop_Hook(int thisPtr, int)
     if (SDLGamepadSupport)
     {
         PollController();
+    }
+
+    if (ConsoleEnabled)
+    {
+        g_State.isConsoleOpen = Console::Update(g_State.isPlaying, g_State.isMsgBoxVisible);
     }
 
     if (HighFPSFixes)
@@ -1107,7 +1296,7 @@ static void ApplyAutoResolution()
 static void HookMainLoop()
 {
     g_State.isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!g_State.isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes) return;
+    if (!g_State.isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled) return;
 
     g_State.fpsLimiter.SetTargetFps(MaxFPS);
 
@@ -1179,6 +1368,102 @@ static void ApplyDisableJoystick()
     }
 }
 
+static void InitConsole(LPCSTR title)
+{
+    if (!ConsoleEnabled || !title) return;
+
+    if (g_State.CurrentFEARGame == FEAR)
+    {
+        Console::Init(g_State.BaseAddress + 0x176FF0, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
+
+        ConsoleAddresses addresses = {};
+        addresses.cursorLockAddr = g_State.BaseAddress + 0x16ABB4;
+        addresses.cvarListHead = g_State.BaseAddress + 0x1773D4;
+        addresses.cvarArrayStart = g_State.BaseAddress + 0x16D0F8;
+        addresses.cvarArrayEnd = g_State.BaseAddress + 0x16DAB8;
+        addresses.cmdArrayStart = g_State.BaseAddress + 0x16AC50;
+        addresses.cmdArrayEnd = g_State.BaseAddress + 0x16B4D8;
+        addresses.cvarVtableFloat = g_State.BaseAddress + 0x15E698;
+        addresses.cvarVtableInt = g_State.BaseAddress + 0x15E6A0;
+        Console::InitAddresses(addresses);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF8670), &EndScene_Hook, (LPVOID*)&EndScene);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF9350), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D9C0), &WindowProc_Hook, (LPVOID*)&WindowProc);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x16880), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x15D10), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x15D40), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA220), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C780), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA290), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C800), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
+
+        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x9320);
+    }
+    else if (g_State.CurrentFEARGame == FEARXP)
+    {
+        Console::Init(g_State.BaseAddress + 0x21BFD0, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
+
+        ConsoleAddresses addresses = {};
+        addresses.cursorLockAddr = g_State.BaseAddress + 0x20EBEC;
+        addresses.cvarListHead = g_State.BaseAddress + 0x21C3B4;
+        addresses.cvarArrayStart = g_State.BaseAddress + 0x2126C8;
+        addresses.cvarArrayEnd = g_State.BaseAddress + 0x213088;
+        addresses.cmdArrayStart = g_State.BaseAddress + 0x20EC88;
+        addresses.cmdArrayEnd = g_State.BaseAddress + 0x20F510;
+        addresses.cvarVtableFloat = g_State.BaseAddress + 0x1FEBF8;
+        addresses.cvarVtableInt = g_State.BaseAddress + 0x1FEC00;
+        Console::InitAddresses(addresses);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18EC30), &EndScene_Hook, (LPVOID*)&EndScene);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18FAA0), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAF650), &WindowProc_Hook, (LPVOID*)&WindowProc);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x21510), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20640), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20670), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11020), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80390), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11090), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80410), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
+
+        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x100E0);
+    }
+    else if (g_State.CurrentFEARGame == FEARXP2)
+    {
+        Console::Init(g_State.BaseAddress + 0x21E010, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
+
+        ConsoleAddresses addresses = {};
+        addresses.cursorLockAddr = g_State.BaseAddress + 0x210BEC;
+        addresses.cvarListHead = g_State.BaseAddress + 0x21E414;
+        addresses.cvarArrayStart = g_State.BaseAddress + 0x2146D8;
+        addresses.cvarArrayEnd = g_State.BaseAddress + 0x215098;
+        addresses.cmdArrayStart = g_State.BaseAddress + 0x210C88;
+        addresses.cmdArrayEnd = g_State.BaseAddress + 0x211510;
+        addresses.cvarVtableFloat = g_State.BaseAddress + 0x200C48;
+        addresses.cvarVtableInt = g_State.BaseAddress + 0x200C50;
+        Console::InitAddresses(addresses);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x190230), &EndScene_Hook, (LPVOID*)&EndScene);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1910D0), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB06B0), &WindowProc_Hook, (LPVOID*)&WindowProc);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x216C0), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x207F0), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20820), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
+
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x112C0), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x810D0), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11330), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
+        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81150), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
+
+        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x10320);
+    }
+}
+
 #pragma endregion
 
 #pragma region Initialization
@@ -1244,6 +1529,7 @@ static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPC
         }
 
         g_State.hWnd = ori_CreateWindowExA(dwExStyle, lpClassName, lpWindowName, dwStyle, X, Y, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
+        InitConsole(lpClassName);
         return g_State.hWnd;
     }
 
