@@ -78,8 +78,6 @@ inline bool g_inReset = false;
 inline bool g_focusInput = false;
 inline bool g_justOpened = false;
 
-inline bool g_isPlaying = false;
-inline bool g_isMsgBoxVisible = false;
 inline bool g_cursorShownByUs = false;
 
 inline char g_inputBuffer[512] = {};
@@ -97,6 +95,8 @@ inline bool g_showBrowserWindow = false;
 inline char g_browserFilter[128] = {};
 inline int g_browserTab = 0;
 inline bool g_browserNeedsReset = false;
+inline float g_browserScrollY[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+inline bool g_browserRestoreScroll = false;
 
 inline bool g_showEditModal = false;
 inline EditTargetType g_editTargetType = EditTargetType::None;
@@ -173,7 +173,7 @@ inline IDirect3DDevice9* GetDevice()
 // Cursor Management
 inline bool ShouldShowCursorWhenClosed()
 {
-    return !g_isPlaying || g_isMsgBoxVisible;
+    return !g_State.isPlaying || g_State.isMsgBoxVisible;
 }
 
 inline void ShowConsoleCursor()
@@ -365,8 +365,33 @@ inline std::vector<ConsoleVariable> PopulateStaticVariables()
 inline std::vector<ConsoleVariable> PopulateDynamicVariables()
 {
     std::vector<ConsoleVariable> variables;
+
+    std::set<std::string> staticVarNames;
+    if (g_addresses.cvarListHead != 0)
+    {
+        DWORD current = *(DWORD*)g_addresses.cvarListHead;
+        while (current)
+        {
+            const char* name = *(const char**)(current + 0x08);
+            if (name && name[0])
+            {
+                std::string lowerName = name;
+                for (auto& c : lowerName) c = tolower(c);
+                staticVarNames.insert(lowerName);
+            }
+            current = *(DWORD*)(current + 0x10);
+        }
+    }
+
+    // Add dynamic cvars, excluding those already in static vars
     for (const auto& pair : g_dynamicCvars)
     {
+        std::string lowerName = pair.first;
+        for (auto& c : lowerName) c = tolower(c);
+
+        if (staticVarNames.find(lowerName) != staticVarNames.end())
+            continue;
+
         ConsoleVariable var;
         var.name = pair.first;
         var.value = pair.second.value;
@@ -411,8 +436,8 @@ inline void OpenEditModal(EditTargetType type, const std::string& name, const st
         cleanValue = cleanValue.substr(1, cleanValue.size() - 2);
     }
 
-    strncpy(g_editValueBuffer, cleanValue.c_str(), sizeof(g_editValueBuffer) - 1);
-    g_editValueBuffer[sizeof(g_editValueBuffer) - 1] = '\0';
+    strncpy_s(g_editValueBuffer, sizeof(g_editValueBuffer), cleanValue.c_str(), _TRUNCATE);
+
     g_showEditModal = true;
 }
 
@@ -874,6 +899,8 @@ inline void RenderBrowserWindow()
         ImGui::InputText("##BrowserFilter", g_browserFilter, sizeof(g_browserFilter));
         ImGui::PopItemWidth();
 
+        int prevTab = g_browserTab;
+
         ImGui::SameLine();
         if (ImGui::Button("Commands"))
         {
@@ -899,8 +926,19 @@ inline void RenderBrowserWindow()
             g_browserPrograms = PopulatePrograms();
         }
 
+        if (prevTab != g_browserTab)
+        {
+            g_browserRestoreScroll = true;
+        }
+
         ImGui::Separator();
         ImGui::BeginChild("BrowserList", ImVec2(0, 0), true);
+
+        if (g_browserRestoreScroll)
+        {
+            ImGui::SetScrollY(g_browserScrollY[g_browserTab]);
+            g_browserRestoreScroll = false;
+        }
 
         float contentWidth = ImGui::GetWindowContentRegionMax().x;
 
@@ -1022,6 +1060,8 @@ inline void RenderBrowserWindow()
                 }
             }
         }
+
+        g_browserScrollY[g_browserTab] = ImGui::GetScrollY();
 
         ImGui::EndChild();
         RenderEditModal();
@@ -1201,7 +1241,7 @@ namespace Console
         if (g_loggingEnabled)
         {
             std::string filename = GenerateLogFilename(g_title);
-            g_logFile = fopen(filename.c_str(), "w");
+            fopen_s(&g_logFile, filename.c_str(), "w");
         }
     }
 
@@ -1241,11 +1281,8 @@ namespace Console
         g_inputBuffer[0] = '\0';
     }
 
-    inline bool Update(bool isPlaying, bool isMsgBoxVisible)
+    inline bool Update()
     {
-        g_isPlaying = isPlaying;
-        g_isMsgBoxVisible = isMsgBoxVisible;
-
         if (GetAsyncKeyState(VK_HOME) & 1)
         {
             if (!g_visible)
@@ -1312,7 +1349,7 @@ namespace Console
         char buffer[1024];
         va_list args;
         va_start(args, format);
-        vsnprintf(buffer, sizeof(buffer), format, args);
+        vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, format, args);
         va_end(args);
 
         g_outputLines.push_back(buffer);
@@ -1326,8 +1363,9 @@ namespace Console
         if (g_loggingEnabled && g_logFile)
         {
             time_t now = time(nullptr);
-            struct tm* t = localtime(&now);
-            fprintf(g_logFile, "[%02d:%02d:%02d] %s\n", t->tm_hour, t->tm_min, t->tm_sec, buffer);
+            struct tm t;
+            localtime_s(&t, &now);
+            fprintf(g_logFile, "[%02d:%02d:%02d] %s\n", t.tm_hour, t.tm_min, t.tm_sec, buffer);
             fflush(g_logFile);
         }
     }

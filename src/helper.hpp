@@ -486,3 +486,93 @@ namespace HookHelper
 		}
 	}
 };
+
+namespace HashHelper
+{
+	constexpr uint32_t FNV_PRIME = 0x01000193;
+	constexpr uint32_t FNV_OFFSET_BASIS = 0x811C9DC5;
+
+	constexpr uint32_t FNV1a(const char* str, uint32_t hash = FNV_OFFSET_BASIS)
+	{
+		return (*str == '\0') ? hash : FNV1a(str + 1, (hash ^ static_cast<uint32_t>(*str)) * FNV_PRIME);
+	}
+
+	inline uint32_t FNV1aRuntime(const char* str)
+	{
+		uint32_t hash = FNV_OFFSET_BASIS;
+		while (*str)
+		{
+			hash ^= static_cast<uint32_t>(*str++);
+			hash *= FNV_PRIME;
+		}
+		return hash;
+	}
+
+	inline uint32_t FNV1aRuntime(const char* str, size_t length)
+	{
+		uint32_t hash = FNV_OFFSET_BASIS;
+		for (size_t i = 0; i < length; ++i)
+		{
+			hash ^= static_cast<uint32_t>(str[i]);
+			hash *= FNV_PRIME;
+		}
+		return hash;
+	}
+
+	constexpr uint32_t operator""_hash(const char* str, size_t)
+	{
+		return FNV1a(str);
+	}
+
+	// Precomputed HUD element hashes
+	struct HUDHashes
+	{
+		static constexpr uint32_t HUDSlowMo2 = FNV1a("HUDSlowMo2");
+		static constexpr uint32_t HUDFlashlight = FNV1a("HUDFlashlight");
+		static constexpr uint32_t HUDHealth = FNV1a("HUDHealth");
+		static constexpr uint32_t AdditionalRect = FNV1a("AdditionalRect");
+		static constexpr uint32_t AdditionalFloat = FNV1a("AdditionalFloat");
+		static constexpr uint32_t AdditionalInt = FNV1a("AdditionalInt");
+		static constexpr uint32_t TextSize = FNV1a("TextSize");
+	};
+
+	// Precomputed string hashes
+	struct StringHashes
+	{
+		static constexpr uint32_t IDS_QUICKSAVE = FNV1a("IDS_QUICKSAVE");
+		static constexpr uint32_t ScreenFailure_PressAnyKey = FNV1a("ScreenFailure_PressAnyKey");
+		static constexpr uint32_t ScreenCrosshair_Size_Help = FNV1a("ScreenCrosshair_Size_Help");
+		static constexpr uint32_t IDS_HELP_PICKUP_MSG_DUR = FNV1a("IDS_HELP_PICKUP_MSG_DUR");
+	};
+
+	// Console variable name hashes
+	struct CVarHashes
+	{
+		// Display/Graphics
+		static constexpr uint32_t StreamResources = FNV1a("StreamResources");
+		static constexpr uint32_t Windowed = FNV1a("Windowed");
+		static constexpr uint32_t ModelLODDistanceScale = FNV1a("ModelLODDistanceScale");
+		static constexpr uint32_t CameraFirstPersonLODBias = FNV1a("CameraFirstPersonLODBias");
+
+		// Gamepad
+		static constexpr uint32_t GPadAimSensitivity = FNV1a("GPadAimSensitivity");
+		static constexpr uint32_t GPadAimEdgeThreshold = FNV1a("GPadAimEdgeThreshold");
+		static constexpr uint32_t GPadAimEdgeAccelTime = FNV1a("GPadAimEdgeAccelTime");
+		static constexpr uint32_t GPadAimEdgeDelayTime = FNV1a("GPadAimEdgeDelayTime");
+		static constexpr uint32_t GPadAimEdgeMultiplier = FNV1a("GPadAimEdgeMultiplier");
+		static constexpr uint32_t GPadAimAspectRatio = FNV1a("GPadAimAspectRatio");
+		static constexpr uint32_t MouseInvertY = FNV1a("MouseInvertY");
+
+		// Resolution
+		static constexpr uint32_t Performance_ScreenHeight = FNV1a("Performance_ScreenHeight");
+		static constexpr uint32_t Performance_ScreenWidth = FNV1a("Performance_ScreenWidth");
+
+		// HUD
+		static constexpr uint32_t CrosshairSize = FNV1a("CrosshairSize");
+		static constexpr uint32_t PerturbScale = FNV1a("PerturbScale");
+		static constexpr uint32_t UseTextScaling = FNV1a("UseTextScaling");
+
+		// Save
+		static constexpr uint32_t CheckPointOptimizeVideoMemory = FNV1a("CheckPointOptimizeVideoMemory");
+	};
+};

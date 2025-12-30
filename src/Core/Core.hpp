@@ -6,6 +6,8 @@
 #include <Windows.h>
 #include <string_view>
 #include <string>
+#include <array>
+#include <unordered_set>
 #include <unordered_map>
 
 #include "FpsLimiter.hpp"
@@ -165,15 +167,30 @@ struct GlobalState
 	// ======================
 	// Physics/Velocity
 	// ======================
-	bool useVelocitySmoothing = false;
 	bool inFriction = false;
 	bool previousJumpState = false;
-	double lastVelocityTime = 0.0f;
-	double currentFrameTime = 0.0f;
-	double totalGameTime = 0.0f;
-	double smoothedVelocity = 0.0f;
-	double jumpElapsedTime = -1.0f;
+	double currentFrameTime = 0.0;
+	double totalGameTime = 0.0;
+	double jumpElapsedTime = -1.0;
 	float waveUpdateAccumulator = 0.0f;
+	bool useVelocitySmoothing = false;
+	double velocityAccumulator = 0.0;
+	double velocityTimeAccumulator = 0.0;
+	double lastReportedVelocity = 0.0;
+	double prevWindowSpeed = 0.0;
+
+	// ======================
+	// Ragdoll Physics Fix
+	// ======================
+	struct RagdollEntry
+	{
+		int owner = 0;
+		double firstSeenTime = 0.0;
+	};
+
+	bool isProcessingRagdoll = false;
+	static inline std::array<RagdollEntry, 32> ragdollCache{};
+	static constexpr double RAGDOLL_STABILIZE_TIME = 5.0;
 
 	// ======================
 	// Console
@@ -185,19 +202,39 @@ struct GlobalState
 	// ======================
 	// PolyGrid Timing
 	// ======================
-	static inline std::unordered_map<uint64_t, double> polyGridLastSplashTime;
+	struct SplashEntry 
+	{ 
+		uint64_t key;
+		double lastTime;
+	};
+
+	inline static std::array<SplashEntry, 64> splashCache{};
+	inline static size_t splashIndex = 0;
 
 	// ======================
 	// Save Optimization
 	// ======================
 	struct SaveBuffer
 	{
+		HANDLE handle = INVALID_HANDLE_VALUE;
 		std::vector<uint8_t> buffer{};
 		LONGLONG position = 0;
+		LONGLONG size = 0;
 		bool flushed = false;
+
+		void Reset()
+		{
+			handle = INVALID_HANDLE_VALUE;
+			buffer.clear();
+			position = 0;
+			size = 0;
+			flushed = false;
+		}
+
+		bool IsActive() const { return handle != INVALID_HANDLE_VALUE; }
 	};
 
-	static inline std::unordered_map<HANDLE, SaveBuffer> saveBuffers;
+	static inline SaveBuffer saveBuffer{};
 
 	// ======================
 	// HUD Data
@@ -210,7 +247,7 @@ struct GlobalState
 
 	struct HudScalingRule
 	{
-		std::vector<std::string_view> attributes;
+		std::unordered_set<std::string_view> attributes;
 		float* scalingFactorPtr;
 	};
 
@@ -268,11 +305,13 @@ extern float GPadAimEdgeDelayTime;
 extern float GPadAimEdgeMultiplier;
 extern float GPadAimAspectRatio;
 extern float GPadZoomMagThreshold;
-extern int GAMEPAD_A, GAMEPAD_B, GAMEPAD_X, GAMEPAD_Y;
-extern int GAMEPAD_LEFT_THUMB, GAMEPAD_RIGHT_THUMB;
+extern int GAMEPAD_SOUTH, GAMEPAD_EAST, GAMEPAD_WEST, GAMEPAD_NORTH;
+extern int GAMEPAD_LEFT_STICK, GAMEPAD_RIGHT_STICK;
 extern int GAMEPAD_LEFT_SHOULDER, GAMEPAD_RIGHT_SHOULDER;
 extern int GAMEPAD_DPAD_UP, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_RIGHT;
-extern int GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER, GAMEPAD_BACK;
+extern int GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER;
+extern int GAMEPAD_BACK, GAMEPAD_START;
+extern int GAMEPAD_MISC1, GAMEPAD_RIGHT_PADDLE1, GAMEPAD_LEFT_PADDLE1, GAMEPAD_RIGHT_PADDLE2, GAMEPAD_LEFT_PADDLE2;
 
 // SkipIntro
 extern bool SkipSplashScreen;

@@ -1,6 +1,5 @@
 #pragma once
 #include <SDL3/SDL.h>
-#include <unordered_map>
 
 // ==========================================================
 // Types and Enums
@@ -51,8 +50,8 @@ struct ControllerState
 {
     bool isConnected = false;
     ULONGLONG menuToGameTransitionTime = 0;
-    std::unordered_map<int, ButtonState> gameButtons;
-    std::unordered_map<int, ButtonState> triggerButtons;
+    ButtonState gameButtons[SDL_GAMEPAD_BUTTON_COUNT];
+    ButtonState triggerButtons[2];
     ButtonState menuButtons[6];
     ButtonState leftShoulderState;
     ButtonState rightShoulderState;
@@ -123,7 +122,7 @@ void PollController();
 // Configuration
 // ==========================================================
 
-void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int axisLeftTrigger, int axisRightTrigger);
+void ConfigureGamepadMappings(int btnSouth, int btnEast, int btnWest, int btnNorth, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int btnStart, int axisLeftTrigger, int axisRightTrigger, int btnMisc1, int btnRightPaddle1, int btnLeftPaddle1, int btnRightPaddle2, int btnLeftPaddle2);
 
 // ==========================================================
 // Utilities

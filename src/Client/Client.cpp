@@ -1,4 +1,6 @@
-﻿#include "../Core/Core.hpp"
+﻿#define NOMINMAX
+
+#include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
@@ -180,53 +182,83 @@ static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 {
 	if (!g_State.useVelocitySmoothing)
-	{
 		return GetMaxRecentVelocityMag(thisPtr);
+
+	double dt = g_State.currentFrameTime;
+
+	if (dt <= 0.0 || dt > 0.2)
+		return g_State.lastReportedVelocity > 0.0 ? g_State.lastReportedVelocity : GetMaxRecentVelocityMag(thisPtr);
+
+	g_State.velocityAccumulator += GetMaxRecentVelocityMag(thisPtr);
+	g_State.velocityTimeAccumulator += dt;
+
+	// Convert accumulated distance to normalized speed: (distance / time) * targetFrameTime
+	double currentWindowSpeed = (g_State.velocityAccumulator / g_State.velocityTimeAccumulator) * TARGET_FRAME_TIME;
+
+	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
+	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && currentWindowSpeed > 0.1;
+
+	if (timeIsUp || isStartingToMove)
+	{
+		if (isStartingToMove)
+		{
+			g_State.lastReportedVelocity = currentWindowSpeed;
+			g_State.prevWindowSpeed = currentWindowSpeed;
+		}
+		else
+		{
+			// Max-of-two windows prevents aliasing dips at extreme FPS where physics tick alignment causes alternating high/low readings
+			g_State.lastReportedVelocity = std::max(currentWindowSpeed, g_State.prevWindowSpeed);
+
+			// Snap near-zero to true zero for clean idle state
+			if (g_State.lastReportedVelocity < 0.01)
+				g_State.lastReportedVelocity = 0.0;
+
+			g_State.prevWindowSpeed = currentWindowSpeed;
+		}
+
+		g_State.velocityAccumulator = 0.0;
+		g_State.velocityTimeAccumulator = 0.0;
 	}
 
-	// Get current time and raw velocity
-	const double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
-
-	const double frameTime = g_State.currentFrameTime - g_State.lastVelocityTime;
-	g_State.lastVelocityTime = g_State.currentFrameTime;
-
-	// Scale velocity based on frame time
-	const double timeScale = std::clamp(TARGET_FRAME_TIME / frameTime, 0.8, 1.2);
-	const double scaledVelocity = rawVelocity * timeScale;
-
-	// Calculate adaptive smoothing factor
-	const double frameDeviation = std::abs(frameTime - TARGET_FRAME_TIME) / TARGET_FRAME_TIME;
-	const double stability = std::clamp(1.0 - (frameDeviation * 0.5), 0.3, 1.0);
-	const double alpha = 0.25 * stability;
-
-	// Apply exponential smoothing
-	g_State.smoothedVelocity += alpha * (scaledVelocity - g_State.smoothedVelocity);
-
-	return g_State.smoothedVelocity;
+	return g_State.lastReportedVelocity;
 }
 
 static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
 {
-	// Build an order-independent 64-bit key for this body pair
-	uint64_t key = (hBody1 < hBody2) ? (uint64_t(hBody2) << 32) | hBody1 : (uint64_t(hBody1) << 32) | hBody2;
+	uint32_t b1 = static_cast<uint32_t>(hBody1);
+	uint32_t b2 = static_cast<uint32_t>(hBody2);
 
-	// Lookup last splash time
-	auto& splashMap = g_State.polyGridLastSplashTime;
-	auto it = splashMap.find(key);
+	// Create order-independent key so (A,B) and (B,A) collisions map to the same entry
+	uint64_t key = (b1 < b2) ? (uint64_t(b2) << 32) | b1 : (uint64_t(b1) << 32) | b2;
 
 	double currentGameTime = g_State.totalGameTime;
 
-	// If first splash or interval elapsed, forward & record
-	if (it == splashMap.end() || (currentGameTime - it->second) >= TARGET_FRAME_TIME)
+	// Search for existing entry in circular buffer cache
+	GlobalState::SplashEntry* foundEntry = nullptr;
+	for (auto& entry : g_State.splashCache)
+	{
+		if (entry.key == key)
+		{
+			foundEntry = &entry;
+			break;
+		}
+	}
+
+	// Only process splash if this pair hasn't splashed this frame
+	if (!foundEntry || (currentGameTime - foundEntry->lastTime) >= TARGET_FRAME_TIME)
 	{
 		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
-		splashMap[key] = currentGameTime;
 
-		// Evict all entries if cache is full
-		if (splashMap.size() > 50)
+		if (foundEntry)
 		{
-			splashMap.clear();
-			splashMap[key] = currentGameTime;  // Re-add current entry
+			foundEntry->lastTime = currentGameTime;
+		}
+		else
+		{
+			// Overwrite oldest entry in circular buffer (size 64)
+			g_State.splashCache[g_State.splashIndex] = { key, currentGameTime };
+			g_State.splashIndex = (g_State.splashIndex + 1) % g_State.splashCache.size();
 		}
 	}
 }
@@ -290,11 +322,6 @@ static BYTE* __fastcall AimMgrCtor_Hook(BYTE* thisPtr, int)
 {
 	g_State.pAimMgr = thisPtr;
 	return AimMgrCtor(thisPtr);
-}
-
-static void __fastcall AnimationClearLock_Hook(DWORD thisPtr, int)
-{
-	AnimationClearLock(thisPtr);
 }
 
 static void __fastcall UpdateWeaponModel_Hook(DWORD* thisPtr, int)
@@ -570,12 +597,6 @@ static int __stdcall CreateFX_Hook(char* effectType, int fxData, int prop)
 // HUDScaling
 // ======================
 
-// Terminate the HUD
-static void __fastcall HUDTerminate_Hook(int thisPtr, int)
-{
-	HUDTerminate(thisPtr);
-}
-
 // Initialize the HUD
 static bool __fastcall HUDInit_Hook(int thisPtr, int)
 {
@@ -593,11 +614,6 @@ static void __fastcall HUDRender_Hook(int thisPtr, int, int eHUDRenderLayer)
 	}
 }
 
-static void __fastcall HUDWeaponListReset_Hook(int thisPtr, int)
-{
-	HUDWeaponListReset(thisPtr);
-}
-
 static bool __fastcall HUDWeaponListInit_Hook(int thisPtr, int)
 {
 	g_State.CHUDWeaponList = thisPtr;
@@ -610,56 +626,6 @@ static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int)
 	return HUDGrenadeListInit(thisPtr);
 }
 
-static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
-{
-	ScreenDimsChanged(thisPtr);
-
-	// Get the current resolution
-	g_State.currentWidth = *(DWORD*)(thisPtr + 0x18);
-	g_State.currentHeight = *(DWORD*)(thisPtr + 0x1C);
-
-	g_TouchpadConfig.currentWidth = g_State.currentWidth;
-	g_TouchpadConfig.currentHeight = g_State.currentHeight;
-
-	if (!HUDScaling) return;
-
-	// Calculate the new scaling factor
-	g_State.scalingFactor = std::sqrt((g_State.currentWidth * g_State.currentHeight) / BASE_AREA);
-
-	// Don't downscale the HUD
-	if (g_State.scalingFactor < 1.0f) g_State.scalingFactor = 1.0f;
-
-	// Do not change the scaling of the crosshair
-	g_State.scalingFactorCrosshair = g_State.scalingFactor;
-
-	// Apply custom scaling for the text
-	g_State.scalingFactorText = g_State.scalingFactor * SmallTextCustomScalingFactor;
-
-	// Apply custom scaling to calculated scaling
-	g_State.scalingFactor *= HUDCustomScalingFactor;
-
-	// Reset slow-mo bar update flag and HUDHealth.AdditionalInt index
-	g_State.slowMoBarUpdated = false;
-	g_State.healthAdditionalIntIndex = 0;
-
-	// If the resolution is updated
-	if (g_State.CHUDMgr != 0)
-	{
-		// Reinitialize the HUD
-		HUDTerminate(g_State.CHUDMgr);
-		HUDInit(g_State.CHUDMgr);
-		HUDWeaponListReset(g_State.CHUDWeaponList);
-		HUDWeaponListUpdateTriggerNames(g_State.CHUDWeaponList);
-		HUDGrenadeListUpdateTriggerNames(g_State.CHUDGrenadeList);
-		HUDPausedInit(g_State.CHUDPaused);
-		g_State.updateHUD = true;
-
-		// Update the size of the crosshair
-		SetConsoleVariableFloat("CrosshairSize", g_State.crosshairSize * g_State.scalingFactorCrosshair);
-		SetConsoleVariableFloat("PerturbScale", 0.5f * g_State.scalingFactorCrosshair);
-	}
-}
-
 // Scale HUD position or dimension
 static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* Attribute, int a4)
 {
@@ -667,7 +633,7 @@ static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* At
 		return LayoutDBGetPosition(a1, Record, Attribute, a4);
 
 	DWORD* result = LayoutDBGetPosition(a1, Record, Attribute, a4);
-	const char* hudRecordString = *(const char**)Record;
+	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
 
 	std::string_view hudElement(hudRecordString);
 	std::string_view attribute(Attribute);
@@ -676,7 +642,8 @@ static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* At
 	if (hudEntry != g_State.hudScalingRules.end())
 	{
 		const auto& rule = hudEntry->second;
-		if (std::find(rule.attributes.begin(), rule.attributes.end(), attribute) != rule.attributes.end())
+
+		if (rule.attributes.contains(attribute))
 		{
 			float scalingFactor = *rule.scalingFactorPtr;
 			result[0] = static_cast<DWORD>(static_cast<int>(result[0]) * scalingFactor);
@@ -694,14 +661,23 @@ static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, in
 		return GetRectF(a1, Record, Attribute, a4);
 
 	float* result = GetRectF(a1, Record, Attribute, a4);
-	char* hudRecordString = *(char**)Record;
+	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
 
-	if (hudRecordString[4] == 'l' && strcmp(Attribute, "AdditionalRect") == 0 && (strcmp(hudRecordString, "HUDSlowMo2") == 0 || strcmp(hudRecordString, "HUDFlashlight") == 0))
+	// Quick early-out: 'l' at index 4 matches "HUDSlowMo2" and "HUDFlashlight"
+	if (hudRecordString[4] == 'l')
 	{
-		result[0] *= g_State.scalingFactor;
-		result[1] *= g_State.scalingFactor;
-		result[2] *= g_State.scalingFactor;
-		result[3] *= g_State.scalingFactor;
+		const uint32_t attrHash = HashHelper::FNV1aRuntime(Attribute);
+		if (attrHash == HashHelper::HUDHashes::AdditionalRect)
+		{
+			const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
+			if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight)
+			{
+				result[0] *= g_State.scalingFactor;
+				result[1] *= g_State.scalingFactor;
+				result[2] *= g_State.scalingFactor;
+				result[3] *= g_State.scalingFactor;
+			}
+		}
 	}
 
 	return result;
@@ -713,61 +689,63 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 	if (!Record)
 		return DBGetRecord(Record, Attribute);
 
-	char* hudRecordString = *(char**)Record;
-	std::string_view attribute(Attribute);
-	std::string_view hudElement(hudRecordString);
-
-	// TextSize handling
-	if (Attribute[4] == 'S' && attribute == "TextSize")
+	if (Attribute[5] == 'i')
 	{
-		auto it = g_State.textDataMap.find(hudRecordString);
-		if (it != g_State.textDataMap.end())
-		{
-			auto dt = it->second;
-			float scaledSize = dt.TextSize * g_State.scalingFactor;
-			switch (dt.ScaleType)
-			{
-				case 1: scaledSize = std::round(scaledSize * 0.95f); break;
-				case 2: scaledSize = dt.TextSize * g_State.scalingFactorText; break;
-			}
-			g_State.int32ToUpdate = static_cast<int32_t>(scaledSize);
-			g_State.updateLayoutReturnValue = true;
-		}
-	}
+		const char* hudRecordString = *reinterpret_cast<const char**>(Record);
+		const uint32_t attrHash = HashHelper::FNV1aRuntime(Attribute);
+		const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
 
-	// Additional?
-	if (Attribute[9] == 'l')
-	{
-		// AdditionalFloat handling
-		if (attribute == "AdditionalFloat")
+		// TextSize handling
+		if (attrHash == HashHelper::HUDHashes::TextSize)
 		{
-			float baseValue = 0.0f;
-			if (!g_State.slowMoBarUpdated && hudElement == "HUDSlowMo2")
+			auto it = g_State.textDataMap.find(hudRecordString);
+			if (it != g_State.textDataMap.end())
 			{
-				baseValue = 10.0f;
-				g_State.slowMoBarUpdated = true;
-			}
-			else if (hudElement == "HUDFlashlight")
-			{
-				baseValue = 6.0f;
-			}
-			if (baseValue != 0.0f)
-			{
+				auto& dt = it->second;
+				float scaledSize = dt.TextSize * g_State.scalingFactor;
+				switch (dt.ScaleType)
+				{
+					case 1: scaledSize = std::round(scaledSize * 0.95f); break;
+					case 2: scaledSize = dt.TextSize * g_State.scalingFactorText; break;
+				}
+				g_State.int32ToUpdate = static_cast<int32_t>(scaledSize);
 				g_State.updateLayoutReturnValue = true;
-				g_State.floatToUpdate = baseValue * g_State.scalingFactor;
 			}
 		}
-		// Medkit prompt when health drops below 50
-		else if (hudElement == "HUDHealth" && attribute == "AdditionalInt")
+		else if (Attribute[9] == 'l')
 		{
-			if (g_State.healthAdditionalIntIndex == 2)
+			// AdditionalFloat handling
+			if (attrHash == HashHelper::HUDHashes::AdditionalFloat)
 			{
-				g_State.updateLayoutReturnValue = true;
-				g_State.int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
+				float baseValue = 0.0f;
+				if (!g_State.slowMoBarUpdated && elemHash == HashHelper::HUDHashes::HUDSlowMo2)
+				{
+					baseValue = 10.0f;
+					g_State.slowMoBarUpdated = true;
+				}
+				else if (elemHash == HashHelper::HUDHashes::HUDFlashlight)
+				{
+					baseValue = 6.0f;
+				}
+
+				if (baseValue != 0.0f)
+				{
+					g_State.updateLayoutReturnValue = true;
+					g_State.floatToUpdate = baseValue * g_State.scalingFactor;
+				}
 			}
-			else
+			// AdditionalInt handling (HUDHealth medkit prompt)
+			else if (attrHash == HashHelper::HUDHashes::AdditionalInt && elemHash == HashHelper::HUDHashes::HUDHealth)
 			{
-				g_State.healthAdditionalIntIndex++;
+				if (g_State.healthAdditionalIntIndex == 2)
+				{
+					g_State.updateLayoutReturnValue = true;
+					g_State.int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
+				}
+				else
+				{
+					g_State.healthAdditionalIntIndex++;
+				}
 			}
 		}
 	}
@@ -807,16 +785,21 @@ static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
 
 static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
 {
-	const char* sliderName = *(const char**)(thisPtr + 8);
+	const char* sliderName = *reinterpret_cast<const char**>(thisPtr + 8);
+
+	if (sliderName[0] != 'I' && sliderName[0] != 'S')  // IDS_* and Screen*
+		return UpdateSlider(thisPtr, index);
+
+	const uint32_t nameHash = HashHelper::FNV1aRuntime(sliderName);
 
 	// If 'ScreenCrosshair_Size_Help' is next
-	if (strcmp(sliderName, "IDS_HELP_PICKUP_MSG_DUR") == 0)
+	if (nameHash == HashHelper::StringHashes::IDS_HELP_PICKUP_MSG_DUR)
 	{
 		g_State.crosshairSliderUpdated = false;
 	}
 
 	// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
-	if (strcmp(sliderName, "ScreenCrosshair_Size_Help") == 0 && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
+	if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
 	{
 		float unscaledIndex = index / g_State.scalingFactorCrosshair;
 
@@ -824,9 +807,7 @@ static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
 		int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
 
 		// Clamp to the range [4, 16].
-		newIndex = std::clamp(newIndex, 4, 16);
-
-		index = newIndex;
+		index = std::clamp(newIndex, 4, 16);
 
 		// Only needed on the first time
 		g_State.crosshairSliderUpdated = true;
@@ -902,45 +883,38 @@ static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
 
 static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
 {
+	if (!g_Controller.isConnected || g_State.isConsoleOpen)
+		return GetExtremalCommandValue(thisPtr, commandId);
+
 	SDL_Gamepad* pGamepad = GetGamepad();
-	if (g_Controller.isConnected && pGamepad)
+	if (!pGamepad)
+		return GetExtremalCommandValue(thisPtr, commandId);
+
+	static constexpr int DEAD_ZONE = 7849;
+
+	auto ReadAxis = [&](SDL_GamepadAxis axis) -> double
 	{
-		const int DEAD_ZONE = 7849;
-		switch (commandId)
-		{
-			case 2: // Forward
-			{
-				Sint16 leftY = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_LEFTY);
-				if (abs(leftY) < DEAD_ZONE) return 0.0;
-				return -leftY / 32768.0;
-			}
-			case 5: // Strafe
-			{
-				Sint16 leftX = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_LEFTX);
-				if (abs(leftX) < DEAD_ZONE) return 0.0;
-				return leftX / 32768.0;
-			}
-			case 22: // Pitch
-			{
-				Sint16 rightY = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_RIGHTY);
-				if (abs(rightY) < DEAD_ZONE) return 0.0;
-				double pitchValue = rightY / 32768.0;
-				if (g_State.zoomMag > GPadZoomMagThreshold)
-					pitchValue *= (g_State.zoomMag / GPadZoomMagThreshold);
-				return pitchValue;
-			}
-			case 23: // Yaw
-			{
-				Sint16 rightX = SDL_GetGamepadAxis(pGamepad, SDL_GAMEPAD_AXIS_RIGHTX);
-				if (abs(rightX) < DEAD_ZONE) return 0.0;
-				double yawValue = rightX / 32768.0;
-				if (g_State.zoomMag > GPadZoomMagThreshold)
-					yawValue *= (g_State.zoomMag / GPadZoomMagThreshold);
-				return yawValue;
-			}
-		}
+		Sint16 value = SDL_GetGamepadAxis(pGamepad, axis);
+		if (abs(value) < DEAD_ZONE)
+			return 0.0;
+		return value / 32768.0;
+	};
+
+	auto ApplyZoomScale = [](double value) -> double
+	{
+		if (g_State.zoomMag > GPadZoomMagThreshold)
+			return value * (g_State.zoomMag / GPadZoomMagThreshold);
+		return value;
+	};
+
+	switch (commandId)
+	{
+		case 2:  return -ReadAxis(SDL_GAMEPAD_AXIS_LEFTY);                      // Forward
+		case 5:  return  ReadAxis(SDL_GAMEPAD_AXIS_LEFTX);                      // Strafe
+		case 22: return  ApplyZoomScale(ReadAxis(SDL_GAMEPAD_AXIS_RIGHTY));     // Pitch
+		case 23: return  ApplyZoomScale(ReadAxis(SDL_GAMEPAD_AXIS_RIGHTX));     // Yaw
+		default: return  GetExtremalCommandValue(thisPtr, commandId);
 	}
-	return GetExtremalCommandValue(thisPtr, commandId);
 }
 
 static double __fastcall GetZoomMag_Hook(int thisPtr)
@@ -1054,11 +1028,6 @@ static void __fastcall SetCurrentType_Hook(int thisPtr, int, int type)
 	SetCurrentType(thisPtr, type);
 }
 
-static void __cdecl HUDSwapUpdateTriggerName_Hook()
-{
-	HUDSwapUpdateTriggerName();
-}
-
 static void __fastcall UpdatePlayerMovement_Hook(int thisPtr, int)
 {
 	g_State.updateGyroCamera = true;
@@ -1068,7 +1037,7 @@ static void __fastcall UpdatePlayerMovement_Hook(int thisPtr, int)
 
 static void __fastcall ApplyLocalRotationOffset_Hook(int thisPtr, int, float* vPYROffset)
 {
-	if (g_State.updateGyroCamera && g_Controller.isConnected && IsGyroEnabled())
+	if (g_State.updateGyroCamera && g_Controller.isConnected && IsGyroEnabled() && !g_State.isConsoleOpen)
 	{
 		bool shouldApplyGyro = (GyroAimingMode == 0) 
 			|| (GyroAimingMode == 1 && g_State.isAiming) 
@@ -1104,11 +1073,13 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
 	if (ShouldShowControllerPrompts())
 	{
-		if (strcmp(String, "IDS_QUICKSAVE") == 0)
+		const uint32_t strHash = HashHelper::FNV1aRuntime(String);
+
+		if (strHash == HashHelper::StringHashes::IDS_QUICKSAVE)
 		{
 			return L"Quick save";
 		}
-		else if (strcmp(String, "ScreenFailure_PressAnyKey") == 0)
+		else if (strHash == HashHelper::StringHashes::ScreenFailure_PressAnyKey)
 		{
 			switch (GetGamepadStyle())
 			{
@@ -1180,14 +1151,54 @@ static void __fastcall AccuracyMgrUpdate_Hook(float* thisPtr, int)
 //  SDLGamepadSupport & HUDScaling
 // =====================================
 
-static void __fastcall HUDWeaponListUpdateTriggerNames_Hook(int thisPtr, int)
+static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 {
-	HUDWeaponListUpdateTriggerNames(thisPtr);
-}
+	ScreenDimsChanged(thisPtr);
 
-static void __fastcall HUDGrenadeListUpdateTriggerNames_Hook(int thisPtr, int)
-{
-	HUDGrenadeListUpdateTriggerNames(thisPtr);
+	// Get the current resolution
+	g_State.currentWidth = *(DWORD*)(thisPtr + 0x18);
+	g_State.currentHeight = *(DWORD*)(thisPtr + 0x1C);
+
+	g_TouchpadConfig.currentWidth = g_State.currentWidth;
+	g_TouchpadConfig.currentHeight = g_State.currentHeight;
+
+	if (!HUDScaling) return;
+
+	// Calculate the new scaling factor
+	g_State.scalingFactor = std::sqrt((g_State.currentWidth * g_State.currentHeight) / BASE_AREA);
+
+	// Don't downscale the HUD
+	if (g_State.scalingFactor < 1.0f) g_State.scalingFactor = 1.0f;
+
+	// Do not change the scaling of the crosshair
+	g_State.scalingFactorCrosshair = g_State.scalingFactor;
+
+	// Apply custom scaling for the text
+	g_State.scalingFactorText = g_State.scalingFactor * SmallTextCustomScalingFactor;
+
+	// Apply custom scaling to calculated scaling
+	g_State.scalingFactor *= HUDCustomScalingFactor;
+
+	// Reset slow-mo bar update flag and HUDHealth.AdditionalInt index
+	g_State.slowMoBarUpdated = false;
+	g_State.healthAdditionalIntIndex = 0;
+
+	// If the resolution is updated
+	if (g_State.CHUDMgr != 0)
+	{
+		// Reinitialize the HUD
+		HUDTerminate(g_State.CHUDMgr);
+		HUDInit(g_State.CHUDMgr);
+		HUDWeaponListReset(g_State.CHUDWeaponList);
+		HUDWeaponListUpdateTriggerNames(g_State.CHUDWeaponList);
+		HUDGrenadeListUpdateTriggerNames(g_State.CHUDGrenadeList);
+		HUDPausedInit(g_State.CHUDPaused);
+		g_State.updateHUD = true;
+
+		// Update the size of the crosshair
+		SetConsoleVariableFloat("CrosshairSize", g_State.crosshairSize * g_State.scalingFactorCrosshair);
+		SetConsoleVariableFloat("PerturbScale", 0.5f * g_State.scalingFactorCrosshair);
+	}
 }
 
 // ============================================
@@ -1320,7 +1331,7 @@ static void ApplyHighFPSFixesClientPatch()
     }
 
     MemoryHelper::MakeNOP(addr_SurfaceJumpImpulse, 0x10);
-    MemoryHelper::WriteMemory<uint8_t>(addr_HeightOffset + 0x12, 0x84);
+	MemoryHelper::WriteMemory<uint16_t>(addr_HeightOffset + 0x11, 0xE990);
     HookHelper::ApplyHook((void*)addr_GetMaxRecentVelocityMag, &GetMaxRecentVelocityMag_Hook, (LPVOID*)&GetMaxRecentVelocityMag);
     HookHelper::ApplyHook((void*)addr_UpdateNormalControlFlags, &UpdateNormalControlFlags_Hook, (LPVOID*)&UpdateNormalControlFlags);
     HookHelper::ApplyHook((void*)addr_UpdateOnGround, &UpdateOnGround_Hook, (LPVOID*)&UpdateOnGround);
@@ -1477,9 +1488,9 @@ static void ApplyControllerClientPatch()
     HookHelper::ApplyHook((void*)addr_HUDSwapUpdate, &HUDSwapUpdate_Hook, (LPVOID*)&HUDSwapUpdate);
     HookHelper::ApplyHook((void*)addr_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
     HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
-    HookHelper::ApplyHook((void*)addr_HUDSwapUpdateTriggerName, &HUDSwapUpdateTriggerName_Hook, (LPVOID*)&HUDSwapUpdateTriggerName);
     HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
     HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
+	HUDSwapUpdateTriggerName = reinterpret_cast<decltype(HUDSwapUpdateTriggerName)>(addr_HUDSwapUpdateTriggerName);
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
     g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0x25);
@@ -1543,17 +1554,17 @@ static void ApplyHUDScalingClientPatch()
         return;
     }
 
-    HookHelper::ApplyHook((void*)addr_HUDTerminate, &HUDTerminate_Hook, (LPVOID*)&HUDTerminate);
     HookHelper::ApplyHook((void*)addr_HUDInit, &HUDInit_Hook, (LPVOID*)&HUDInit);
     HookHelper::ApplyHook((void*)addr_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
     HookHelper::ApplyHook((void*)addr_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
     HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
     HookHelper::ApplyHook((void*)addr_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-    HookHelper::ApplyHook((void*)addr_HUDWeaponListReset, &HUDWeaponListReset_Hook, (LPVOID*)&HUDWeaponListReset);
     HookHelper::ApplyHook((void*)addr_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
     HookHelper::ApplyHook((void*)addr_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
     HookHelper::ApplyHook((void*)(addr_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
     HookHelper::ApplyHook((void*)addr_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
+	HUDTerminate = reinterpret_cast<decltype(HUDTerminate)>(addr_HUDTerminate);
+	HUDWeaponListReset = reinterpret_cast<decltype(HUDWeaponListReset)>(addr_HUDWeaponListReset);
 }
 
 static void ApplySetWeaponCapacityClientPatch()
@@ -1646,12 +1657,12 @@ static void ApplyWeaponFixesClientPatch()
 
     HookHelper::ApplyHook((void*)addr_AimMgrCtor, &AimMgrCtor_Hook, (LPVOID*)&AimMgrCtor);
     HookHelper::ApplyHook((void*)addr_UpdateWeaponModel, &UpdateWeaponModel_Hook, (LPVOID*)&UpdateWeaponModel);
-    HookHelper::ApplyHook((void*)addr_AnimationClearLock, &AnimationClearLock_Hook, (LPVOID*)&AnimationClearLock);
     HookHelper::ApplyHook((void*)addr_SetAnimProp, &SetAnimProp_Hook, (LPVOID*)&SetAnimProp);
     HookHelper::ApplyHook((void*)addr_InitAnimations, &InitAnimations_Hook, (LPVOID*)&InitAnimations);
     HookHelper::ApplyHook((void*)addr_GetWeaponSlot, &GetWeaponSlot_Hook, (LPVOID*)&GetWeaponSlot);
     HookHelper::ApplyHook((void*)addr_NextWeapon, &NextWeapon_Hook, (LPVOID*)&NextWeapon);
     HookHelper::ApplyHook((void*)addr_PreviousWeapon, &PreviousWeapon_Hook, (LPVOID*)&PreviousWeapon);
+	AnimationClearLock = reinterpret_cast<decltype(AnimationClearLock)>(addr_AnimationClearLock);
     g_State.kAP_ACT_Fire_Id = MemoryHelper::ReadMemory<int>(addr_kAP_ACT_Fire_Id + 0x7);
 }
 
@@ -1736,8 +1747,8 @@ static void ApplyClientPatchSet1()
         return;
     }
 
-    HookHelper::ApplyHook((void*)(addr_HUDWeaponListUpdateTriggerNames - 0x10), &HUDWeaponListUpdateTriggerNames_Hook, (LPVOID*)&HUDWeaponListUpdateTriggerNames);
-    HookHelper::ApplyHook((void*)(addr_HUDGrenadeListUpdateTriggerNames - 0x10), &HUDGrenadeListUpdateTriggerNames_Hook, (LPVOID*)&HUDGrenadeListUpdateTriggerNames);
+	HUDWeaponListUpdateTriggerNames = reinterpret_cast<decltype(HUDWeaponListUpdateTriggerNames)>(addr_HUDWeaponListUpdateTriggerNames - 0x10);
+	HUDGrenadeListUpdateTriggerNames = reinterpret_cast<decltype(HUDGrenadeListUpdateTriggerNames)>(addr_HUDGrenadeListUpdateTriggerNames - 0x10);
 	HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 }
 

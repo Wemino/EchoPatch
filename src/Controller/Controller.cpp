@@ -29,8 +29,8 @@ static constexpr ULONGLONG TRANSITION_GRACE_PERIOD = 200;
 // Static State - Controller
 // ==========================================================
 
-inline SDL_Gamepad* s_pGamepad = nullptr;
-inline GamepadCapabilities s_capabilities;
+static SDL_Gamepad* s_pGamepad = nullptr;
+static GamepadCapabilities s_capabilities;
 
 // ==========================================================
 // Static State - Frame Timing
@@ -43,13 +43,13 @@ struct FrameTiming
     float deltaTime = 0.0f;
 };
 
-inline FrameTiming s_frameTiming;
+static FrameTiming s_frameTiming;
 
 // ==========================================================
 // Static State - Gyro
 // ==========================================================
 
-inline GyroState s_gyroState;
+static GyroState s_gyroState;
 
 struct GyroConfig
 {
@@ -104,9 +104,9 @@ struct GyroAutoOffset
     bool isSurfaceMode = false;
 };
 
-inline GyroConfig s_gyroConfig;
-inline GyroProcessingState s_gyroProcessing;
-inline GyroAutoOffset s_gyroOffset;
+static GyroConfig s_gyroConfig;
+static GyroProcessingState s_gyroProcessing;
+static GyroAutoOffset s_gyroOffset;
 
 // ==========================================================
 // Static State - Touchpad
@@ -119,14 +119,156 @@ struct TouchpadState
     float lastY = 0.0f;
 };
 
-inline TouchpadState s_touchpadFinger[2];
-inline bool s_wasTouchpadPressed[2] = { false, false };
+static TouchpadState s_touchpadFinger[2];
+static bool s_wasTouchpadPressed[2] = { false, false };
+
+// ==========================================================
+// Static State - Button Mappings
+// ==========================================================
+
+static int s_buttonCommands[SDL_GAMEPAD_BUTTON_COUNT] = {};
+static int s_triggerCommands[2] = {};
+
+// ==========================================================
+// Button Names
+// ==========================================================
+
+struct ButtonNames
+{
+    const wchar_t* shortName;
+    const wchar_t* longName;
+};
+
+struct ButtonNameSet
+{
+    ButtonNames buttons[SDL_GAMEPAD_BUTTON_COUNT];
+    ButtonNames triggers[2];
+};
+
+static const ButtonNameSet s_xboxNames = []()
+{
+    ButtonNameSet set = {};
+    set.buttons[SDL_GAMEPAD_BUTTON_SOUTH] = { L"A", L"A Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_EAST] = { L"B", L"B Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_WEST] = { L"X", L"X Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_NORTH] = { L"Y", L"Y Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = { L"LB", L"Left Bumper" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = { L"RB", L"Right Bumper" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_STICK] = { L"LS", L"Left Stick" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = { L"RS", L"Right Stick" };
+    set.buttons[SDL_GAMEPAD_BUTTON_BACK] = { L"Back", L"Back Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_START] = { L"Start", L"Start Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_UP] = { L"D-Up", L"D-Pad Up" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = { L"D-Down", L"D-Pad Down" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = { L"D-Left", L"D-Pad Left" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = { L"D-Right", L"D-Pad Right" };
+    set.buttons[SDL_GAMEPAD_BUTTON_MISC1] = { L"Share", L"Share Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = { L"P1", L"Paddle 1" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = { L"P3", L"Paddle 3" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = { L"P2", L"Paddle 2" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = { L"P4", L"Paddle 4" };
+    set.triggers[0] = { L"LT", L"Left Trigger" };
+    set.triggers[1] = { L"RT", L"Right Trigger" };
+    return set;
+}();
+
+static const ButtonNameSet s_playstationNames = []()
+{
+    ButtonNameSet set = {};
+    set.buttons[SDL_GAMEPAD_BUTTON_SOUTH] = { L"Cross", L"Cross Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_EAST] = { L"Circle", L"Circle Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_WEST] = { L"Square", L"Square Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_NORTH] = { L"Triangle", L"Triangle Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = { L"L1", L"L1 Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = { L"R1", L"R1 Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_STICK] = { L"L3", L"L3 Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = { L"R3", L"R3 Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_BACK] = { L"Share", L"Share Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_START] = { L"Options", L"Options Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_UP] = { L"D-Up", L"D-Pad Up" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = { L"D-Down", L"D-Pad Down" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = { L"D-Left", L"D-Pad Left" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = { L"D-Right", L"D-Pad Right" };
+    set.buttons[SDL_GAMEPAD_BUTTON_MISC1] = { L"Mic", L"Microphone Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = { L"P1", L"Paddle 1" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = { L"P3", L"Paddle 3" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = { L"P2", L"Paddle 2" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = { L"P4", L"Paddle 4" };
+    set.triggers[0] = { L"L2", L"L2 Trigger" };
+    set.triggers[1] = { L"R2", L"R2 Trigger" };
+    return set;
+}();
+
+static const ButtonNameSet s_nintendoNames = []()
+{
+    ButtonNameSet set = {};
+    set.buttons[SDL_GAMEPAD_BUTTON_SOUTH] = { L"B", L"B Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_EAST] = { L"A", L"A Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_WEST] = { L"Y", L"Y Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_NORTH] = { L"X", L"X Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = { L"L", L"L Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = { L"R", L"R Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_STICK] = { L"LS", L"Left Stick" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = { L"RS", L"Right Stick" };
+    set.buttons[SDL_GAMEPAD_BUTTON_BACK] = { L"-", L"- Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_START] = { L"+", L"+ Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_UP] = { L"D-Up", L"D-Pad Up" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = { L"D-Down", L"D-Pad Down" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = { L"D-Left", L"D-Pad Left" };
+    set.buttons[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = { L"D-Right", L"D-Pad Right" };
+    set.buttons[SDL_GAMEPAD_BUTTON_MISC1] = { L"Capture", L"Capture Button" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = { L"P1", L"Paddle 1" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = { L"P3", L"Paddle 3" };
+    set.buttons[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = { L"P2", L"Paddle 2" };
+    set.buttons[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = { L"P4", L"Paddle 4" };
+    set.triggers[0] = { L"ZL", L"ZL Trigger" };
+    set.triggers[1] = { L"ZR", L"ZR Trigger" };
+    return set;
+ }();
+
+static const ButtonNameSet& GetButtonNameSet()
+{
+    switch (s_capabilities.style)
+    {
+        case GamepadStyle::PlayStation: return s_playstationNames;
+        case GamepadStyle::Nintendo:    return s_nintendoNames;
+        default:                        return s_xboxNames;
+    }
+}
+
+// ==========================================================
+// Key Simulation Mappings
+// ==========================================================
+
+struct KeySimulation
+{
+    int commandId;
+    int virtualKey;
+};
+
+static constexpr KeySimulation s_keySimulations[] =
+{
+    { 13, VK_ESCAPE },  // Menu
+    { 74, VK_F5 },      // Quicksave
+    { 75, VK_F9 },      // Quickload
+};
+
+static int GetSimulatedKey(int commandId)
+{
+    for (const auto& sim : s_keySimulations)
+    {
+        if (sim.commandId == commandId)
+            return sim.virtualKey;
+    }
+
+    return 0;
+}
 
 // ==========================================================
 // Frame Timing
 // ==========================================================
 
-inline void UpdateFrameTiming()
+static void UpdateFrameTiming()
 {
     LARGE_INTEGER currentTime;
     QueryPerformanceCounter(&currentTime);
@@ -138,38 +280,10 @@ inline void UpdateFrameTiming()
 }
 
 // ==========================================================
-// Button Mappings
-// ==========================================================
-
-static std::pair<SDL_GamepadButton, int> s_buttonMappings[] =
-{
-    { SDL_GAMEPAD_BUTTON_SOUTH,          15 },
-    { SDL_GAMEPAD_BUTTON_EAST,           14 },
-    { SDL_GAMEPAD_BUTTON_WEST,           88 },
-    { SDL_GAMEPAD_BUTTON_NORTH,          106 },
-    { SDL_GAMEPAD_BUTTON_LEFT_STICK,     70 },
-    { SDL_GAMEPAD_BUTTON_RIGHT_STICK,    114 },
-    { SDL_GAMEPAD_BUTTON_LEFT_SHOULDER,  81 },
-    { SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, 19 },
-    { SDL_GAMEPAD_BUTTON_DPAD_UP,        77 },
-    { SDL_GAMEPAD_BUTTON_DPAD_DOWN,      73 },
-    { SDL_GAMEPAD_BUTTON_DPAD_LEFT,      20 },
-    { SDL_GAMEPAD_BUTTON_DPAD_RIGHT,     21 },
-    { SDL_GAMEPAD_BUTTON_BACK,           78 },
-    { SDL_GAMEPAD_BUTTON_START,          -1 },
-};
-
-static std::pair<SDL_GamepadAxis, int> s_triggerMappings[] =
-{
-    { SDL_GAMEPAD_AXIS_LEFT_TRIGGER,  71 },
-    { SDL_GAMEPAD_AXIS_RIGHT_TRIGGER, 17 },
-};
-
-// ==========================================================
 // Controller Database
 // ==========================================================
 
-inline bool LoadGamepadMappings()
+static bool LoadGamepadMappings()
 {
     const char* paths[] =
     {
@@ -193,7 +307,7 @@ inline bool LoadGamepadMappings()
 // Capability Detection
 // ==========================================================
 
-inline GamepadStyle DetectGamepadStyle(SDL_Gamepad* pGamepad)
+static GamepadStyle DetectGamepadStyle(SDL_Gamepad* pGamepad)
 {
     if (!pGamepad)
         return GamepadStyle::Unknown;
@@ -202,25 +316,25 @@ inline GamepadStyle DetectGamepadStyle(SDL_Gamepad* pGamepad)
 
     switch (type)
     {
-    case SDL_GAMEPAD_TYPE_XBOX360:
-    case SDL_GAMEPAD_TYPE_XBOXONE:
-        return GamepadStyle::Xbox;
+        case SDL_GAMEPAD_TYPE_XBOX360:
+        case SDL_GAMEPAD_TYPE_XBOXONE:
+            return GamepadStyle::Xbox;
 
-    case SDL_GAMEPAD_TYPE_PS3:
-    case SDL_GAMEPAD_TYPE_PS4:
-    case SDL_GAMEPAD_TYPE_PS5:
-        return GamepadStyle::PlayStation;
+        case SDL_GAMEPAD_TYPE_PS3:
+        case SDL_GAMEPAD_TYPE_PS4:
+        case SDL_GAMEPAD_TYPE_PS5:
+            return GamepadStyle::PlayStation;
 
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
-    case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
-        return GamepadStyle::Nintendo;
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:
+            return GamepadStyle::Nintendo;
 
-    default:
-        return GamepadStyle::Xbox;
+        default:
+            return GamepadStyle::Xbox;
     }
 }
 
-inline void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
+static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
 {
     s_capabilities = GamepadCapabilities();
 
@@ -244,6 +358,18 @@ inline void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
     {
         SDL_SetGamepadSensorEnabled(pGamepad, SDL_SENSOR_ACCEL, true);
     }
+}
+
+static void ResetControllerState()
+{
+    s_capabilities = GamepadCapabilities();
+    s_gyroState = GyroState();
+    s_gyroProcessing = GyroProcessingState();
+    s_gyroOffset = GyroAutoOffset();
+    s_touchpadFinger[0] = TouchpadState();
+    s_touchpadFinger[1] = TouchpadState();
+    s_wasTouchpadPressed[0] = false;
+    s_wasTouchpadPressed[1] = false;
 }
 
 // ==========================================================
@@ -274,15 +400,8 @@ void ShutdownSDLGamepad()
         s_pGamepad = nullptr;
     }
 
-    s_capabilities = GamepadCapabilities();
-    s_gyroState = GyroState();
-    s_gyroProcessing = GyroProcessingState();
-    s_gyroOffset = GyroAutoOffset();
+    ResetControllerState();
     s_frameTiming = FrameTiming();
-    s_touchpadFinger[0] = TouchpadState();
-    s_touchpadFinger[1] = TouchpadState();
-    s_wasTouchpadPressed[0] = false;
-    s_wasTouchpadPressed[1] = false;
 
     SDL_Quit();
 }
@@ -375,14 +494,14 @@ void ResetGyroState()
 // Gyro Auto-Calibration
 // ==========================================================
 
-inline void ResetStillnessTracking()
+static void ResetStillnessTracking()
 {
     s_gyroOffset.stillnessTimer = 0.0f;
     s_gyroOffset.hasStartGrav = false;
     s_gyroOffset.maxGravAngleDuringWindow = 0.0f;
 }
 
-inline void UpdateGyroOffset(float gyroX, float gyroY, float gyroZ, float accelX, float accelY, float accelZ, float deltaTime)
+static void UpdateGyroOffset(float gyroX, float gyroY, float gyroZ, float accelX, float accelY, float accelZ, float deltaTime)
 {
     if (!std::isfinite(deltaTime) || deltaTime <= 0.0f)
         return;
@@ -750,7 +869,7 @@ inline void UpdateGyroOffset(float gyroX, float gyroY, float gyroZ, float accelX
 // Processing - Gyro
 // ==========================================================
 
-inline void ProcessGyro()
+static void ProcessGyro()
 {
     s_gyroState.isValid = false;
 
@@ -812,7 +931,7 @@ void GetProcessedGyroDelta(float& outYaw, float& outPitch)
 // Internal Helpers
 // ==========================================================
 
-static inline bool IsInTransitionPeriod()
+static bool IsInTransitionPeriod()
 {
     if (g_Controller.menuToGameTransitionTime == 0)
         return false;
@@ -827,7 +946,7 @@ static void NotifyHUDConnectionChange()
     HUDSwapUpdateTriggerName();
 }
 
-static inline void ClearMenuButtonStates()
+static void ClearMenuButtonStates()
 {
     for (int i = 0; i < 6; i++)
     {
@@ -835,39 +954,54 @@ static inline void ClearMenuButtonStates()
     }
 }
 
-static inline void ReleaseAllGameButtons()
+static void ReleaseAllGameButtons()
 {
-    for (const auto& [button, commandId] : s_buttonMappings)
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
-        auto& btnState = g_Controller.gameButtons[button];
+        auto& btnState = g_Controller.gameButtons[i];
         if (!btnState.isPressed)
             continue;
 
-        if (commandId == -1)
+        int commandId = s_buttonCommands[i];
+        int simulatedKey = GetSimulatedKey(commandId);
+
+        if (simulatedKey != 0)
         {
-            PostMessage(g_State.hWnd, WM_KEYUP, VK_ESCAPE, 0);
+            PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
         }
-        else
+        else if (commandId != 0)
         {
             g_Controller.commandActive[commandId] = false;
             OnCommandOff(g_State.g_pGameClientShell, commandId);
         }
+
         btnState = {};
     }
 
-    for (const auto& [axis, commandId] : s_triggerMappings)
+    for (int i = 0; i < 2; i++)
     {
-        auto& btnState = g_Controller.triggerButtons[axis];
+        auto& btnState = g_Controller.triggerButtons[i];
         if (!btnState.isPressed)
             continue;
 
-        g_Controller.commandActive[commandId] = false;
-        OnCommandOff(g_State.g_pGameClientShell, commandId);
+        int commandId = s_triggerCommands[i];
+        int simulatedKey = GetSimulatedKey(commandId);
+
+        if (simulatedKey != 0)
+        {
+            PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
+        }
+        else if (commandId != 0)
+        {
+            g_Controller.commandActive[commandId] = false;
+            OnCommandOff(g_State.g_pGameClientShell, commandId);
+        }
+
         btnState = {};
     }
 }
 
-static inline bool IsStickDirectionPressed(int direction)
+static bool IsStickDirectionPressed(int direction)
 {
     Sint16 lx = SDL_GetGamepadAxis(s_pGamepad, SDL_GAMEPAD_AXIS_LEFTX);
     Sint16 ly = SDL_GetGamepadAxis(s_pGamepad, SDL_GAMEPAD_AXIS_LEFTY);
@@ -876,11 +1010,11 @@ static inline bool IsStickDirectionPressed(int direction)
 
     switch (direction)
     {
-    case 0: return (ly < -STICK_DEADZONE) || (ry < -STICK_DEADZONE); // Up
-    case 1: return (ly > STICK_DEADZONE) || (ry > STICK_DEADZONE);  // Down
-    case 2: return (lx < -STICK_DEADZONE) || (rx < -STICK_DEADZONE); // Left
-    case 3: return (lx > STICK_DEADZONE) || (rx > STICK_DEADZONE);  // Right
-    default: return false;
+        case 0: return (ly < -STICK_DEADZONE) || (ry < -STICK_DEADZONE); // Up
+        case 1: return (ly > STICK_DEADZONE) || (ry > STICK_DEADZONE);  // Down
+        case 2: return (lx < -STICK_DEADZONE) || (rx < -STICK_DEADZONE); // Left
+        case 3: return (lx > STICK_DEADZONE) || (rx > STICK_DEADZONE);  // Right
+        default: return false;
     }
 }
 
@@ -963,26 +1097,38 @@ static void ProcessTouchpadClick()
     if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
         return;
 
-    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
-    {
-        bool isPressed = SDL_GetGamepadButton(s_pGamepad, SDL_GAMEPAD_BUTTON_TOUCHPAD);
+    bool isPressed = SDL_GetGamepadButton(s_pGamepad, SDL_GAMEPAD_BUTTON_TOUCHPAD);
 
-        if (isPressed && !s_wasTouchpadPressed[touchpadIndex])
-        {
-            INPUT input = {};
-            input.type = INPUT_MOUSE;
-            input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-            SendInput(1, &input, sizeof(INPUT));
-        }
-        else if (!isPressed && s_wasTouchpadPressed[touchpadIndex])
+    if (isPressed && !s_wasTouchpadPressed[0])
+    {
+        INPUT input = {};
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+    else if (!isPressed && s_wasTouchpadPressed[0])
+    {
+        INPUT input = {};
+        input.type = INPUT_MOUSE;
+        input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+
+    s_wasTouchpadPressed[0] = isPressed;
+}
+
+static void ReleaseTouchpadClick()
+{
+    for (int i = 0; i < 2; i++)
+    {
+        if (s_wasTouchpadPressed[i])
         {
             INPUT input = {};
             input.type = INPUT_MOUSE;
             input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
             SendInput(1, &input, sizeof(INPUT));
+            s_wasTouchpadPressed[i] = false;
         }
-
-        s_wasTouchpadPressed[touchpadIndex] = isPressed;
     }
 }
 
@@ -990,196 +1136,53 @@ static void ProcessTouchpadClick()
 // Configuration - Mappings
 // ==========================================================
 
-void ConfigureGamepadMappings(int btnA, int btnB, int btnX, int btnY, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int axisLeftTrigger, int axisRightTrigger)
+void ConfigureGamepadMappings(int btnSouth, int btnEast, int btnWest, int btnNorth, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int btnStart, int axisLeftTrigger, int axisRightTrigger, int btnMisc1, int btnRightPaddle1, int btnLeftPaddle1, int btnRightPaddle2, int btnLeftPaddle2)
 {
-    for (auto& [button, commandId] : s_buttonMappings)
-    {
-        switch (button)
-        {
-            case SDL_GAMEPAD_BUTTON_SOUTH:          commandId = btnA; break;
-            case SDL_GAMEPAD_BUTTON_EAST:           commandId = btnB; break;
-            case SDL_GAMEPAD_BUTTON_WEST:           commandId = btnX; break;
-            case SDL_GAMEPAD_BUTTON_NORTH:          commandId = btnY; break;
-            case SDL_GAMEPAD_BUTTON_LEFT_STICK:     commandId = btnLeftStick; break;
-            case SDL_GAMEPAD_BUTTON_RIGHT_STICK:    commandId = btnRightStick; break;
-            case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  commandId = btnLeftShoulder; break;
-            case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: commandId = btnRightShoulder; break;
-            case SDL_GAMEPAD_BUTTON_DPAD_UP:        commandId = btnDpadUp; break;
-            case SDL_GAMEPAD_BUTTON_DPAD_DOWN:      commandId = btnDpadDown; break;
-            case SDL_GAMEPAD_BUTTON_DPAD_LEFT:      commandId = btnDpadLeft; break;
-            case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:     commandId = btnDpadRight; break;
-            case SDL_GAMEPAD_BUTTON_BACK:           commandId = btnBack; break;
-            default: break;
-        }
-    }
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_SOUTH] = btnSouth;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_EAST] = btnEast;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_WEST] = btnWest;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_NORTH] = btnNorth;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_STICK] = btnLeftStick;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = btnRightStick;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = btnLeftShoulder;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = btnRightShoulder;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_UP] = btnDpadUp;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = btnDpadDown;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = btnDpadLeft;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = btnDpadRight;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_BACK] = btnBack;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_START] = btnStart;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_MISC1] = btnMisc1;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = btnRightPaddle1;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = btnLeftPaddle1;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = btnRightPaddle2;
+    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = btnLeftPaddle2;
 
-    for (auto& [axis, commandId] : s_triggerMappings)
-    {
-        switch (axis)
-        {
-            case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:  commandId = axisLeftTrigger; break;
-            case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER: commandId = axisRightTrigger; break;
-            default: break;
-        }
-    }
+    s_triggerCommands[0] = axisLeftTrigger;
+    s_triggerCommands[1] = axisRightTrigger;
 }
 
 // ==========================================================
 // Button Names
 // ==========================================================
 
-struct ButtonNames
-{
-    const wchar_t* shortName;
-    const wchar_t* longName;
-};
-
-struct ButtonNameSet
-{
-    ButtonNames south;
-    ButtonNames east;
-    ButtonNames west;
-    ButtonNames north;
-    ButtonNames leftShoulder;
-    ButtonNames rightShoulder;
-    ButtonNames leftTrigger;
-    ButtonNames rightTrigger;
-    ButtonNames leftStick;
-    ButtonNames rightStick;
-    ButtonNames back;
-    ButtonNames start;
-    ButtonNames dpadUp;
-    ButtonNames dpadDown;
-    ButtonNames dpadLeft;
-    ButtonNames dpadRight;
-};
-
-static const ButtonNameSet s_xboxNames =
-{
-    { L"A",       L"A Button" },
-    { L"B",       L"B Button" },
-    { L"X",       L"X Button" },
-    { L"Y",       L"Y Button" },
-    { L"LB",      L"Left Bumper" },
-    { L"RB",      L"Right Bumper" },
-    { L"LT",      L"Left Trigger" },
-    { L"RT",      L"Right Trigger" },
-    { L"LS",      L"Left Stick" },
-    { L"RS",      L"Right Stick" },
-    { L"Back",    L"Back Button" },
-    { L"Start",   L"Start Button" },
-    { L"D-Up",    L"D-Pad Up" },
-    { L"D-Down",  L"D-Pad Down" },
-    { L"D-Left",  L"D-Pad Left" },
-    { L"D-Right", L"D-Pad Right" },
-};
-
-static const ButtonNameSet s_playstationNames =
-{
-    { L"Cross",    L"Cross Button" },
-    { L"Circle",   L"Circle Button" },
-    { L"Square",   L"Square Button" },
-    { L"Triangle", L"Triangle Button" },
-    { L"L1",       L"L1 Button" },
-    { L"R1",       L"R1 Button" },
-    { L"L2",       L"L2 Trigger" },
-    { L"R2",       L"R2 Trigger" },
-    { L"L3",       L"L3 Button" },
-    { L"R3",       L"R3 Button" },
-    { L"Share",    L"Share Button" },
-    { L"Options",  L"Options Button" },
-    { L"D-Up",     L"D-Pad Up" },
-    { L"D-Down",   L"D-Pad Down" },
-    { L"D-Left",   L"D-Pad Left" },
-    { L"D-Right",  L"D-Pad Right" },
-};
-
-static const ButtonNameSet s_nintendoNames =
-{
-    { L"B",       L"B Button" },
-    { L"A",       L"A Button" },
-    { L"Y",       L"Y Button" },
-    { L"X",       L"X Button" },
-    { L"L",       L"L Button" },
-    { L"R",       L"R Button" },
-    { L"ZL",      L"ZL Trigger" },
-    { L"ZR",      L"ZR Trigger" },
-    { L"LS",      L"Left Stick" },
-    { L"RS",      L"Right Stick" },
-    { L"-",       L"- Button" },
-    { L"+",       L"+ Button" },
-    { L"D-Up",    L"D-Pad Up" },
-    { L"D-Down",  L"D-Pad Down" },
-    { L"D-Left",  L"D-Pad Left" },
-    { L"D-Right", L"D-Pad Right" },
-};
-
-static const ButtonNameSet& GetButtonNameSet()
-{
-    switch (s_capabilities.style)
-    {
-        case GamepadStyle::PlayStation: return s_playstationNames;
-        case GamepadStyle::Nintendo:    return s_nintendoNames;
-        case GamepadStyle::Xbox:
-        default:                        return s_xboxNames;
-    }
-}
-
-static const wchar_t* GetButtonNameForButton(SDL_GamepadButton button, bool shortName)
-{
-    const ButtonNameSet& names = GetButtonNameSet();
-
-    switch (button)
-    {
-        case SDL_GAMEPAD_BUTTON_SOUTH:          return shortName ? names.south.shortName : names.south.longName;
-        case SDL_GAMEPAD_BUTTON_EAST:           return shortName ? names.east.shortName : names.east.longName;
-        case SDL_GAMEPAD_BUTTON_WEST:           return shortName ? names.west.shortName : names.west.longName;
-        case SDL_GAMEPAD_BUTTON_NORTH:          return shortName ? names.north.shortName : names.north.longName;
-        case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:  return shortName ? names.leftShoulder.shortName : names.leftShoulder.longName;
-        case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER: return shortName ? names.rightShoulder.shortName : names.rightShoulder.longName;
-        case SDL_GAMEPAD_BUTTON_LEFT_STICK:     return shortName ? names.leftStick.shortName : names.leftStick.longName;
-        case SDL_GAMEPAD_BUTTON_RIGHT_STICK:    return shortName ? names.rightStick.shortName : names.rightStick.longName;
-        case SDL_GAMEPAD_BUTTON_BACK:           return shortName ? names.back.shortName : names.back.longName;
-        case SDL_GAMEPAD_BUTTON_START:          return shortName ? names.start.shortName : names.start.longName;
-        case SDL_GAMEPAD_BUTTON_DPAD_UP:        return shortName ? names.dpadUp.shortName : names.dpadUp.longName;
-        case SDL_GAMEPAD_BUTTON_DPAD_DOWN:      return shortName ? names.dpadDown.shortName : names.dpadDown.longName;
-        case SDL_GAMEPAD_BUTTON_DPAD_LEFT:      return shortName ? names.dpadLeft.shortName : names.dpadLeft.longName;
-        case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:     return shortName ? names.dpadRight.shortName : names.dpadRight.longName;
-        default:                                return nullptr;
-    }
-}
-
-static const wchar_t* GetButtonNameForAxis(SDL_GamepadAxis axis, bool shortName)
-{
-    const ButtonNameSet& names = GetButtonNameSet();
-
-    switch (axis)
-    {
-        case SDL_GAMEPAD_AXIS_LEFT_TRIGGER:  return shortName ? names.leftTrigger.shortName : names.leftTrigger.longName;
-        case SDL_GAMEPAD_AXIS_RIGHT_TRIGGER: return shortName ? names.rightTrigger.shortName : names.rightTrigger.longName;
-        default:                             return nullptr;
-    }
-}
-
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName)
 {
-    for (const auto& [button, cmdId] : s_buttonMappings)
+    const ButtonNameSet& names = GetButtonNameSet();
+
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
-        if (cmdId == commandId)
+        if (s_buttonCommands[i] == commandId && names.buttons[i].shortName != nullptr)
         {
-            const wchar_t* name = GetButtonNameForButton(button, shortName);
-            if (name)
-                return name;
+            return shortName ? names.buttons[i].shortName : names.buttons[i].longName;
         }
     }
 
-    for (const auto& [axis, cmdId] : s_triggerMappings)
+    for (int i = 0; i < 2; i++)
     {
-        if (cmdId == commandId)
+        if (s_triggerCommands[i] == commandId)
         {
-            const wchar_t* name = GetButtonNameForAxis(axis, shortName);
-            if (name)
-                return name;
+            return shortName ? names.triggers[i].shortName : names.triggers[i].longName;
         }
     }
 
@@ -1190,7 +1193,7 @@ const wchar_t* GetGamepadButtonName(int commandId, bool shortName)
 // Event Processing
 // ==========================================================
 
-inline void OnGamepadConnected(SDL_JoystickID deviceId)
+static void OnGamepadConnected(SDL_JoystickID deviceId)
 {
     if (s_pGamepad)
         return;
@@ -1202,7 +1205,7 @@ inline void OnGamepadConnected(SDL_JoystickID deviceId)
     }
 }
 
-inline void OnGamepadDisconnected(SDL_JoystickID deviceId)
+static void OnGamepadDisconnected(SDL_JoystickID deviceId)
 {
     if (!s_pGamepad)
         return;
@@ -1211,15 +1214,10 @@ inline void OnGamepadDisconnected(SDL_JoystickID deviceId)
     {
         SDL_CloseGamepad(s_pGamepad);
         s_pGamepad = nullptr;
-        s_capabilities = GamepadCapabilities();
-        s_gyroState = GyroState();
-        s_gyroProcessing = GyroProcessingState();
-        s_gyroOffset = GyroAutoOffset();
-        s_touchpadFinger[0] = TouchpadState();
-        s_touchpadFinger[1] = TouchpadState();
-        s_wasTouchpadPressed[0] = false;
-        s_wasTouchpadPressed[1] = false;
+        ReleaseTouchpadClick();
+        ResetControllerState();
 
+        // Try to connect to another available gamepad
         int count = 0;
         SDL_JoystickID* gamepads = SDL_GetGamepads(&count);
         if (gamepads)
@@ -1233,12 +1231,13 @@ inline void OnGamepadDisconnected(SDL_JoystickID deviceId)
                     break;
                 }
             }
+
             SDL_free(gamepads);
         }
     }
 }
 
-inline void ProcessSDLEvents()
+static void ProcessSDLEvents()
 {
     SDL_Event event;
     while (SDL_PollEvent(&event))
@@ -1260,7 +1259,7 @@ inline void ProcessSDLEvents()
 // Gameplay Input Handlers
 // ==========================================================
 
-void HandleGamepadButton(SDL_GamepadButton button, int commandId)
+static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
 {
     auto& btnState = g_Controller.gameButtons[button];
 
@@ -1278,27 +1277,29 @@ void HandleGamepadButton(SDL_GamepadButton button, int commandId)
         return;
     }
 
+    int simulatedKey = GetSimulatedKey(commandId);
+
     // Button just pressed
     if (isPressed && !btnState.isPressed)
     {
         UpdateInputMode(true);
 
-        if (commandId == -1)
+        if (simulatedKey != 0)
         {
-            PostMessage(g_State.hWnd, WM_KEYDOWN, VK_ESCAPE, 0);
+            PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, 0);
         }
         else
         {
             g_Controller.commandActive[commandId] = true;
             OnCommandOn(g_State.g_pGameClientShell, commandId);
-            btnState.wasHandled = true;
-            btnState.pressStartTime = GetTickCount64();
         }
+        btnState.wasHandled = true;
+        btnState.pressStartTime = GetTickCount64();
     }
     // Button held
     else if (isPressed)
     {
-        if (commandId != -1)
+        if (simulatedKey == 0)
         {
             g_Controller.commandActive[commandId] = true;
         }
@@ -1306,24 +1307,25 @@ void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     // Button just released
     else if (!isPressed && btnState.isPressed)
     {
-        if (commandId == -1)
+        if (simulatedKey != 0)
         {
-            PostMessage(g_State.hWnd, WM_KEYUP, VK_ESCAPE, 0);
+            PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
         }
         else
         {
             g_Controller.commandActive[commandId] = false;
             OnCommandOff(g_State.g_pGameClientShell, commandId);
-            btnState.wasHandled = false;
         }
+        btnState.wasHandled = false;
     }
 
     btnState.isPressed = isPressed;
 }
 
-inline void HandleGamepadTrigger(SDL_GamepadAxis axis, int commandId)
+static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
 {
-    auto& btnState = g_Controller.triggerButtons[axis];
+    int commandId = s_triggerCommands[triggerIndex];
+    auto& btnState = g_Controller.triggerButtons[triggerIndex];
 
     Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
     bool isPressed = value > TRIGGER_THRESHOLD;
@@ -1360,22 +1362,24 @@ void ProcessGameplayInput()
 {
     memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
 
-    for (const auto& [button, commandId] : s_buttonMappings)
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
-        HandleGamepadButton(button, commandId);
+        int commandId = s_buttonCommands[i];
+        if (commandId != 0)
+        {
+            HandleGamepadButton(static_cast<SDL_GamepadButton>(i), commandId);
+        }
     }
 
-    for (const auto& [axis, commandId] : s_triggerMappings)
-    {
-        HandleGamepadTrigger(axis, commandId);
-    }
+    HandleGamepadTrigger(0, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+    HandleGamepadTrigger(1, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
 }
 
 // ==========================================================
 // Menu Navigation
 // ==========================================================
 
-inline void ProcessMenuNavigation()
+static void ProcessMenuNavigation()
 {
     const ULONGLONG currentTime = GetTickCount64();
 
@@ -1487,6 +1491,12 @@ void PollController()
         NotifyHUDConnectionChange();
     }
 
+    if (g_State.isConsoleOpen)
+    {
+        memset(g_Controller.commandActive, 0, sizeof(g_Controller.commandActive));
+        return;
+    }
+
     static bool s_wasPlaying = false;
     static bool s_wasMsgBoxVisible = false;
 
@@ -1533,7 +1543,7 @@ void PollController()
 // Utilities
 // ==========================================================
 
-inline void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs)
+void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs)
 {
     if (s_pGamepad)
     {

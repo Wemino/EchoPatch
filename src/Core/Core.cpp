@@ -38,12 +38,19 @@ int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*)
 void(__cdecl* ProcessTwistLimitConstraint)(int, float*, float*) = nullptr;
 void(__cdecl* ProcessConeLimitConstraint)(int, float*, float*, float*) = nullptr;
 void(__cdecl* BuildJacobianRow) (int, float*, float*) = nullptr;
+void(__thiscall* ProcessBallSocketConstraint)(int, float*, float*) = nullptr;
+void(__thiscall* ProcessLimitedHingeConstraint)(int, float*, float*) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 int(__thiscall* TerminateServer)(int) = nullptr;
-bool(__thiscall* StreamWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
+bool(__thiscall* FileWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
+bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char);
+bool(__thiscall* FileSeek)(HANDLE*, LARGE_INTEGER) = nullptr;
+bool(__thiscall* FileSeekEnd)(HANDLE*) = nullptr;
+bool(__thiscall* FileTell)(DWORD*, DWORD*) = nullptr;
+bool(__thiscall* FileClose)(DWORD*) = nullptr;
 char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 char(__thiscall* GetSocketTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
 bool(__cdecl* EndScene)() = nullptr;
@@ -103,12 +110,12 @@ float GPadAimEdgeDelayTime = 0.0f;
 float GPadAimEdgeMultiplier = 0.0f;
 float GPadAimAspectRatio = 0.0f;
 float GPadZoomMagThreshold = 0.0f;
-int GAMEPAD_A = 0;
-int GAMEPAD_B = 0;
-int GAMEPAD_X = 0;
-int GAMEPAD_Y = 0;
-int GAMEPAD_LEFT_THUMB = 0;
-int GAMEPAD_RIGHT_THUMB = 0;
+int GAMEPAD_SOUTH = 0;
+int GAMEPAD_EAST = 0;
+int GAMEPAD_WEST = 0;
+int GAMEPAD_NORTH = 0;
+int GAMEPAD_LEFT_STICK = 0;
+int GAMEPAD_RIGHT_STICK = 0;
 int GAMEPAD_LEFT_SHOULDER = 0;
 int GAMEPAD_RIGHT_SHOULDER = 0;
 int GAMEPAD_DPAD_UP = 0;
@@ -118,6 +125,12 @@ int GAMEPAD_DPAD_RIGHT = 0;
 int GAMEPAD_LEFT_TRIGGER = 0;
 int GAMEPAD_RIGHT_TRIGGER = 0;
 int GAMEPAD_BACK = 0;
+int GAMEPAD_START = 0;
+int GAMEPAD_MISC1 = 0;
+int GAMEPAD_RIGHT_PADDLE1 = 0;
+int GAMEPAD_LEFT_PADDLE1 = 0;
+int GAMEPAD_RIGHT_PADDLE2 = 0;
+int GAMEPAD_LEFT_PADDLE2 = 0;
 
 // SkipIntro
 bool SkipSplashScreen = false;
@@ -191,12 +204,12 @@ static void ReadConfig()
     GPadAimEdgeMultiplier = IniHelper::ReadFloat("Controller", "GPadAimEdgeMultiplier", 1.6f);
     GPadAimAspectRatio = IniHelper::ReadFloat("Controller", "GPadAimAspectRatio", 1.0f);
     GPadZoomMagThreshold = IniHelper::ReadFloat("Controller", "GPadZoomMagThreshold", 1.3f);
-    GAMEPAD_A = IniHelper::ReadInteger("Controller", "GAMEPAD_A", 15);
-    GAMEPAD_B = IniHelper::ReadInteger("Controller", "GAMEPAD_B", 14);
-    GAMEPAD_X = IniHelper::ReadInteger("Controller", "GAMEPAD_X", 88);
-    GAMEPAD_Y = IniHelper::ReadInteger("Controller", "GAMEPAD_Y", 106);
-    GAMEPAD_LEFT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_THUMB", 70);
-    GAMEPAD_RIGHT_THUMB = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_THUMB", 114);
+    GAMEPAD_SOUTH = IniHelper::ReadInteger("Controller", "GAMEPAD_SOUTH", 15);
+    GAMEPAD_EAST = IniHelper::ReadInteger("Controller", "GAMEPAD_EAST", 14);
+    GAMEPAD_WEST = IniHelper::ReadInteger("Controller", "GAMEPAD_WEST", 88);
+    GAMEPAD_NORTH = IniHelper::ReadInteger("Controller", "GAMEPAD_NORTH", 106);
+    GAMEPAD_LEFT_STICK = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_STICK", 70);
+    GAMEPAD_RIGHT_STICK = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_STICK", 114);
     GAMEPAD_LEFT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER", 81);
     GAMEPAD_RIGHT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER", 19);
     GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 77);
@@ -206,6 +219,12 @@ static void ReadConfig()
     GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 71);
     GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
     GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
+    GAMEPAD_START = IniHelper::ReadInteger("Controller", "GAMEPAD_START", 13);
+    GAMEPAD_MISC1 = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1", 50);
+    GAMEPAD_RIGHT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1", 82);
+    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", 102);
+    GAMEPAD_RIGHT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2", 75);
+    GAMEPAD_LEFT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2", 74);
 
     // SkipIntro
     SkipSplashScreen = IniHelper::ReadInteger("SkipIntro", "SkipSplashScreen", 1) == 1;
@@ -258,66 +277,68 @@ static void ReadConfig()
 
     if (SDLGamepadSupport)
     {
-        ConfigureGamepadMappings(GAMEPAD_A, GAMEPAD_B, GAMEPAD_X, GAMEPAD_Y, GAMEPAD_LEFT_THUMB, GAMEPAD_RIGHT_THUMB, GAMEPAD_LEFT_SHOULDER, GAMEPAD_RIGHT_SHOULDER, GAMEPAD_DPAD_UP, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_RIGHT, GAMEPAD_BACK, GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER);
+        ConfigureGamepadMappings(GAMEPAD_SOUTH, GAMEPAD_EAST, GAMEPAD_WEST, GAMEPAD_NORTH, GAMEPAD_LEFT_STICK, GAMEPAD_RIGHT_STICK, GAMEPAD_LEFT_SHOULDER, GAMEPAD_RIGHT_SHOULDER, GAMEPAD_DPAD_UP, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_RIGHT, GAMEPAD_BACK, GAMEPAD_START, GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER, GAMEPAD_MISC1, GAMEPAD_RIGHT_PADDLE1, GAMEPAD_LEFT_PADDLE1, GAMEPAD_RIGHT_PADDLE2, GAMEPAD_LEFT_PADDLE2);
     }
 
     if (HUDScaling)
     {
-        // Text: Interface\Credits\LineLayout
-        g_State.textDataMap["Default10"] = { 10, 0 };
-        g_State.textDataMap["Default12"] = { 12, 0 };
-        g_State.textDataMap["Default14"] = { 14, 0 };
-        g_State.textDataMap["Default16"] = { 16, 0 };
-        g_State.textDataMap["Default18"] = { 18, 0 };
-        g_State.textDataMap["Default24"] = { 24, 0 };
-        g_State.textDataMap["Default32"] = { 32, 0 };
-        g_State.textDataMap["EndCredits16"] = { 16, 0 };
-        g_State.textDataMap["EndCredits18"] = { 18, 0 };
-        g_State.textDataMap["Intro16"] = { 16, 0 };
-        g_State.textDataMap["Objective"] = { 22, 0 };
-        g_State.textDataMap["Training"] = { 22, 0 };
+        g_State.textDataMap =
+        {
+            { "Default10", { 10, 0 } },
+            { "Default12", { 12, 0 } },
+            { "Default14", { 14, 0 } },
+            { "Default16", { 16, 0 } },
+            { "Default18", { 18, 0 } },
+            { "Default24", { 24, 0 } },
+            { "Default32", { 32, 0 } },
+            { "EndCredits16", { 16, 0 } },
+            { "EndCredits18", { 18, 0 } },
+            { "Intro16", { 16, 0 } },
+            { "Objective", { 22, 0 } },
+            { "Training", { 22, 0 } },
 
-        // Text: Interface\HUD
-        g_State.textDataMap["HUDActivate"] = { 18, 0 };
-        g_State.textDataMap["HUDActivateObject"] = { 14, 0 };
-        g_State.textDataMap["HUDAmmo"] = { 16, 0 };
-        g_State.textDataMap["HUDArmor"] = { 25, 0 };
-        g_State.textDataMap["HUDBuildVersion"] = { 12, 0 };
-        g_State.textDataMap["HUDChatInput"] = { 16, 2 };
-        g_State.textDataMap["HUDChatMessage"] = { 14, 2 };
-        g_State.textDataMap["HUDControlPoint"] = { 24, 0 };
-        g_State.textDataMap["HUDControlPointBar"] = { 24, 0 };
-        g_State.textDataMap["HUDControlPointList"] = { 24, 0 };
-        g_State.textDataMap["HUDCrosshair"] = { 12, 2 };
-        g_State.textDataMap["HUDCTFBaseEnemy"] = { 14, 0 };
-        g_State.textDataMap["HUDCTFBaseFriendly"] = { 14, 0 };
-        g_State.textDataMap["HUDCTFFlag"] = { 14, 0 };
-        g_State.textDataMap["HUDDamageDir"] = { 16, 0 };
-        g_State.textDataMap["HUDDebug"] = { 12, 0 };
-        g_State.textDataMap["HUDDecision"] = { 16, 0 };
-        g_State.textDataMap["HUDDialogue"] = { 13, 1 };
-        g_State.textDataMap["HUDDistance"] = { 16, 0 };
-        g_State.textDataMap["HUDEndRoundMessage"] = { 32, 0 };
-        g_State.textDataMap["HUDFocus"] = { 16, 0 };
-        g_State.textDataMap["HUDGameMessage"] = { 14, 2 };
-        g_State.textDataMap["HUDGear"] = { 14, 0 };
-        g_State.textDataMap["HUDGrenade"] = { 14, 0 };
-        g_State.textDataMap["HUDGrenadeList"] = { 14, 0 };
-        g_State.textDataMap["HUDHealth"] = { 25, 0 };
-        g_State.textDataMap["HUDObjective"] = { 22, 0 };
-        g_State.textDataMap["HUDPaused"] = { 20, 0 };
-        g_State.textDataMap["HUDRadio"] = { 16, 0 };
-        g_State.textDataMap["HUDRespawn"] = { 18, 0 };
-        g_State.textDataMap["HUDSpectator"] = { 12, 0 };
-        g_State.textDataMap["HUDSubtitle"] = { 14, 2 };
-        g_State.textDataMap["HUDSwap"] = { 12, 2 };
-        g_State.textDataMap["HUDTimerMain"] = { 14, 0 };
-        g_State.textDataMap["HUDTimerSuddenDeath"] = { 14, 0 };
-        g_State.textDataMap["HUDTimerTeam0"] = { 18, 0 };
-        g_State.textDataMap["HUDTimerTeam1"] = { 18, 0 };
-        g_State.textDataMap["HUDTransmission"] = { 16, 0 };
-        g_State.textDataMap["HUDVote"] = { 16, 0 };
-        g_State.textDataMap["HUDWeapon"] = { 14, 0 };
+            // HUD Entries
+            { "HUDActivate", { 18, 0 } },
+            { "HUDActivateObject", { 14, 0 } },
+            { "HUDAmmo", { 16, 0 } },
+            { "HUDArmor", { 25, 0 } },
+            { "HUDBuildVersion", { 12, 0 } },
+            { "HUDChatInput", { 16, 2 } },
+            { "HUDChatMessage", { 14, 2 } },
+            { "HUDControlPoint", { 24, 0 } },
+            { "HUDControlPointBar", { 24, 0 } },
+            { "HUDControlPointList", { 24, 0 } },
+            { "HUDCrosshair", { 12, 2 } },
+            { "HUDCTFBaseEnemy", { 14, 0 } },
+            { "HUDCTFBaseFriendly", { 14, 0 } },
+            { "HUDCTFFlag", { 14, 0 } },
+            { "HUDDamageDir", { 16, 0 } },
+            { "HUDDebug", { 12, 0 } },
+            { "HUDDecision", { 16, 0 } },
+            { "HUDDialogue", { 13, 1 } },
+            { "HUDDistance", { 16, 0 } },
+            { "HUDEndRoundMessage", { 32, 0 } },
+            { "HUDFocus", { 16, 0 } },
+            { "HUDGameMessage", { 14, 2 } },
+            { "HUDGear", { 14, 0 } },
+            { "HUDGrenade", { 14, 0 } },
+            { "HUDGrenadeList", { 14, 0 } },
+            { "HUDHealth", { 25, 0 } },
+            { "HUDObjective", { 22, 0 } },
+            { "HUDPaused", { 20, 0 } },
+            { "HUDRadio", { 16, 0 } },
+            { "HUDRespawn", { 18, 0 } },
+            { "HUDSpectator", { 12, 0 } },
+            { "HUDSubtitle", { 14, 2 } },
+            { "HUDSwap", { 12, 2 } },
+            { "HUDTimerMain", { 14, 0 } },
+            { "HUDTimerSuddenDeath", { 14, 0 } },
+            { "HUDTimerTeam0", { 18, 0 } },
+            { "HUDTimerTeam1", { 18, 0 } },
+            { "HUDTransmission", { 16, 0 } },
+            { "HUDVote", { 16, 0 } },
+            { "HUDWeapon", { 14, 0 } }
+        };
 
         // HUD
         g_State.hudScalingRules =
@@ -363,6 +384,45 @@ DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, const char
     return Address;
 }
 
+static bool ShouldClampRagdoll(int thisPtr)
+{
+    int owner = *reinterpret_cast<int*>(thisPtr + 0x14);  // Physics aggregate owner
+    if (!owner)
+        return false;
+
+    // Ragdolls have 8+ bodies (bones), simple props have 2-4
+    int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
+    if (bodyCount < 8)
+        return false;
+
+    double currentTime = g_State.totalGameTime;
+    double expireThreshold = g_State.RAGDOLL_STABILIZE_TIME * 2.0;
+
+    auto* cache = g_State.ragdollCache.data();
+
+    GlobalState::RagdollEntry* freeSlot = nullptr;
+    GlobalState::RagdollEntry* oldestSlot = cache;
+
+    for (size_t i = 0; i < g_State.ragdollCache.size(); ++i)
+    {
+        if (cache[i].owner == owner)
+            return (currentTime - cache[i].firstSeenTime) < g_State.RAGDOLL_STABILIZE_TIME;
+
+        // Reuse empty or expired slots
+        if (!freeSlot && (cache[i].owner == 0 || (currentTime - cache[i].firstSeenTime) > expireThreshold))
+            freeSlot = &cache[i];
+
+        if (cache[i].firstSeenTime < oldestSlot->firstSeenTime)
+            oldestSlot = &cache[i];
+    }
+
+    // New ragdoll: use free slot if available, otherwise evict oldest
+    GlobalState::RagdollEntry* slot = freeSlot ? freeSlot : oldestSlot;
+    slot->owner = owner;
+    slot->firstSeenTime = currentTime;
+    return true;
+}
+
 #pragma endregion
 
 #pragma region Core Hooks
@@ -398,93 +458,116 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 
 static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float fValue)
 {
-    if (ForceWindowed && strcmp(pszVarName, "StreamResources") == 0)
+    switch (pszVarName[0])
     {
-        // Set Windowed flag during engine initialization
-        SetConsoleVariableFloat("Windowed", 1.0f);
-        ForceWindowed = false;
-    }
-
-    if (NoLODBias)
-    {
-        if (strcmp(pszVarName, "ModelLODDistanceScale") == 0)
+        case 'G':  // GPad*
         {
-            if (fValue > 0.0f)
+            if (!SDLGamepadSupport) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            switch (varHash)
             {
-                fValue = 0.003f;
+                case HashHelper::CVarHashes::GPadAimSensitivity:
+                    fValue = GPadAimSensitivity; break;
+                case HashHelper::CVarHashes::GPadAimEdgeThreshold:
+                    fValue = GPadAimEdgeThreshold; break;
+                case HashHelper::CVarHashes::GPadAimEdgeAccelTime:
+                    fValue = GPadAimEdgeAccelTime; break;
+                case HashHelper::CVarHashes::GPadAimEdgeDelayTime:
+                    fValue = GPadAimEdgeDelayTime; break;
+                case HashHelper::CVarHashes::GPadAimEdgeMultiplier:
+                    fValue = GPadAimEdgeMultiplier; break;
+                case HashHelper::CVarHashes::GPadAimAspectRatio:
+                    fValue = GPadAimAspectRatio; break;
             }
+            break;
         }
-        else if (strcmp(pszVarName, "CameraFirstPersonLODBias") == 0)
-        {
-            fValue = 0.0f;
-        }
-    }
 
-    if (SDLGamepadSupport)
-    {
-        if (strcmp(pszVarName, "GPadAimSensitivity") == 0)
+        case 'M':  // ModelLODDistanceScale, MouseInvertY
         {
-            fValue = GPadAimSensitivity;
-        }
-        else if (strcmp(pszVarName, "GPadAimEdgeThreshold") == 0)
-        {
-            fValue = GPadAimEdgeThreshold;
-        }
-        else if (strcmp(pszVarName, "GPadAimEdgeAccelTime") == 0)
-        {
-            fValue = GPadAimEdgeAccelTime;
-        }
-        else if (strcmp(pszVarName, "GPadAimEdgeDelayTime") == 0)
-        {
-            fValue = GPadAimEdgeDelayTime;
-        }
-        else if (strcmp(pszVarName, "GPadAimEdgeMultiplier") == 0)
-        {
-            fValue = GPadAimEdgeMultiplier;
-        }
-        else if (strcmp(pszVarName, "GPadAimAspectRatio") == 0)
-        {
-            fValue = GPadAimAspectRatio;
-        }
-        else if (GyroEnabled && strcmp(pszVarName, "MouseInvertY") == 0)
-        {
-            SetGyroInvertY(fValue == 1.0f);
-        }
-    }
+            if (!NoLODBias && !(SDLGamepadSupport && GyroEnabled)) break;
 
-    if (g_State.isInAutoDetect && AutoResolution != 0)
-    {
-        if (strcmp(pszVarName, "Performance_ScreenHeight") == 0)
-        {
-            fValue = static_cast<float>(g_State.screenHeight);
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (NoLODBias && varHash == HashHelper::CVarHashes::ModelLODDistanceScale)
+            {
+                if (fValue > 0.0f)
+                    fValue = 0.003f;
+            }
+            else if (SDLGamepadSupport && GyroEnabled && varHash == HashHelper::CVarHashes::MouseInvertY)
+            {
+                SetGyroInvertY(fValue == 1.0f);
+            }
+            break;
         }
-        else if (strcmp(pszVarName, "Performance_ScreenWidth") == 0)
-        {
-            fValue = static_cast<float>(g_State.screenWidth);
-        }
-    }
 
-    if (HUDScaling)
-    {
-        if (strcmp(pszVarName, "CrosshairSize") == 0)
+        case 'C':  // CameraFirstPersonLODBias, CrosshairSize, CheckPointOptimizeVideoMemory
         {
-            g_State.crosshairSize = fValue; // Keep a backup of the value as it can be adjusted in the settings
-            fValue = fValue * g_State.scalingFactorCrosshair;
-        }
-        else if (strcmp(pszVarName, "PerturbScale") == 0)
-        {
-            fValue = fValue * g_State.scalingFactorCrosshair;
-        }
-        else if (strcmp(pszVarName, "UseTextScaling") == 0)
-        {
-            fValue = 0.0f; // Scaling is already taken care of
-        }
-    }
+            if (!NoLODBias && !HUDScaling && !OptimizeSaveSpeed) break;
 
-    // Making us wait when saving a checkpoint, likely useless
-    if (OptimizeSaveSpeed && strcmp(pszVarName, "CheckPointOptimizeVideoMemory") == 0)
-    {
-        fValue = 0.0f;
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (NoLODBias && varHash == HashHelper::CVarHashes::CameraFirstPersonLODBias)
+            {
+                fValue = 0.0f;
+            }
+            else if (HUDScaling && varHash == HashHelper::CVarHashes::CrosshairSize)
+            {
+                g_State.crosshairSize = fValue;
+                fValue *= g_State.scalingFactorCrosshair;
+            }
+            else if (OptimizeSaveSpeed && varHash == HashHelper::CVarHashes::CheckPointOptimizeVideoMemory)
+            {
+                fValue = 0.0f;
+            }
+            break;
+        }
+
+        case 'S':  // StreamResources
+        {
+            if (!ForceWindowed) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (varHash == HashHelper::CVarHashes::StreamResources)
+            {
+                SetConsoleVariableFloat("Windowed", 1.0f);
+                ForceWindowed = false;
+            }
+            break;
+        }
+
+        case 'P':  // Performance_Screen*, PerturbScale
+        {
+            if (!(g_State.isInAutoDetect && AutoResolution != 0) && !HUDScaling) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (g_State.isInAutoDetect && AutoResolution != 0)
+            {
+                if (varHash == HashHelper::CVarHashes::Performance_ScreenHeight)
+                {
+                    fValue = static_cast<float>(g_State.screenHeight);
+                }
+                else if (varHash == HashHelper::CVarHashes::Performance_ScreenWidth)
+                {
+                    fValue = static_cast<float>(g_State.screenWidth);
+                }
+            }
+            if (HUDScaling && varHash == HashHelper::CVarHashes::PerturbScale)
+            {
+                fValue *= g_State.scalingFactorCrosshair;
+            }
+            break;
+        }
+
+        case 'U':  // UseTextScaling
+        {
+            if (!HUDScaling) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (varHash == HashHelper::CVarHashes::UseTextScaling)
+            {
+                fValue = 0.0f;
+            }
+            break;
+        }
     }
 
     return SetConsoleVariableFloat(pszVarName, fValue);
@@ -590,10 +673,36 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 // HighFPSFixes
 // ========================
 
+static void __fastcall ProcessBallSocketConstraint_Hook(int thisPtr, int, float* in, float* out)
+{
+    g_State.isProcessingRagdoll = ShouldClampRagdoll(thisPtr);
+    ProcessBallSocketConstraint(thisPtr, in, out);
+    g_State.isProcessingRagdoll = false;
+}
+
+static void __fastcall ProcessLimitedHingeConstraint_Hook(int thisPtr, int, float* in, float* out)
+{
+    g_State.isProcessingRagdoll = ShouldClampRagdoll(thisPtr);
+    ProcessLimitedHingeConstraint(thisPtr, in, out);
+    g_State.isProcessingRagdoll = false;
+}
+
+static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintInstance, float* queryIn)
+{
+    float timeStepBak = constraintInstance[3];
+    if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+        constraintInstance[3] = 250.0f;
+
+    BuildJacobianRow(jacobianData, constraintInstance, queryIn);
+    constraintInstance[3] = timeStepBak;
+}
+
 static void __cdecl ProcessTwistLimitConstraint_Hook(int twistParams, float* constraintInstance, float* queryIn)
 {
     float timeStepBak = constraintInstance[3];
-    if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
+    if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+        constraintInstance[3] = 250.0f;
+
     ProcessTwistLimitConstraint(twistParams, constraintInstance, queryIn);
     constraintInstance[3] = timeStepBak;
 }
@@ -601,16 +710,10 @@ static void __cdecl ProcessTwistLimitConstraint_Hook(int twistParams, float* con
 static void __cdecl ProcessConeLimitConstraint_Hook(int pivotA, float* pivotB, float* constraintInstance, float* queryIn)
 {
     float timeStepBak = constraintInstance[3];
-    if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
-    ProcessConeLimitConstraint(pivotA, pivotB, constraintInstance, queryIn);
-    constraintInstance[3] = timeStepBak;
-}
+    if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+        constraintInstance[3] = 250.0f;
 
-static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintInstance, float* queryIn)
-{
-    float timeStepBak = constraintInstance[3];
-    if (constraintInstance[3] > 250.0f) constraintInstance[3] = 250.0f;
-    BuildJacobianRow(jacobianData, constraintInstance, queryIn);
+    ProcessConeLimitConstraint(pivotA, pivotB, constraintInstance, queryIn);
     constraintInstance[3] = timeStepBak;
 }
 
@@ -618,108 +721,118 @@ static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintIns
 // OptimizeSaveSpeed
 // =========================
 
-static bool __fastcall StreamWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite)
+static bool __fastcall FileWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite)
 {
     HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
-    auto it = g_State.saveBuffers.find(h);
-    if (it != g_State.saveBuffers.end())
+    if (g_State.saveBuffer.handle == h)
     {
-        GlobalState::SaveBuffer& sb = it->second;
+        LONGLONG endPos = g_State.saveBuffer.position + nNumberOfBytesToWrite;
 
-        LONGLONG writePos = sb.position;
-        LONGLONG endPos = writePos + nNumberOfBytesToWrite;
-
-        // Only resize if we exceed pre-allocated size
-        if (endPos > (LONGLONG)sb.buffer.size())
+        if (endPos > (LONGLONG)g_State.saveBuffer.buffer.size())
         {
-            sb.buffer.resize((size_t)endPos, 0);
+            g_State.saveBuffer.buffer.resize((size_t)endPos, 0);
         }
 
-        const uint8_t* data = (const uint8_t*)lpBuffer;
-        memcpy(sb.buffer.data() + writePos, data, nNumberOfBytesToWrite);
+        memcpy(g_State.saveBuffer.buffer.data() + g_State.saveBuffer.position, lpBuffer, nNumberOfBytesToWrite);
 
-        sb.position = endPos;
+        g_State.saveBuffer.position = endPos;
+        if (endPos > g_State.saveBuffer.size)
+        {
+            g_State.saveBuffer.size = endPos;
+        }
+
         return true;
     }
 
-    return StreamWrite(thisp, lpBuffer, nNumberOfBytesToWrite);
+    return FileWrite(thisp, lpBuffer, nNumberOfBytesToWrite);
 }
 
-static HANDLE WINAPI CreateFileA_Hook(LPCSTR lpFileName, DWORD dwDesiredAccess, DWORD dwShareMode, LPSECURITY_ATTRIBUTES lpSecurityAttributes, DWORD dwCreationDisposition, DWORD dwFlagsAndAttributes, HANDLE hTemplateFile)
+static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char a3)
 {
-    HANDLE h = ori_CreateFileA(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+    bool result = FileOpen(thisp, lpFileName, a3);
 
-    if (h != INVALID_HANDLE_VALUE && lpFileName)
+    if (result && lpFileName)
     {
-        std::string_view filename(lpFileName);
+        HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
-        // Check if it's a .sav file being opened for writing
-        if (filename.ends_with(".sav") && (dwDesiredAccess & GENERIC_WRITE))
+        if (h != INVALID_HANDLE_VALUE)
         {
-            GlobalState::SaveBuffer& sb = g_State.saveBuffers[h];
-            sb.position = 0;
-            sb.flushed = false;
-            sb.buffer.resize(4 * 1024 * 1024, 0); // Pre-allocate 4MB
+            std::string_view filename(lpFileName);
+
+            if (filename.ends_with(".sav"))
+            {
+                g_State.saveBuffer.handle = h;
+                g_State.saveBuffer.position = 0;
+                g_State.saveBuffer.size = 0;
+                g_State.saveBuffer.flushed = false;
+                g_State.saveBuffer.buffer.resize(4 * 1024 * 1024, 0);
+            }
         }
     }
 
-    return h;
+    return result;
 }
 
-static BOOL WINAPI SetFilePointerEx_Hook(HANDLE hFile, LARGE_INTEGER liDistanceToMove, PLARGE_INTEGER lpNewFilePointer, DWORD dwMoveMethod)
+static bool __fastcall FileSeek_Hook(HANDLE* thisp, int, LARGE_INTEGER liDistanceToMove)
 {
-    auto it = g_State.saveBuffers.find(hFile);
-    if (it != g_State.saveBuffers.end() && !it->second.flushed)
+    HANDLE h = thisp[1];
+
+    if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
     {
-        GlobalState::SaveBuffer& sb = it->second;
-
-        switch (dwMoveMethod)
-        {
-            case FILE_BEGIN:
-                sb.position = liDistanceToMove.QuadPart;
-                break;
-            case FILE_CURRENT:
-                sb.position += liDistanceToMove.QuadPart;
-                break;
-            case FILE_END:
-                sb.position = sb.buffer.size() + liDistanceToMove.QuadPart;
-                break;
-        }
-
-        if (lpNewFilePointer)
-        {
-            lpNewFilePointer->QuadPart = sb.position;
-        }
-
-        return TRUE;
+        g_State.saveBuffer.position = liDistanceToMove.QuadPart;
+        return true;
     }
 
-    return ori_SetFilePointerEx(hFile, liDistanceToMove, lpNewFilePointer, dwMoveMethod);
+    return FileSeek(thisp, liDistanceToMove);
 }
 
-static BOOL WINAPI CloseHandle_Hook(HANDLE hObject)
+static bool __fastcall FileSeekEnd_Hook(HANDLE* thisp, int)
 {
-    auto it = g_State.saveBuffers.find(hObject);
-    if (it != g_State.saveBuffers.end())
+    HANDLE h = thisp[1];
+    if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
     {
-        GlobalState::SaveBuffer& sb = it->second;
-        if (!sb.flushed && !sb.buffer.empty())
+        g_State.saveBuffer.position = g_State.saveBuffer.size;
+        return true;
+    }
+
+    return FileSeekEnd(thisp);
+}
+
+static bool __fastcall FileTell_Hook(DWORD* thisp, int, DWORD* a2)
+{
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+
+    if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
+    {
+        a2[0] = (DWORD)g_State.saveBuffer.position;
+        a2[1] = (DWORD)(g_State.saveBuffer.position >> 32);
+        return 1;
+    }
+
+    return FileTell(thisp, a2);
+}
+
+static bool __fastcall FileClose_Hook(DWORD* thisp, int)
+{
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+
+    if (g_State.saveBuffer.handle == h)
+    {
+        if (!g_State.saveBuffer.flushed && g_State.saveBuffer.size > 0)
         {
-            sb.flushed = true;
+            g_State.saveBuffer.flushed = true;
+
             LARGE_INTEGER zero = { 0 };
-            ori_SetFilePointerEx(hObject, zero, nullptr, FILE_BEGIN);
+            FileSeek((HANDLE*)thisp, zero);
 
-            DWORD actualSize = (DWORD)sb.position;
-            DWORD bytesWritten = 0;
-            WriteFile(hObject, sb.buffer.data(), actualSize, &bytesWritten, nullptr);
-            FlushFileBuffers(hObject);
+            FileWrite(thisp, g_State.saveBuffer.buffer.data(), (DWORD)g_State.saveBuffer.size);
         }
 
-        g_State.saveBuffers.erase(it);
+        g_State.saveBuffer.Reset();
     }
 
-    return ori_CloseHandle(hObject);
+    return FileClose(thisp);
 }
 
 // ===========================
@@ -804,9 +917,7 @@ static bool __fastcall ResetDevice_Hook(DWORD* thisPtr, int, void* a2, unsigned 
 
 static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-    bool consoleVisible = Console::IsInitialized() && g_State.isConsoleOpen;
-
-    if (consoleVisible)
+    if (g_State.isConsoleOpen)
     {
         ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam);
 
@@ -827,7 +938,7 @@ static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
 
     int result = WindowProc(hWnd, Msg, wParam, lParam);
 
-    if (Msg == WM_ACTIVATEAPP && wParam && consoleVisible)
+    if (Msg == WM_ACTIVATEAPP && wParam && g_State.isConsoleOpen)
     {
         Console::OnWindowReactivated();
     }
@@ -840,21 +951,20 @@ static int __cdecl ConsoleOutput_Hook(int a1, int a2, char* Source)
     if (Source && Source[0])
     {
         size_t len = strlen(Source);
-        if (len > 0 && Source[len - 1] == '\n')
+        if (len > 0)
         {
-            char buffer[512];
-            strncpy(buffer, Source, sizeof(buffer) - 1);
-            buffer[sizeof(buffer) - 1] = '\0';
-            if (strlen(buffer) > 0 && buffer[strlen(buffer) - 1] == '\n')
+            if (Source[len - 1] == '\n')
             {
-                buffer[strlen(buffer) - 1] = '\0';
+                char buffer[512];
+                size_t copyLen = (len - 1 < sizeof(buffer) - 1) ? len - 1 : sizeof(buffer) - 1;
+                memcpy(buffer, Source, copyLen);
+                buffer[copyLen] = '\0';
+                Console::AddOutput("%s", buffer);
             }
-
-            Console::AddOutput("%s", buffer);
-        }
-        else
-        {
-            Console::AddOutput("%s", Source);
+            else
+            {
+                Console::AddOutput("%s", Source);
+            }
         }
     }
 
@@ -960,11 +1070,11 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
     return res;
 }
 
-// ================================
-// MaxFPS & SDLGamepadSupport
-// ================================
+// ===============================================
+// MaxFPS & SDLGamepadSupport & ConsoleEnabled
+// ===============================================
 
-static int __fastcall MainLoop_Hook(int thisPtr, int)
+static int __fastcall MainGameLoop_Hook(int thisPtr, int)
 {
     if (g_State.isUsingFpsLimiter)
     {
@@ -978,16 +1088,14 @@ static int __fastcall MainLoop_Hook(int thisPtr, int)
 
     if (ConsoleEnabled)
     {
-        g_State.isConsoleOpen = Console::Update(g_State.isPlaying, g_State.isMsgBoxVisible);
+        g_State.isConsoleOpen = Console::Update();
     }
 
     if (HighFPSFixes)
     {
-        int* frameStruct = *(int**)(thisPtr + 0x5D0);
-        if (frameStruct)
+        if (auto* pTimingStruct = *reinterpret_cast<void**>(thisPtr + 0x5D0))
         {
-            float frameTime = *(float*)((char*)frameStruct + 0x2C);
-            g_State.currentFrameTime = frameTime;
+            g_State.currentFrameTime = *reinterpret_cast<float*>(static_cast<char*>(pTimingStruct) + 0x2C);
             g_State.totalGameTime += g_State.currentFrameTime;
         }
     }
@@ -1149,21 +1257,29 @@ static void ApplyFixHighFPSPhysics()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x98390), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99050), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8D30), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9940), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9F00), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
             break;
         case FEARMP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x984B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99170), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8E50), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9A60), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAA020), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDC4B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD4C0), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFF710), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100320), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1008E0), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP2:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD520), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDE530), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100780), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x101390), &ProcessTwistLimitConstraint_Hook, (LPVOID*)&ProcessTwistLimitConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x101950), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
@@ -1175,16 +1291,40 @@ static void ApplyOptimizeSaveSpeed()
 {
     if (!OptimizeSaveSpeed) return;
 
-    HookHelper::ApplyHookAPI(L"kernel32.dll", "CreateFileA", &CreateFileA_Hook, (LPVOID*)&ori_CreateFileA);
-    HookHelper::ApplyHookAPI(L"kernel32.dll", "SetFilePointerEx", &SetFilePointerEx_Hook, (LPVOID*)&ori_SetFilePointerEx);
-    HookHelper::ApplyHookAPI(L"kernel32.dll", "CloseHandle", &CloseHandle_Hook, (LPVOID*)&ori_CloseHandle);
-
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C670), &StreamWrite_Hook, (LPVOID*)&StreamWrite, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C790), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29720), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29900), &StreamWrite_Hook, (LPVOID*)&StreamWrite); break;
+        case FEAR:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C670), &FileWrite_Hook, (LPVOID*)&FileWrite, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C810), &FileOpen_Hook, (LPVOID*)&FileOpen, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C6B0), &FileSeek_Hook, (LPVOID*)&FileSeek, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C6E0), &FileSeekEnd_Hook, (LPVOID*)&FileSeekEnd, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C700), &FileTell_Hook, (LPVOID*)&FileTell, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C7A0), &FileClose_Hook, (LPVOID*)&FileClose, true);
+            break;
+        case FEARMP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C790), &FileWrite_Hook, (LPVOID*)&FileWrite);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C930), &FileOpen_Hook, (LPVOID*)&FileOpen);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C7D0), &FileSeek_Hook, (LPVOID*)&FileSeek);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C800), &FileSeekEnd_Hook, (LPVOID*)&FileSeekEnd);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C820), &FileTell_Hook, (LPVOID*)&FileTell);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1C8C0), &FileClose_Hook, (LPVOID*)&FileClose);
+            break;
+        case FEARXP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29720), &FileWrite_Hook, (LPVOID*)&FileWrite);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x298F0), &FileOpen_Hook, (LPVOID*)&FileOpen);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29760), &FileSeek_Hook, (LPVOID*)&FileSeek);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29790), &FileSeekEnd_Hook, (LPVOID*)&FileSeekEnd);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x297B0), &FileTell_Hook, (LPVOID*)&FileTell);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29850), &FileClose_Hook, (LPVOID*)&FileClose);
+            break;
+        case FEARXP2:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29900), &FileWrite_Hook, (LPVOID*)&FileWrite);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29AD0), &FileOpen_Hook, (LPVOID*)&FileOpen);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29940), &FileSeek_Hook, (LPVOID*)&FileSeek);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29970), &FileSeekEnd_Hook, (LPVOID*)&FileSeekEnd);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29990), &FileTell_Hook, (LPVOID*)&FileTell);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x29A30), &FileClose_Hook, (LPVOID*)&FileClose);
+            break;
     }
 }
 
@@ -1318,10 +1458,10 @@ static void HookMainLoop()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFB20), &MainLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFC30), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x19100), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x192B0), &MainLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFB20), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFC30), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x19100), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x192B0), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop); break;
     }
 }
 
@@ -1373,7 +1513,7 @@ static void ApplyForceRenderMode()
 
 static void ApplyDisableJoystick()
 {
-    if (!SDLGamepadSupport) return;
+    if (!SDLGamepadSupport && !DisableRedundantHIDInit) return;
 
     switch (g_State.CurrentFEARGame)
     {
@@ -1416,7 +1556,7 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA290), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C800), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
-        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x9320);
+        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x9320);
     }
     else if (g_State.CurrentFEARGame == FEARXP)
     {
@@ -1446,7 +1586,7 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11090), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80410), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
-        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x100E0);
+        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x100E0);
     }
     else if (g_State.CurrentFEARGame == FEARXP2)
     {
@@ -1476,7 +1616,7 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11330), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81150), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
-        RunConsoleCommand = reinterpret_cast<void(__stdcall*)(const char*)>(g_State.BaseAddress + 0x10320);
+        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x10320);
     }
 }
 
