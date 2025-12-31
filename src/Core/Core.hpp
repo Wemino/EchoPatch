@@ -148,7 +148,6 @@ struct GlobalState
 	// ======================
 	// Server State
 	// ======================
-	bool needServerTermHooking = false;
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
 	std::list<DWORD> hookedServerFunctionAddresses;
@@ -325,6 +324,7 @@ extern bool SkipDellIntro;
 
 // Console
 extern bool ConsoleEnabled;
+extern int DebugLevel;
 extern bool HighResolutionScaling;
 extern bool LogOutputToFile;
 

@@ -44,7 +44,6 @@ int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int
 int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
-int(__thiscall* TerminateServer)(int) = nullptr;
 bool(__thiscall* FileWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char);
 bool(__thiscall* FileSeek)(HANDLE*, LARGE_INTEGER) = nullptr;
@@ -144,6 +143,7 @@ bool SkipDellIntro = false;
 
 // Console
 bool ConsoleEnabled = false;
+int DebugLevel = 0;
 bool HighResolutionScaling = false;
 bool LogOutputToFile = false;
 
@@ -238,6 +238,7 @@ static void ReadConfig()
 
     // Console
     ConsoleEnabled = IniHelper::ReadInteger("Console", "ConsoleEnabled", 0) == 1;
+    DebugLevel = IniHelper::ReadInteger("Console", "DebugLevel", 0);
     HighResolutionScaling = IniHelper::ReadInteger("Console", "HighResolutionScaling", 1) == 1;
     LogOutputToFile = IniHelper::ReadInteger("Console", "LogOutputToFile", 0) == 1;
 
@@ -361,9 +362,6 @@ static void ReadConfig()
     // 10 slots max
     MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
 
-    // If we need to hook the function used to unload the server
-    g_State.needServerTermHooking = EnableCustomMaxWeaponCapacity;
-
     // Gyro Config
     SetGyroEnabled(GyroEnabled);
     SetGyroSensitivity(GyroSensitivity);
@@ -403,7 +401,7 @@ static bool ShouldClampRagdoll(int thisPtr)
     GlobalState::RagdollEntry* freeSlot = nullptr;
     GlobalState::RagdollEntry* oldestSlot = cache;
 
-    for (size_t i = 0; i < g_State.ragdollCache.size(); ++i)
+    for (size_t i = 0; i < g_State.ragdollCache.size(); i++)
     {
         if (cache[i].owner == owner)
             return (currentTime - cache[i].firstSeenTime) < g_State.RAGDOLL_STABILIZE_TIME;
@@ -1170,18 +1168,6 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* 
     return FindStringCaseInsensitive(thisPtr, video_path);
 }
 
-static int __fastcall TerminateServer_Hook(int thisPtr, int)
-{
-    // Server is unloading, remove all previously installed hooks
-    for (DWORD address : g_State.hookedServerFunctionAddresses)
-    {
-        MH_RemoveHook((void*)address);
-    }
-
-    g_State.hookedServerFunctionAddresses.clear();
-    return TerminateServer(thisPtr);
-}
-
 static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken, DWORD dwFlags, LPSTR pszPath)
 {
     int original_csidl = csidl;
@@ -1478,19 +1464,6 @@ static void HookVSyncOverride()
     }
 }
 
-static void HookTerminateServer()
-{
-    if (!g_State.needServerTermHooking) return;
-
-    switch (g_State.CurrentFEARGame)
-    {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x634C0), &TerminateServer_Hook, (LPVOID*)&TerminateServer, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x635E0), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x88B00), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x89860), &TerminateServer_Hook, (LPVOID*)&TerminateServer); break;
-    }
-}
-
 static void ApplySaveFolderRedirect()
 {
     if (!RedirectSaveFolder) return;
@@ -1557,6 +1530,11 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C800), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
         RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x9320);
+
+        if (DebugLevel != 0)
+        {
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x16F6C4, DebugLevel, false);
+        }
     }
     else if (g_State.CurrentFEARGame == FEARXP)
     {
@@ -1587,6 +1565,11 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80410), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
         RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x100E0);
+
+        if (DebugLevel != 0)
+        {
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x21370C, DebugLevel, false);
+        }
     }
     else if (g_State.CurrentFEARGame == FEARXP2)
     {
@@ -1617,6 +1600,11 @@ static void InitConsole(LPCSTR title)
         HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81150), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
 
         RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x10320);
+
+        if (DebugLevel != 0)
+        {
+            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x21572C, DebugLevel, false);
+        }
     }
 }
 
@@ -1661,7 +1649,6 @@ static void Init()
     // Misc
     HookMainLoop();
     HookVSyncOverride();
-    HookTerminateServer();
     ApplySkipIntroHook();
     ApplyConsoleVariableHook();
     ApplySaveFolderRedirect();

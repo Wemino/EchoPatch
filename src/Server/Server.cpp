@@ -41,7 +41,7 @@ static void ApplyPersistentWorldServerPatch()
 
     if (addr_BodyFading != 0)
     {
-        MemoryHelper::WriteMemory<uint8_t>(addr_BodyFading + 0x22, 0x75);
+        MemoryHelper::WriteMemory<uint8_t>(addr_BodyFading + 0x22, 0xEB);
     }
 }
 
@@ -63,7 +63,16 @@ static void ApplySetWeaponCapacityServerPatch()
 
 void ApplyServerPatch()
 {
-    if (g_State.hookedServerFunctionAddresses.size() != 0) return;
+    if (g_State.hookedServerFunctionAddresses.size() != 0)
+    {
+        // Server has been unloaded, remove all previously installed hooks
+        for (DWORD address : g_State.hookedServerFunctionAddresses)
+        {
+            MH_RemoveHook((void*)address);
+        }
+
+        g_State.hookedServerFunctionAddresses.clear();
+    }
 
     ApplyPersistentWorldServerPatch();
     ApplySetWeaponCapacityServerPatch();

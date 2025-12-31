@@ -1125,6 +1125,12 @@ static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
 static void __stdcall SetInputState_Hook(bool bAllowInput)
 {
 	g_State.wasInputDisabled = !bAllowInput;
+
+	if (g_State.isConsoleOpen)
+	{
+		bAllowInput = false;
+	}
+
 	SetInputState(bAllowInput);
 }
 
