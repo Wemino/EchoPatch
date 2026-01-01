@@ -1281,7 +1281,7 @@ extern SDL_DECLSPEC Sint16 SDLCALL SDL_GetGamepadAxis(SDL_Gamepad *gamepad, SDL_
  * You do not normally need to call this function unless you are parsing
  * SDL_Gamepad mappings in your own code.
  *
- * \param str string representing a SDL_Gamepad axis.
+ * \param str string representing a SDL_Gamepad button.
  * \returns the SDL_GamepadButton enum corresponding to the input string, or
  *          `SDL_GAMEPAD_BUTTON_INVALID` if no match was found.
  *
@@ -1495,7 +1495,7 @@ extern SDL_DECLSPEC float SDLCALL SDL_GetGamepadSensorDataRate(SDL_Gamepad *game
  * Get the current state of a gamepad sensor.
  *
  * The number of values and interpretation of the data is sensor dependent.
- * See SDL_sensor.h for the details for each type of sensor.
+ * See the remarks in SDL_SensorType for details for each type of sensor.
  *
  * \param gamepad the gamepad to query.
  * \param type the type of sensor to query.

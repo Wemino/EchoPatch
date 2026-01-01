@@ -1084,6 +1084,21 @@ extern "C" {
  */
 #define SDL_HINT_HIDAPI_LIBUSB "SDL_HIDAPI_LIBUSB"
 
+
+/**
+ * A variable to control whether HIDAPI uses libusb for GameCube adapters.
+ *
+ * The variable can be set to the following values:
+ *
+ * - "0": HIDAPI will not use libusb for GameCube adapters.
+ * - "1": HIDAPI will use libusb for GameCube adapters if available. (default)
+ *
+ * This hint should be set before SDL is initialized.
+ *
+ * \since This hint is available since SDL 3.2.0.
+ */
+#define SDL_HINT_HIDAPI_LIBUSB_GAMECUBE "SDL_HIDAPI_LIBUSB_GAMECUBE"
+
 /**
  * A variable to control whether HIDAPI uses libusb only for whitelisted
  * devices.
@@ -3541,10 +3556,12 @@ extern "C" {
  * prioritized in the list of displays, as exposed by calling
  * SDL_GetDisplays(), with the first listed becoming the primary display. The
  * naming convention can vary depending on the environment, but it is usually
- * a connector name (e.g. 'DP-1', 'DP-2', 'HDMI-A-1',etc...).
+ * a connector name (e.g. 'DP-1', 'DP-2', 'HDMI-A-1', etc...).
  *
- * On Wayland and X11 desktops, the connector names associated with displays
- * can typically be found by using the `xrandr` utility.
+ * On Wayland desktops, the connector names associated with displays can be
+ * found in the `name` property of the info output from `wayland-info -i
+ * wl_output`. On X11 desktops, the `xrandr` utility can be used to retrieve
+ * the connector names associated with displays.
  *
  * This hint is currently supported on the following drivers:
  *
@@ -3725,8 +3742,10 @@ extern "C" {
  * The variable can be set to the following values:
  *
  * - "0": Fullscreen windows will not be minimized when they lose focus.
- *   (default)
  * - "1": Fullscreen windows are minimized when they lose focus.
+ * - "auto": Fullscreen windows are minimized when they lose focus if they use
+ *   exclusive fullscreen modes, so the desktop video mode is restored.
+ *   (default)
  *
  * This hint can be set anytime.
  *
