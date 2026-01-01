@@ -57,6 +57,7 @@ struct ControllerState
     ButtonState rightShoulderState;
     bool commandActive[117] = { false };
     bool usingControllerInput = false;
+    int simulatedKeyPressCount = 0;
 };
 
 // ==========================================================

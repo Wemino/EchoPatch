@@ -177,19 +177,7 @@ struct GlobalState
 	double velocityTimeAccumulator = 0.0;
 	double lastReportedVelocity = 0.0;
 	double prevWindowSpeed = 0.0;
-
-	// ======================
-	// Ragdoll Physics Fix
-	// ======================
-	struct RagdollEntry
-	{
-		int owner = 0;
-		double firstSeenTime = 0.0;
-	};
-
 	bool isProcessingRagdoll = false;
-	static inline std::array<RagdollEntry, 32> ragdollCache{};
-	static constexpr double RAGDOLL_STABILIZE_TIME = 5.0;
 
 	// ======================
 	// Console
@@ -236,6 +224,16 @@ struct GlobalState
 	static inline SaveBuffer saveBuffer{};
 
 	// ======================
+	// MipMapBias Override
+	// ======================
+
+	bool isLoadingWorld = false;
+	void* hookedSetTextureAddr = nullptr;
+	IDirect3DDevice9* hookedDevice = nullptr;
+	std::vector<void*> sharpTextures;
+	bool stageIsDirty[16] = { false };
+
+	// ======================
 	// HUD Data
 	// ======================
 	struct DataEntry
@@ -268,6 +266,7 @@ extern bool FixNvidiaShadowCorruption;
 extern bool DisableXPWidescreenFiltering;
 extern bool FixKeyboardInputLanguage;
 extern bool WeaponFixes;
+extern bool FixSoundWrapperLoading;
 extern bool FixScriptedAnimationCrash;
 extern int CheckLAAPatch;
 

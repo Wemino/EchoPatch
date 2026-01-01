@@ -25,9 +25,7 @@ GlobalState g_State;
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 BOOL(WINAPI* ori_AdjustWindowRect)(LPRECT, DWORD, BOOL);
 HRESULT(WINAPI* ori_SHGetFolderPathA)(HWND, int, HANDLE, DWORD, LPSTR);
-HANDLE(WINAPI* ori_CreateFileA)(LPCSTR, DWORD, DWORD, LPSECURITY_ATTRIBUTES, DWORD, DWORD, HANDLE) = nullptr;
-BOOL(WINAPI* ori_SetFilePointerEx)(HANDLE, LARGE_INTEGER, PLARGE_INTEGER, DWORD) = nullptr;
-BOOL(WINAPI* ori_CloseHandle)(HANDLE) = nullptr;
+HRESULT(WINAPI* D3D9_SetTexture)(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9*) = nullptr;
 
 // ======================
 // Core Function Pointers
@@ -45,11 +43,14 @@ int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
 bool(__thiscall* FileWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
-bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char);
+bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char) = nullptr;
 bool(__thiscall* FileSeek)(HANDLE*, LARGE_INTEGER) = nullptr;
 bool(__thiscall* FileSeekEnd)(HANDLE*) = nullptr;
 bool(__thiscall* FileTell)(DWORD*, DWORD*) = nullptr;
 bool(__thiscall* FileClose)(DWORD*) = nullptr;
+int(__stdcall* CreateTextureWrapper)(DWORD*, int, int) = nullptr;
+int(__thiscall* DestroyTextureWrapper)(int*, int*) = nullptr;
+int(__thiscall* LoadWorld)(BYTE*, int, int) = nullptr;
 char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 char(__thiscall* GetSocketTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
 bool(__cdecl* EndScene)() = nullptr;
@@ -73,6 +74,7 @@ bool FixNvidiaShadowCorruption = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
+bool FixSoundWrapperLoading = false;
 bool FixScriptedAnimationCrash = false;
 int CheckLAAPatch = 0;
 
@@ -168,6 +170,7 @@ static void ReadConfig()
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
+    FixSoundWrapperLoading = IniHelper::ReadInteger("Fixes", "FixSoundWrapperLoading", 1) == 1;
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
@@ -382,43 +385,15 @@ DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, const char
     return Address;
 }
 
-static bool ShouldClampRagdoll(int thisPtr)
+static inline bool ShouldClampRagdoll(int thisPtr)
 {
-    int owner = *reinterpret_cast<int*>(thisPtr + 0x14);  // Physics aggregate owner
+    int owner = *reinterpret_cast<int*>(thisPtr + 0x14);
     if (!owner)
         return false;
 
     // Ragdolls have 8+ bodies (bones), simple props have 2-4
     int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
-    if (bodyCount < 8)
-        return false;
-
-    double currentTime = g_State.totalGameTime;
-    double expireThreshold = g_State.RAGDOLL_STABILIZE_TIME * 2.0;
-
-    auto* cache = g_State.ragdollCache.data();
-
-    GlobalState::RagdollEntry* freeSlot = nullptr;
-    GlobalState::RagdollEntry* oldestSlot = cache;
-
-    for (size_t i = 0; i < g_State.ragdollCache.size(); i++)
-    {
-        if (cache[i].owner == owner)
-            return (currentTime - cache[i].firstSeenTime) < g_State.RAGDOLL_STABILIZE_TIME;
-
-        // Reuse empty or expired slots
-        if (!freeSlot && (cache[i].owner == 0 || (currentTime - cache[i].firstSeenTime) > expireThreshold))
-            freeSlot = &cache[i];
-
-        if (cache[i].firstSeenTime < oldestSlot->firstSeenTime)
-            oldestSlot = &cache[i];
-    }
-
-    // New ragdoll: use free slot if available, otherwise evict oldest
-    GlobalState::RagdollEntry* slot = freeSlot ? freeSlot : oldestSlot;
-    slot->owner = owner;
-    slot->firstSeenTime = currentTime;
-    return true;
+    return bodyCount >= 8;
 }
 
 #pragma endregion
@@ -687,32 +662,44 @@ static void __fastcall ProcessLimitedHingeConstraint_Hook(int thisPtr, int, floa
 
 static void __cdecl BuildJacobianRow_Hook(int jacobianData, float* constraintInstance, float* queryIn)
 {
-    float timeStepBak = constraintInstance[3];
     if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+    {
+        float timeStepBak = constraintInstance[3];
         constraintInstance[3] = 250.0f;
+        BuildJacobianRow(jacobianData, constraintInstance, queryIn);
+        constraintInstance[3] = timeStepBak;
+        return;
+    }
 
     BuildJacobianRow(jacobianData, constraintInstance, queryIn);
-    constraintInstance[3] = timeStepBak;
 }
 
 static void __cdecl ProcessTwistLimitConstraint_Hook(int twistParams, float* constraintInstance, float* queryIn)
 {
-    float timeStepBak = constraintInstance[3];
     if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+    {
+        float timeStepBak = constraintInstance[3];
         constraintInstance[3] = 250.0f;
+        ProcessTwistLimitConstraint(twistParams, constraintInstance, queryIn);
+        constraintInstance[3] = timeStepBak;
+        return;
+    }
 
     ProcessTwistLimitConstraint(twistParams, constraintInstance, queryIn);
-    constraintInstance[3] = timeStepBak;
 }
 
 static void __cdecl ProcessConeLimitConstraint_Hook(int pivotA, float* pivotB, float* constraintInstance, float* queryIn)
 {
-    float timeStepBak = constraintInstance[3];
     if (g_State.isProcessingRagdoll && constraintInstance[3] > 250.0f)
+    {
+        float timeStepBak = constraintInstance[3];
         constraintInstance[3] = 250.0f;
+        ProcessConeLimitConstraint(pivotA, pivotB, constraintInstance, queryIn);
+        constraintInstance[3] = timeStepBak;
+        return;
+    }
 
     ProcessConeLimitConstraint(pivotA, pivotB, constraintInstance, queryIn);
-    constraintInstance[3] = timeStepBak;
 }
 
 // =========================
@@ -834,38 +821,151 @@ static bool __fastcall FileClose_Hook(DWORD* thisp, int)
 }
 
 // ===========================
+// ReducedMipMapBias
+// ===========================
+
+static int __fastcall LoadWorld_Hook(BYTE* thisPtr, int, int a2, int a3)
+{
+    g_State.isLoadingWorld = true;
+    int result = LoadWorld(thisPtr, a2, a3);
+    g_State.isLoadingWorld = false;
+    return result;
+}
+
+static int __stdcall CreateTextureWrapper_Hook(DWORD* a1, int a2, int a3)
+{
+    int result = CreateTextureWrapper(a1, a2, a3);
+
+    if (g_State.isLoadingWorld && result && a3)
+    {
+        const char* path = reinterpret_cast<const char*>(a3);
+
+        if (TextureHelper::ShouldKeepSharp(path))
+        {
+            void* d3dTexture = *reinterpret_cast<void**>(result);
+
+            if (d3dTexture)
+            {
+                auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
+                if (it == g_State.sharpTextures.end() || *it != d3dTexture)
+                {
+                    g_State.sharpTextures.insert(it, d3dTexture);
+                }
+            }
+        }
+    }
+
+    return result;
+}
+
+static int __fastcall DestroyTextureWrapper_Hook(int* thisPtr, int, int* a2)
+{
+    if (a2)
+    {
+        void* d3dTexture = reinterpret_cast<void*>(*a2);
+
+        if (d3dTexture)
+        {
+            auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
+            if (it != g_State.sharpTextures.end() && *it == d3dTexture)
+            {
+                g_State.sharpTextures.erase(it);
+            }
+        }
+    }
+
+    return DestroyTextureWrapper(thisPtr, a2);
+}
+
+static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDirect3DBaseTexture9* pTexture)
+{
+    HRESULT hr = D3D9_SetTexture(device, Stage, pTexture);
+
+    if (Stage >= 16)
+        return hr;
+
+    bool isSharp = pTexture && std::binary_search(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), pTexture);
+
+    if (isSharp)
+    {
+        if (!g_State.stageIsDirty[Stage])
+        {
+            float sharpBias = -2.0f;
+            device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&sharpBias));
+            g_State.stageIsDirty[Stage] = true;
+        }
+    }
+    else if (g_State.stageIsDirty[Stage])
+    {
+        float defaultBias = -0.5f;
+        device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&defaultBias));
+        g_State.stageIsDirty[Stage] = false;
+    }
+
+    return hr;
+}
+
+// ===========================
 // FixNvidiaShadowCorruption
 // ===========================
 
 static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
 {
-    DWORD VendorId = a2[267];
-
-    // NVIDIA device is used for the game
-    if (VendorId == 0x10DE)
+    if (FixNvidiaShadowCorruption)
     {
-        switch (g_State.CurrentFEARGame)
+        DWORD VendorId = a2[267];
+
+        // NVIDIA device is used for the game
+        if (VendorId == 0x10DE)
         {
-            // CreateVertexBuffer: D3DPOOL_MANAGED -> D3DPOOL_SYSTEMMEM
-            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 2); break;
-            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 2); break;
-            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 2); break;
-            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 2); break;
+            switch (g_State.CurrentFEARGame)
+            {
+                // CreateVertexBuffer: D3DPOOL_MANAGED -> D3DPOOL_SYSTEMMEM
+                case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 2); break;
+                case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 2); break;
+                case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 2); break;
+                case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 2); break;
+            }
+        }
+        else
+        {
+            switch (g_State.CurrentFEARGame)
+            {
+                // Should never happen but do it anyway
+                case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 1); break;
+                case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 1); break;
+                case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 1); break;
+                case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 1); break;
+            }
         }
     }
-    else
+
+    char result = CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
+
+    if (result && ReducedMipMapBias)
     {
-        switch (g_State.CurrentFEARGame)
+        IDirect3DDevice9* device = reinterpret_cast<IDirect3DDevice9*>(thisp[0]);
+        if (!device)
+            return result;
+
+        void** vtable = *reinterpret_cast<void***>(device);
+        void* newSetTextureAddr = vtable[65];
+
+        if (g_State.hookedSetTextureAddr)
         {
-            // Should never happen but do it anyway
-            case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 1); break;
-            case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 1); break;
-            case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 1); break;
-            case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 1); break;
+            MH_RemoveHook(g_State.hookedSetTextureAddr);
+            D3D9_SetTexture = nullptr;
         }
+
+        g_State.sharpTextures.clear();
+        std::fill(std::begin(g_State.stageIsDirty), std::end(g_State.stageIsDirty), false);
+
+        HookHelper::ApplyHook(newSetTextureAddr, &SetTexture_Hook, (LPVOID*)&D3D9_SetTexture);
+        g_State.hookedSetTextureAddr = newSetTextureAddr;
+        g_State.hookedDevice = device;
     }
 
-    return CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
+    return result;
 }
 
 // ===========================
@@ -1316,7 +1416,7 @@ static void ApplyOptimizeSaveSpeed()
 
 static void ApplyFixNvidiaShadowCorruption()
 {
-    if (!FixNvidiaShadowCorruption) return;
+    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias) return;
 
     switch (g_State.CurrentFEARGame)
     {
@@ -1374,9 +1474,29 @@ static void ApplyReducedMipMapBias()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
-        case FEARMP:  MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x16D5C4, -0.5f, false); break;
-        case FEARXP:  MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x212B94, -0.5f, false); break;
-        case FEARXP2: MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x214BA4, -0.5f, false); break;
+            MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x16D5C4, -0.5f, false);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x60D50), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10A1A0), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10B790), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
+            break;
+        case FEARMP:
+            MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x16D5C4, -0.5f, false);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x60E70), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10A2C0), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x10B8B0), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
+            break;
+        case FEARXP:
+            MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x212B94, -0.5f, false);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x84E10), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1A7DD0), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1AA040), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
+            break;
+        case FEARXP2:
+            MemoryHelper::WriteMemory<float>(g_State.BaseAddress + 0x212B94, -0.5f, false);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x85B70), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1A94A0), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1AB700), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
+            break;
     }
 }
 
@@ -1626,6 +1746,12 @@ static void Init()
     if (SDLGamepadSupport)
     {
         SDLGamepadSupport = InitializeSDLGamepad();
+    }
+
+    // DSOAL fix
+    if (FixSoundWrapperLoading)
+    {
+        DirectSoundHelper::Init();
     }
 
     // Get the handle of the client as soon as it is loaded

@@ -207,14 +207,18 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		}
 		else
 		{
-			// Max-of-two windows prevents aliasing dips at extreme FPS where physics tick alignment causes alternating high/low readings
+			// Max-of-two windows prevents aliasing dips at extreme FPS
 			g_State.lastReportedVelocity = std::max(currentWindowSpeed, g_State.prevWindowSpeed);
 
 			// Snap near-zero to true zero for clean idle state
 			if (g_State.lastReportedVelocity < 0.01)
 				g_State.lastReportedVelocity = 0.0;
 
-			g_State.prevWindowSpeed = currentWindowSpeed;
+			// Decay prevWindowSpeed slowly to prevent double-dip glitches
+			if (currentWindowSpeed > g_State.prevWindowSpeed)
+				g_State.prevWindowSpeed = currentWindowSpeed;
+			else
+				g_State.prevWindowSpeed = std::max(currentWindowSpeed, g_State.prevWindowSpeed * 0.95);
 		}
 
 		g_State.velocityAccumulator = 0.0;
@@ -1276,6 +1280,11 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 		switch (Msg)
 		{
 			case WM_KEYDOWN:
+				if (g_Controller.simulatedKeyPressCount > 0)
+					g_Controller.simulatedKeyPressCount--;
+				else
+					OnKeyboardMouseInput();
+			break;
 			case WM_LBUTTONDOWN:
 			case WM_RBUTTONDOWN:
 			case WM_MBUTTONDOWN:
@@ -1508,17 +1517,16 @@ static void ApplyControllerClientPatch()
 		DWORD addr_BeginAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 48 28 8B 81 5C 01 00 00", "BeginAim");
 		DWORD addr_EndAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 88 F4 05 00 00 85 C9", "EndAim");
 
-		if (addr_ApplyLocalRotationOffset == 0 ||
-			addr_UpdatePlayerMovement == 0 ||
-			addr_BeginAim == 0 ||
-			addr_EndAim == 0) {
-			return;
+		if (addr_ApplyLocalRotationOffset != 0 &&
+			addr_UpdatePlayerMovement != 0 &&
+			addr_BeginAim != 0 &&
+			addr_EndAim != 0)
+		{
+			HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
+			HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
+			HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
+			HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
 		}
-
-		HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
-		HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
-		HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
-		HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
 	}
 
     if (!HideMouseCursor) return;

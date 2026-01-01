@@ -1286,6 +1286,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
 
         if (simulatedKey != 0)
         {
+            g_Controller.simulatedKeyPressCount++;
             PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, 0);
         }
         else
@@ -1420,6 +1421,7 @@ static void ProcessMenuNavigation()
 
                 if (elapsed > MENU_REPEAT_DELAY && sinceLast > MENU_REPEAT_RATE)
                 {
+                    g_Controller.simulatedKeyPressCount++;
                     PostMessage(g_State.hWnd, WM_KEYDOWN, menuNavigation[i].vkey, 0);
                     btnState.lastRepeatTime = currentTime;
                 }
@@ -1432,6 +1434,9 @@ static void ProcessMenuNavigation()
 
         if (pressed != btnState.isPressed)
         {
+            if (pressed)
+                g_Controller.simulatedKeyPressCount++;
+
             PostMessage(g_State.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, menuNavigation[i].vkey, 0);
             btnState.isPressed = pressed;
 

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "ini.hpp"
+#include <dsound.h>
 #include "Core/DInputProxy.hpp"
 
 namespace MemoryHelper
@@ -487,6 +488,161 @@ namespace HookHelper
 	}
 };
 
+namespace DirectSoundHelper
+{
+	const GUID CLSID_DirectSound8 = { 0x3901CC3F, 0x84B5, 0x4FA4, {0xBA, 0x35, 0xAA, 0x81, 0x72, 0xB8, 0xA0, 0x9B} };
+
+	inline HRESULT(WINAPI* ori_DirectSoundCreate8)(LPCGUID, LPDIRECTSOUND8*, LPUNKNOWN) = nullptr;
+	inline HRESULT(WINAPI* ori_CoCreateInstance)(REFCLSID, LPUNKNOWN, DWORD, REFIID, LPVOID*) = nullptr;
+
+	inline HMODULE hLocalDSound = nullptr;
+
+	class DirectSound8Proxy : public IDirectSound8
+	{
+	private:
+		IDirectSound8* m_pReal;
+		volatile LONG m_refCount;
+
+	public:
+		DirectSound8Proxy(IDirectSound8* pReal) : m_pReal(pReal), m_refCount(1) {}
+
+		~DirectSound8Proxy()
+		{
+			if (m_pReal)
+				m_pReal->Release();
+		}
+
+		// IUnknown
+		STDMETHOD(QueryInterface)(REFIID riid, LPVOID* ppv)
+		{
+			if (riid == IID_IUnknown || riid == IID_IDirectSound || riid == IID_IDirectSound8)
+			{
+				*ppv = this;
+				AddRef();
+				return S_OK;
+			}
+
+			return m_pReal->QueryInterface(riid, ppv);
+		}
+
+		STDMETHOD_(ULONG, AddRef)()
+		{
+			return InterlockedIncrement(&m_refCount);
+		}
+
+		STDMETHOD_(ULONG, Release)()
+		{
+			ULONG ref = InterlockedDecrement(&m_refCount);
+			if (ref == 0) delete this;
+			return ref;
+		}
+
+		STDMETHOD(Initialize)(LPCGUID pcGuidDevice)
+		{
+			return DS_OK;
+		}
+
+		STDMETHOD(CreateSoundBuffer)(LPCDSBUFFERDESC pcDSBufferDesc, LPDIRECTSOUNDBUFFER* ppDSBuffer, LPUNKNOWN pUnkOuter)
+		{
+			return m_pReal->CreateSoundBuffer(pcDSBufferDesc, ppDSBuffer, pUnkOuter);
+		}
+
+		STDMETHOD(GetCaps)(LPDSCAPS pDSCaps)
+		{
+			return m_pReal->GetCaps(pDSCaps);
+		}
+
+		STDMETHOD(DuplicateSoundBuffer)(LPDIRECTSOUNDBUFFER pDSBufferOriginal, LPDIRECTSOUNDBUFFER* ppDSBufferDuplicate)
+		{
+			return m_pReal->DuplicateSoundBuffer(pDSBufferOriginal, ppDSBufferDuplicate);
+		}
+
+		STDMETHOD(SetCooperativeLevel)(HWND hwnd, DWORD dwLevel)
+		{
+			return m_pReal->SetCooperativeLevel(hwnd, dwLevel);
+		}
+
+		STDMETHOD(Compact)()
+		{
+			return m_pReal->Compact();
+		}
+
+		STDMETHOD(GetSpeakerConfig)(LPDWORD pdwSpeakerConfig)
+		{
+			return m_pReal->GetSpeakerConfig(pdwSpeakerConfig);
+		}
+
+		STDMETHOD(SetSpeakerConfig)(DWORD dwSpeakerConfig)
+		{
+			return m_pReal->SetSpeakerConfig(dwSpeakerConfig);
+		}
+
+		STDMETHOD(VerifyCertification)(LPDWORD pdwCertified)
+		{
+			return m_pReal->VerifyCertification(pdwCertified);
+		}
+	};
+
+	inline HRESULT WINAPI CoCreateInstance_Hook(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID* ppv)
+	{
+		// Only intercept DirectSound8 requests
+		if (IsEqualGUID(rclsid, CLSID_DirectSound8))
+		{
+			auto pDSCreate = reinterpret_cast<decltype(ori_DirectSoundCreate8)>(GetProcAddress(hLocalDSound, "DirectSoundCreate8"));
+
+			if (pDSCreate)
+			{
+				IDirectSound8* pRealDS = nullptr;
+				HRESULT hr = pDSCreate(nullptr, &pRealDS, pUnkOuter);
+
+				if (SUCCEEDED(hr) && pRealDS)
+				{
+					*ppv = new DirectSound8Proxy(pRealDS);
+					return S_OK;
+				}
+			}
+		}
+
+		return ori_CoCreateInstance(rclsid, pUnkOuter, dwClsContext, riid, ppv);
+	}
+
+	inline bool Init()
+	{
+		// Build path to local dsound.dll next to the executable
+		char exePath[MAX_PATH];
+		if (!GetModuleFileNameA(NULL, exePath, MAX_PATH))
+			return false;
+
+		char* lastSlash = strrchr(exePath, '\\');
+		if (lastSlash)
+			*(lastSlash + 1) = '\0';
+		else
+			exePath[0] = '\0';
+
+		std::string dsoundPath = std::string(exePath) + "dsound.dll";
+
+		// Check if local dsound.dll exists
+		if (!SystemHelper::FileExists(dsoundPath))
+			return false;
+
+		// Load the local DSOAL dsound.dll
+		hLocalDSound = LoadLibraryA(dsoundPath.c_str());
+		if (!hLocalDSound)
+			return false;
+
+		// Verify it exports DirectSoundCreate8
+		if (!GetProcAddress(hLocalDSound, "DirectSoundCreate8"))
+		{
+			FreeLibrary(hLocalDSound);
+			hLocalDSound = nullptr;
+			return false;
+		}
+
+		HookHelper::ApplyHookAPI(L"ole32.dll", "CoCreateInstance", &CoCreateInstance_Hook, (LPVOID*)&ori_CoCreateInstance);
+		return true;
+	}
+};
+
 namespace HashHelper
 {
 	constexpr uint32_t FNV_PRIME = 0x01000193;
@@ -576,3 +732,187 @@ namespace HashHelper
 		static constexpr uint32_t CheckPointOptimizeVideoMemory = FNV1a("CheckPointOptimizeVideoMemory");
 	};
 };
+
+#pragma once
+
+namespace TextureHelper
+{
+	inline bool StartsWithI(const char* path, const char* prefix)
+	{
+		while (*prefix)
+		{
+			char p = *path++;
+			char x = *prefix++;
+
+			if (p >= 'A' && p <= 'Z') p += 32;
+			if (x >= 'A' && x <= 'Z') x += 32;
+
+			if (p != x)
+				return false;
+		}
+		return true;
+	}
+
+	inline bool ContainsI(const char* path, const char* substr)
+	{
+		if (!path || !substr)
+			return false;
+
+		size_t subLen = strlen(substr);
+		size_t pathLen = strlen(path);
+
+		if (subLen > pathLen)
+			return false;
+
+		for (size_t i = 0; i <= pathLen - subLen; i++)
+		{
+			bool match = true;
+			for (size_t j = 0; j < subLen; j++)
+			{
+				char p = path[i + j];
+				char s = substr[j];
+
+				if (p >= 'A' && p <= 'Z') p += 32;
+				if (s >= 'A' && s <= 'Z') s += 32;
+
+				if (p != s)
+				{
+					match = false;
+					break;
+				}
+			}
+			if (match)
+				return true;
+		}
+		return false;
+	}
+
+	inline bool ShouldKeepSharp(const char* path)
+	{
+		if (!path)
+			return false;
+
+		// Prefix (base game)
+		if (StartsWithI(path, "attachments\\"))
+			return true;
+		if (StartsWithI(path, "chars\\skins\\"))
+			return true;
+		if (StartsWithI(path, "FX\\"))
+			return true;
+		if (StartsWithI(path, "guns\\"))
+			return true;
+		if (StartsWithI(path, "Interface\\"))
+			return true;
+
+		// Prefix (expansions)
+		if (StartsWithI(path, "charsxp\\"))
+			return true;
+		if (StartsWithI(path, "fx-xp\\"))
+			return true;
+		if (StartsWithI(path, "guns-xp\\"))
+			return true;
+		if (StartsWithI(path, "Attachments-XP\\"))
+			return true;
+		if (StartsWithI(path, "CharsXP\\"))
+			return true;
+		if (StartsWithI(path, "FX-XP\\"))
+			return true;
+		if (StartsWithI(path, "Guns-XP\\"))
+			return true;
+
+		// Prefabs - full folder paths
+		if (StartsWithI(path, "Prefabs\\Systemic\\Elevators\\"))
+			return true;
+		if (StartsWithI(path, "Prefabs\\Systemic\\Security\\"))
+			return true;
+		if (StartsWithI(path, "Prefabs\\Systemic\\Vehicles\\"))
+			return true;
+		if (StartsWithI(path, "Prefabs\\Industrial\\Spillway\\"))
+			return true;
+		if (StartsWithI(path, "Prefabs\\Industrial\\Interactive\\"))
+			return true;
+
+		// Materials - Industrial
+		if (StartsWithI(path, "Materials\\Industrial\\"))
+		{
+			if (ContainsI(path, "Cabinet") ||
+				ContainsI(path, "Elevator"))
+				return true;
+		}
+
+		// Prefabs - Industrial
+		if (StartsWithI(path, "Prefabs\\Industrial\\"))
+		{
+			if (ContainsI(path, "Barrel") ||
+				ContainsI(path, "box") ||
+				ContainsI(path, "Bucket") ||
+				ContainsI(path, "Cargo") ||
+				ContainsI(path, "control_unit") ||
+				ContainsI(path, "Door") ||
+				ContainsI(path, "hammer") ||
+				ContainsI(path, "generator") ||
+				ContainsI(path, "Garage_Gate") ||
+				ContainsI(path, "Dumpster") ||
+				ContainsI(path, "Fan") ||
+				ContainsI(path, "Machine") ||
+				ContainsI(path, "Phone") ||
+				ContainsI(path, "rack_pallet") ||
+				ContainsI(path, "power_") ||
+				ContainsI(path, "receiptbook") ||
+				ContainsI(path, "sign_") ||
+				ContainsI(path, "shelf_metal") ||
+				ContainsI(path, "spray_") ||
+				ContainsI(path, "tool_chest") ||
+				ContainsI(path, "Wallbox") ||
+				ContainsI(path, "workbench") ||
+				ContainsI(path, "wrench"))
+				return true;
+		}
+
+		// Prefabs - Office
+		if (StartsWithI(path, "Prefabs\\Office\\"))
+		{
+			if (ContainsI(path, "Book") ||
+				ContainsI(path, "Cactus") ||
+				ContainsI(path, "Copier") ||
+				ContainsI(path, "Kiosk") ||
+				ContainsI(path, "mouse_"))
+				return true;
+		}
+
+		// Prefabs - Tech
+		if (StartsWithI(path, "Prefabs\\Tech\\"))
+		{
+			if (ContainsI(path, "alma") ||
+				ContainsI(path, "barrel_tech_"))
+				return true;
+		}
+
+		// Prefabs - Test
+		if (StartsWithI(path, "Prefabs\\Test\\"))
+		{
+			if (ContainsI(path, "chair02") ||
+				ContainsI(path, "desk_") ||
+				ContainsI(path, "DeskMonitor"))
+				return true;
+		}
+
+		// Tex - Office
+		if (StartsWithI(path, "Tex\\Office\\"))
+		{
+			if (ContainsI(path, "CorporateART01") ||
+				ContainsI(path, "Painting01") ||
+				ContainsI(path, "Painting03"))
+				return true;
+		}
+
+		// Tex - Industrial
+		if (StartsWithI(path, "Tex\\Industrial\\"))
+		{
+			if (ContainsI(path, "Fence"))
+				return true;
+		}
+
+		return false;
+	}
+}
