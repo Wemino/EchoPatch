@@ -749,7 +749,7 @@ static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char 
                 g_State.saveBuffer.position = 0;
                 g_State.saveBuffer.size = 0;
                 g_State.saveBuffer.flushed = false;
-                g_State.saveBuffer.buffer.resize(4 * 1024 * 1024, 0);
+                g_State.saveBuffer.buffer.resize(6 * 1024 * 1024, 0);
             }
         }
     }

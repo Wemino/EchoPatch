@@ -172,6 +172,9 @@ static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 	// Updates water wave propagation at fixed time intervals for consistent simulation
 	g_State.waveUpdateAccumulator += frameDelta;
 
+	if (g_State.waveUpdateAccumulator > TARGET_FRAME_TIME * 5)
+		g_State.waveUpdateAccumulator = TARGET_FRAME_TIME * 5;
+
 	while (g_State.waveUpdateAccumulator >= TARGET_FRAME_TIME)
 	{
 		UpdateWaveProp(thisPtr, TARGET_FRAME_TIME);
