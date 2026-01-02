@@ -389,9 +389,9 @@ static inline bool ShouldClampRagdoll(int thisPtr)
     if (!owner)
         return false;
 
-    // Ragdolls have 8+ bodies (bones), simple props have 2-4
+    // Ragdolls have 5+ bodies (bones), simple props have 2-4
     int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
-    return bodyCount >= 8;
+    return bodyCount >= 5;
 }
 
 #pragma endregion
