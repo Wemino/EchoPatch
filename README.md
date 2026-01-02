@@ -10,7 +10,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > All features are compatible with Extraction Point and Perseus Mandate.  
 >
 > **Download**: [EchoPatch.zip](https://github.com/Wemino/EchoPatch/releases/latest/download/EchoPatch.zip)  
-> Extract the contents of the zip file into the game’s folder, in the same directory as the `FEAR.exe` file.  
+> Extract the contents of the zip file into the game's folder, in the same directory as the `FEAR.exe` file.  
 > On first launch, EchoPatch will prompt to apply a [LAA patch](#laa-patcher) if needed to prevent loading issues.  
 > This prompt will not appear for the GOG version, as the LAA patch is already applied there.
 
@@ -21,7 +21,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 
 ### Steam Deck/Linux Specific Instructions (Windows users can skip this)
 > [!WARNING]
-> To launch the game on Steam Deck or Linux, open the game’s properties in Steam and include `WINEDLLOVERRIDES="dinput8=n,b" %command%` in the launch options.
+> To launch the game on Steam Deck or Linux, open the game's properties in Steam and include `WINEDLLOVERRIDES="dinput8=n,b" %command%` in the launch options.
 > 
 > On Steam Deck, change the controller configuration to `Gamepad With Joystick Trackpad` for controller support.
 
@@ -35,8 +35,8 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 <div align="center">
   <table>
     <tr>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/4K_HUD_Normal.png"></td>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/4K_HUD_Scaled.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/4K_HUD_Normal.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/4K_HUD_Scaled.png"></td>
     </tr>
     <tr>
       <td align="center">4K Vanilla</td>
@@ -48,7 +48,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > **Note**: The base resolution (1024×768) is used as the reference for scaling, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
 ## Fix High FPS Issues
-Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS (particularly when using Slow-Mo):
+Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS (particularly when using Slow-Mo):
 - Ragdoll physics instability.
 - Water physics instability.
 - Excessive water splash effect repetitions.
@@ -75,7 +75,7 @@ This issue appeared in Nvidia drivers released after 2015 and persists in modern
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
 - **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
-- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor’s refresh rate, reducing screen tearing. VSync will only be enabled if your monitor’s refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
+- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor's refresh rate, reducing screen tearing. VSync will only be enabled if your monitor's refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
 
 > **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
 
@@ -83,7 +83,7 @@ Prevents the game from running too fast by capping the maximum framerate.
 Addresses several weapon-related issues:
 - Fix Aim/Zoom not working when loading a save during a cutscene.
 - Automatic weapons stuck in firing animation when loading a save made mid-fire.
-- Weapon cycling not working when there’s an empty slot between two weapons.
+- Weapon cycling not working when there's an empty slot between two weapons.
 - Weapon model position not updating correctly after reloading a save with the same weapon equipped.
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
@@ -121,7 +121,7 @@ Customizable alongside sensitivity settings within the `[Controller]` section of
 > **Note**: Custom controller mappings can be added via `gamecontrollerdb.txt`.
 
 ## Fix Keyboard Input Initialization
-Corrects default control assignment on non‑English layouts by mapping hardware scan codes instead of English key names (preventing some “[unassigned]” entries on first launch or after resetting controls) while leaving the saved bindings in the save file unchanged.
+Corrects default control assignment on non‑English layouts by mapping hardware scan codes instead of English key names (preventing some "[unassigned]" entries on first launch or after resetting controls) while leaving the saved bindings in the save file unchanged.
 
 ## Widescreen Resolution Support for Extraction Point
 Removes 4:3 restriction so all widescreen resolutions are available.
@@ -139,8 +139,8 @@ Improves resolution quality of reflective surfaces and displays.
 <div align="center">
   <table>
     <tr>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/HD_Render_Off.png"></td>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/HD_Render_On.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/HD_Render_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/HD_Render_On.png"></td>
     </tr>
     <tr>
       <td align="center">Vanilla</td>
@@ -155,8 +155,8 @@ Disable LOD bias to render models at full quality at any distance.
 <div align="center">
   <table>
     <tr>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/NoLODBias_Off.png"></td>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/NoLODBias_On.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/NoLODBias_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/NoLODBias_On.png"></td>
     </tr>
     <tr>
       <td align="center">Vanilla</td>
@@ -179,8 +179,8 @@ Disables cutscene letterboxing when `DisableLetterbox = 1` in `EchoPatch.ini`.
 <div align="center">
   <table>
     <tr>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_On.png"></td>
-      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/refs/heads/main/assets/Letterbox_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/Letterbox_On.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/Letterbox_Off.png"></td>
     </tr>
     <tr>
       <td align="center">Vanilla</td>
@@ -234,6 +234,3 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
-
-
-
