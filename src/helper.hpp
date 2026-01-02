@@ -858,8 +858,6 @@ namespace TextureHelper
 				ContainsI(path, "Phone") ||
 				ContainsI(path, "rack_pallet") ||
 				ContainsI(path, "power_") ||
-				ContainsI(path, "receiptbook") ||
-				ContainsI(path, "sign_") ||
 				ContainsI(path, "shelf_metal") ||
 				ContainsI(path, "spray_") ||
 				ContainsI(path, "tool_chest") ||
