@@ -1,11 +1,9 @@
 #include "Core.hpp"
 #include "../Client/Client.hpp"
 #include "../Server/Server.hpp"
-#include "../ClientFX/ClientFX.hpp"
 #include "../Controller/Controller.hpp"
 #include "MinHook.hpp"
-#include "ini.hpp"
-#include "DInputProxy.hpp"
+#include "LAAPatcher.hpp"
 #include "ConsoleMgr.hpp"
 #include "../helper.hpp"
 
@@ -41,7 +39,7 @@ void(__thiscall* ProcessLimitedHingeConstraint)(int, float*, float*) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
-int(__thiscall* FindStringCaseInsensitive)(DWORD*, char*) = nullptr;
+int(__stdcall* CreateVideoTexture)(char*, int) = nullptr;
 bool(__thiscall* FileWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char) = nullptr;
 bool(__thiscall* FileSeek)(HANDLE*, LARGE_INTEGER) = nullptr;
@@ -1216,27 +1214,25 @@ static int __cdecl SetRenderMode_Hook(int rMode)
 // SkipIntro
 // =======================
 
-// Function utilized in the process of loading video files
-static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* video_path)
+static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
 {
-    // Disable this hook once we get to the menu
-    if (SkipAllIntro || strstr(video_path, "Menu"))
+    auto DisableHook = []()
     {
         switch (g_State.CurrentFEARGame)
         {
-            case FEAR:    MH_DisableHook((void*)(g_State.BaseAddress + 0x110CB0)); break;
-            case FEARMP:  MH_DisableHook((void*)(g_State.BaseAddress + 0x110DD0)); break;
-            case FEARXP:  MH_DisableHook((void*)(g_State.BaseAddress + 0x1B3440)); break;
-            case FEARXP2: MH_DisableHook((void*)(g_State.BaseAddress + 0x1B49C0)); break;
+            case FEAR:    MH_DisableHook((void*)(g_State.BaseAddress + 0xF5990)); break;
+            case FEARMP:  MH_DisableHook((void*)(g_State.BaseAddress + 0xF5AB0)); break;
+            case FEARXP:  MH_DisableHook((void*)(g_State.BaseAddress + 0x18AFC0)); break;
+            case FEARXP2: MH_DisableHook((void*)(g_State.BaseAddress + 0x18C4F0)); break;
         }
+    };
 
-        if (SkipAllIntro)
-        {
-            // Skip all movies while keeping the sound of the menu
-            SystemHelper::SimulateSpacebarPress(g_State.hWnd);
-        }
-
-        return FindStringCaseInsensitive(thisPtr, video_path);
+    if (SkipAllIntro)
+    {
+        // Skip all movies while keeping the sound of the menu
+        DisableHook();
+        SystemHelper::SimulateSpacebarPress(g_State.hWnd);
+        return CreateVideoTexture(video_path, a2);
     }
 
     static const struct { bool flag; const char* names[2]; } skips[] =
@@ -1251,21 +1247,23 @@ static int __fastcall FindStringCaseInsensitive_Hook(DWORD* thisPtr, int, char* 
 
     for (const auto& s : skips)
     {
-        if (s.flag)
+        for (const char* name : s.names)
         {
-            for (const char* name : s.names)
+            if (name && strstr(video_path, name))
             {
-                if (name && strstr(video_path, name))
+                if (s.flag)
                 {
                     // Clear the video file path to prevent the video from playing
                     video_path[0] = '\0';
-                    return FindStringCaseInsensitive(thisPtr, video_path);
                 }
+
+                return CreateVideoTexture(video_path, a2);
             }
         }
     }
 
-    return FindStringCaseInsensitive(thisPtr, video_path);
+    DisableHook();
+    return CreateVideoTexture(video_path, a2);
 }
 
 static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken, DWORD dwFlags, LPSTR pszPath)
@@ -1515,10 +1513,10 @@ static void ApplySkipIntroHook()
 {
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x110CB0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x110DD0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B3440), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B49C0), &FindStringCaseInsensitive_Hook, (LPVOID*)&FindStringCaseInsensitive); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF5990), &CreateVideoTexture_Hook, (LPVOID*)&CreateVideoTexture, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF5AB0), &CreateVideoTexture_Hook, (LPVOID*)&CreateVideoTexture); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18AFC0), &CreateVideoTexture_Hook, (LPVOID*)&CreateVideoTexture); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18C4F0), &CreateVideoTexture_Hook, (LPVOID*)&CreateVideoTexture); break;
     }
 }
 

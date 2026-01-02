@@ -5,13 +5,11 @@
 
 #include <Windows.h>
 #include <string_view>
-#include <string>
 #include <array>
 #include <unordered_set>
 #include <unordered_map>
 
 #include "FpsLimiter.hpp"
-#include "LAAPatcher.hpp"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx9.h"
