@@ -1212,6 +1212,13 @@ inline void Render(IDirect3DDevice9* pDevice)
         MemoryHelper::WriteMemory<DWORD>(g_addresses.cursorLockAddr, 0);
     }
 
+    IDirect3DStateBlock9* pStateBlock = nullptr;
+    pDevice->CreateStateBlock(D3DSBT_ALL, &pStateBlock);
+    if (pStateBlock)
+    {
+        pStateBlock->Capture();
+    }
+
     ImGui_ImplDX9_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -1225,6 +1232,12 @@ inline void Render(IDirect3DDevice9* pDevice)
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+
+    if (pStateBlock)
+    {
+        pStateBlock->Apply();
+        pStateBlock->Release();
+    }
 }
 
 // Public API
