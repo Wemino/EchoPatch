@@ -304,7 +304,7 @@ inline std::vector<ConsoleCommand> PopulateCommands()
         else if (ptrFloat != 0)
         {
             char buf[32];
-            snprintf(buf, sizeof(buf), "%.2f", *(float*)ptrFloat);
+            snprintf(buf, sizeof(buf), "%.6f", *(float*)ptrFloat);
             cmd.value = buf;
         }
         else if (ptrInt != 0)
@@ -343,7 +343,7 @@ inline std::vector<ConsoleVariable> PopulateStaticVariables()
             DWORD vtable = *(DWORD*)(current + 0x00);
             char valueBuf[32];
             if (vtable == g_addresses.cvarVtableFloat)
-                snprintf(valueBuf, sizeof(valueBuf), "%.2f", *(float*)(current + 0x14));
+                snprintf(valueBuf, sizeof(valueBuf), "%.6f", *(float*)(current + 0x14));
             else
                 snprintf(valueBuf, sizeof(valueBuf), "%d", *(int*)(current + 0x14));
 
@@ -581,7 +581,7 @@ inline void HandleConsoleCommand(const char* command)
             SetCvarFloat(managerInstance, actualName.c_str(), asInt);
 
             char buf[32];
-            snprintf(buf, sizeof(buf), "%.2f", floatVal);
+            snprintf(buf, sizeof(buf), "%.6f", floatVal);
             g_dynamicCvars[actualName] = { buf, managerInstance, CvarType::Float };
         }
         else
