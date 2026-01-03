@@ -1232,6 +1232,7 @@ static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
         // Skip all movies while keeping the sound of the menu
         DisableHook();
         SystemHelper::SimulateSpacebarPress(g_State.hWnd);
+        video_path[0] = '\0';
         return CreateVideoTexture(video_path, a2);
     }
 
