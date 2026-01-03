@@ -49,7 +49,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 
 ## Fix High FPS Issues
 Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS (particularly when using Slow-Mo):
-- Ragdoll physics instability.
+- Havok ragdoll physics instability.
 - Water physics instability.
 - Excessive water splash effect repetitions.
 - Frozen FX effects.
@@ -90,20 +90,20 @@ Addresses several weapon-related issues:
 
 ## Controller Support
 
-Supports Xbox, PlayStation (DualShock 3/4, DualSense), and Nintendo Switch controllers via SDL3.
+Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.
 
 | Controller Input                 | Action                         |
 |----------------------------------|--------------------------------|
 | **Left Analog Stick**            | Move                           |
 | **Right Analog Stick**           | Aim                            |
 | **Left Analog Stick** (Press)    | Use Health Kit                 |
-| **Right Analog Stick** (Press)   | Toggle Flashlight On/Off       |
-| **A / Cross**                    | Jump                           |
-| **B / Circle**                   | Crouch                         |
-| **X / Square**                   | Reload / Interact / Pick Up    |
-| **Y / Triangle**                 | Toggle Slow-Motion             |
+| **Right Analog Stick** (Press)   | Toggle Flashlight              |
+| **South** (A / Cross)            | Jump                           |
+| **East** (B / Circle)            | Crouch                         |
+| **West** (X / Square)            | Reload / Interact              |
+| **North** (Y / Triangle)         | Toggle Slow-Motion             |
 | **RT / R2 / ZR**                 | Fire                           |
-| **LT / L2 / ZL**                 | Zoom                           |
+| **LT / L2 / ZL**                 | Aim / Zoom                     |
 | **RB / R1 / R**                  | Melee                          |
 | **LB / L1 / L**                  | Throw Grenade                  |
 | **D-Pad Up**                     | Next Weapon                    |
@@ -111,6 +111,22 @@ Supports Xbox, PlayStation (DualShock 3/4, DualSense), and Nintendo Switch contr
 | **D-Pad Left**                   | Lean Left                      |
 | **D-Pad Right**                  | Lean Right                     |
 | **Back / Share / −**             | Mission Status                 |
+| **Start / Options / +**          | Pause Menu                     |
+| **Share / Capture**              | Holster Weapon                 |
+| **Right Paddle 1**               | Center View                    |
+| **Left Paddle 1**                | Drop Weapon                    |
+| **Right Paddle 2**               | Quick Load                     |
+| **Left Paddle 2**                | Quick Save                     |
+
+### Gyro Aiming
+
+Enables motion-controlled aiming using the controller's gyroscope for supported controllers (DualShock 4, DualSense, Switch Pro Controller).
+
+Configurable in the `[Controller]` section of `EchoPatch.ini`:
+- `GyroEnabled`: Set to `1` to enable gyro aiming.
+- `GyroAimingMode`: Determines when gyro is active (`0` = Always On, `1` = Aiming Only, `2` = Hip Fire Only).
+
+> **Note**: If you experience gyro drift, place the controller on a stable surface for a few seconds to calibrate.
 
 ### Additional Feature (PlayStation controllers)
 - **Touchpad**: Mouse cursor control (DualShock 4/DualSense)
@@ -165,9 +181,8 @@ Disable LOD bias to render models at full quality at any distance.
   </table>
 </div>
 
-
-## Reduced Mipmap Bias
-Improves texture sharpness at a distance by reducing mipmap bias.
+## Improved Mipmap Bias
+Improves texture sharpness at a distance by reducing mipmap bias. Certain textures such as characters, FX effects, and vehicles are rendered at higher detail, while textures that appear blurry at a distance like fences are selectively rendered at maximum quality. Other textures use a moderate bias to prevent shimmering artifacts.
 
 ## Mouse Aim Multiplier
 Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
@@ -189,19 +204,13 @@ Disables cutscene letterboxing when `DisableLetterbox = 1` in `EchoPatch.ini`.
   </table>
 </div>
 
-## Auto Resolution
-Automatically sets the game window to match your screen resolution on first launch (or every launch if `AutoResolution = 2`).
+## Skip Intro
+Bypasses startup content for faster game launch.
 
-## Skip Splashscreen
-Bypasses developer splash on launch when `SkipSplashScreen = 1`.
+- `SkipSplashScreen`: Skips the developer splash screen.
+- `SkipAllIntro`: Skips all intro videos.
 
-## Skip Movies
-Skips intro videos when `SkipAllIntro = 1`.  
-Individual videos can be skipped via the `SkipIntro` section in `EchoPatch.ini`.
-
-## Disable PunkBuster Initialization
-Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
-This prevents the game from loading unused background components.
+Individual videos can also be skipped via the `[SkipIntro]` section in `EchoPatch.ini`.
 
 ## Save Folder Redirection
 Redirects the save folder from `%PUBLIC%\Documents\` to `%USERPROFILE%\Documents\My Games\`.  
@@ -211,6 +220,27 @@ Disabled by default, set `RedirectSaveFolder = 1` in `EchoPatch.ini` to enable.
 Removes battery limit and hides HUD indicator.  
 Enable with `InfiniteFlashlight = 1`.
 
+## Developer Console
+Restores the in-game developer console with a reimplemented frontend using [ImGui](https://github.com/ocornut/imgui), providing access to engine commands and logging messages. Toggle with the Home key.
+
+- `ConsoleEnabled`: Set to `1` to enable the console.
+- `DebugLevel`: Controls the verbosity of debug messages (0–15).
+- `LogOutputToFile`: Set to `1` to log all console output to a timestamped text file.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="75%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/Console.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Developer Console</td>
+    </tr>
+  </table>
+</div>
+
+## EAX Audio Fix
+Allows local DirectSound wrappers like [DSOAL](https://github.com/kcat/dsoal) to load correctly, enabling EAX and hardware audio mixing. The game normally uses COM to initialize DirectSound, which bypasses local DLLs and loads the system version instead. This fix intercepts that call and redirects it to the local wrapper.
+
 ## Weapon Capacity Editor
 Customize max weapon capacity via `MaxWeaponCapacity` (0–10).  
 Enable with `EnableCustomMaxWeaponCapacity = 1`.  
@@ -218,6 +248,10 @@ Enable with `EnableCustomMaxWeaponCapacity = 1`.
 <img src="assets/WeaponCapacity.png" style="max-width:75%">
 
 > **Note:** Weapon capacity is tied to the save data. Lowering the capacity will not take effect on an existing save. Start a new save file to apply a reduced limit.
+
+## Disable PunkBuster Initialization
+Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
+This prevents the game from loading unused background components.
 
 ## dinput8 Chaining Support
 Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility.
@@ -230,7 +264,8 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 ## Credits
 - [SDL3](https://www.libsdl.org/) for controller support.
 - [MinHook](https://github.com/TsudaKageyu/minhook) for hooking.  
-- [mINI](https://github.com/metayeti/mINI) for INI file handling.  
+- [mINI](https://github.com/metayeti/mINI) for INI file handling.
+- [ImGui](https://github.com/ocornut/imgui) for the console interface.
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
