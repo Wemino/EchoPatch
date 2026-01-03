@@ -394,7 +394,19 @@ inline std::vector<ConsoleVariable> PopulateDynamicVariables()
 
         ConsoleVariable var;
         var.name = pair.first;
-        var.value = pair.second.value;
+
+        if (pair.second.type == CvarType::Float)
+        {
+            float floatVal = (float)atof(pair.second.value.c_str());
+            char buf[32];
+            snprintf(buf, sizeof(buf), "%.6f", floatVal);
+            var.value = buf;
+        }
+        else
+        {
+            var.value = pair.second.value;
+        }
+
         variables.push_back(var);
     }
 
