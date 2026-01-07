@@ -1071,14 +1071,24 @@ static char __cdecl SetCvarString_Hook(int a1, const char* name, char* value)
 {
     if (name && name[0] && value)
     {
+        std::string strValue = value;
+        CvarType type = CvarType::String;
+
+        float floatVal;
+        if (IsNumericFloat(value, &floatVal))
+        {
+            strValue = FormatFloat(floatVal);
+            type = CvarType::Float;
+        }
+
         auto it = FindCvarCaseInsensitive(std::string(name));
         if (it != g_dynamicCvars.end())
         {
-            it->second = { value, a1, CvarType::String };
+            it->second = { strValue, a1, type };
         }
         else
         {
-            g_dynamicCvars[name] = { value, a1, CvarType::String };
+            g_dynamicCvars[name] = { strValue, a1, type };
         }
     }
 
@@ -1090,17 +1100,16 @@ static char __cdecl SetCvarFloat_Hook(int a1, const char* name, int valueInt)
     if (name && name[0])
     {
         float value = *(float*)&valueInt;
-        char buf[32];
-        snprintf(buf, sizeof(buf), "%.2f", value);
+        std::string formatted = FormatFloat(value);
 
         auto it = FindCvarCaseInsensitive(std::string(name));
         if (it != g_dynamicCvars.end())
         {
-            it->second = { buf, a1, CvarType::Float };
+            it->second = { formatted, a1, CvarType::Float };
         }
         else
         {
-            g_dynamicCvars[name] = { buf, a1, CvarType::Float };
+            g_dynamicCvars[name] = { formatted, a1, CvarType::Float };
         }
     }
 

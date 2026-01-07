@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <d3d9.h>
 #include <Windows.h>
@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include <cmath>
 #include <algorithm>
 #include "../helper.hpp"
 
@@ -139,6 +140,78 @@ inline auto FindCvarCaseInsensitive(const std::string& name) -> decltype(g_dynam
     }
 
     return g_dynamicCvars.end();
+}
+
+inline std::string FormatFloat(float value)
+{
+    if (value == 0.0f) return "0.0";
+
+    static const double multipliers[] = 
+    {
+        1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0
+    };
+
+    char buf[64];
+
+    for (int decimals = 1; decimals <= 6; decimals++)
+    {
+        double multiplier = multipliers[decimals];
+        double rounded = round((double)value * multiplier) / multiplier;
+
+        float roundedAsFloat = (float)rounded;
+        float diff = fabs(roundedAsFloat - value);
+
+        if (diff <= fabs(value) * 1e-6f || roundedAsFloat == value)
+        {
+            snprintf(buf, sizeof(buf), "%.*f", decimals, rounded);
+            return buf;
+        }
+    }
+
+    snprintf(buf, sizeof(buf), "%.6f", (double)value);
+
+    std::string str = buf;
+    size_t dotPos = str.find('.');
+    if (dotPos != std::string::npos)
+    {
+        size_t lastNonZero = str.find_last_not_of('0');
+        if (lastNonZero != std::string::npos && lastNonZero > dotPos)
+        {
+            str.erase(lastNonZero + 1);
+        }
+        else
+        {
+            str.erase(dotPos + 2);
+        }
+    }
+
+    return str;
+}
+
+inline bool IsNumericFloat(const char* str, float* outValue = nullptr)
+{
+    if (!str || !str[0])
+        return false;
+
+    const char* dot = strchr(str, '.');
+    if (!dot)
+        return false;
+
+    char* end;
+    float val = strtof(str, &end);
+
+    if (*end != '\0')
+        return false;
+
+    if (strlen(dot + 1) > 0)
+    {
+        if (outValue)
+            *outValue = val;
+
+        return true;
+    }
+
+    return false;
 }
 
 inline std::string GenerateLogFilename(const std::string& title)
@@ -303,9 +376,7 @@ inline std::vector<ConsoleCommand> PopulateCommands()
         }
         else if (ptrFloat != 0)
         {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.6f", *(float*)ptrFloat);
-            cmd.value = buf;
+            cmd.value = FormatFloat(*(float*)ptrFloat);
         }
         else if (ptrInt != 0)
         {
@@ -317,7 +388,7 @@ inline std::vector<ConsoleCommand> PopulateCommands()
         commands.push_back(cmd);
     }
 
-    std::sort(commands.begin(), commands.end(), [](const ConsoleCommand& a, const ConsoleCommand& b) 
+    std::sort(commands.begin(), commands.end(), [](const ConsoleCommand& a, const ConsoleCommand& b)
     {
         return _stricmp(a.name.c_str(), b.name.c_str()) < 0;
     });
@@ -341,20 +412,24 @@ inline std::vector<ConsoleVariable> PopulateStaticVariables()
             var.name = name;
 
             DWORD vtable = *(DWORD*)(current + 0x00);
-            char valueBuf[32];
             if (vtable == g_addresses.cvarVtableFloat)
-                snprintf(valueBuf, sizeof(valueBuf), "%.6f", *(float*)(current + 0x14));
+            {
+                var.value = FormatFloat(*(float*)(current + 0x14));
+            }
             else
+            {
+                char valueBuf[32];
                 snprintf(valueBuf, sizeof(valueBuf), "%d", *(int*)(current + 0x14));
+                var.value = valueBuf;
+            }
 
-            var.value = valueBuf;
             variables.push_back(var);
         }
 
         current = *(DWORD*)(current + 0x10);
     }
 
-    std::sort(variables.begin(), variables.end(), [](const ConsoleVariable& a, const ConsoleVariable& b) 
+    std::sort(variables.begin(), variables.end(), [](const ConsoleVariable& a, const ConsoleVariable& b)
     {
         return _stricmp(a.name.c_str(), b.name.c_str()) < 0;
     });
@@ -394,23 +469,12 @@ inline std::vector<ConsoleVariable> PopulateDynamicVariables()
 
         ConsoleVariable var;
         var.name = pair.first;
-
-        if (pair.second.type == CvarType::Float)
-        {
-            float floatVal = (float)atof(pair.second.value.c_str());
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.6f", floatVal);
-            var.value = buf;
-        }
-        else
-        {
-            var.value = pair.second.value;
-        }
+        var.value = pair.second.value;
 
         variables.push_back(var);
     }
 
-    std::sort(variables.begin(), variables.end(), [](const ConsoleVariable& a, const ConsoleVariable& b) 
+    std::sort(variables.begin(), variables.end(), [](const ConsoleVariable& a, const ConsoleVariable& b)
     {
         return _stricmp(a.name.c_str(), b.name.c_str()) < 0;
     });
@@ -428,7 +492,7 @@ inline std::vector<ConsoleProgram> PopulatePrograms()
         programs.push_back(prog);
     }
 
-    std::sort(programs.begin(), programs.end(), [](const ConsoleProgram& a, const ConsoleProgram& b) 
+    std::sort(programs.begin(), programs.end(), [](const ConsoleProgram& a, const ConsoleProgram& b)
     {
         return _stricmp(a.name.c_str(), b.name.c_str()) < 0;
     });
@@ -592,9 +656,7 @@ inline void HandleConsoleCommand(const char* command)
             memcpy(&asInt, &floatVal, sizeof(float));
             SetCvarFloat(managerInstance, actualName.c_str(), asInt);
 
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.6f", floatVal);
-            g_dynamicCvars[actualName] = { buf, managerInstance, CvarType::Float };
+            g_dynamicCvars[actualName] = { FormatFloat(floatVal), managerInstance, CvarType::Float };
         }
         else
         {
