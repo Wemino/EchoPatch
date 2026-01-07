@@ -1232,8 +1232,6 @@ static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
         // Skip all movies while keeping the sound of the menu
         DisableHook();
         SystemHelper::SimulateSpacebarPress(g_State.hWnd);
-        video_path[0] = '\0';
-        return CreateVideoTexture(video_path, a2);
     }
 
     static const struct { bool flag; const char* names[2]; } skips[] =
@@ -1252,9 +1250,8 @@ static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
         {
             if (name && strstr(video_path, name))
             {
-                if (s.flag)
+                if (SkipAllIntro || s.flag)
                 {
-                    // Clear the video file path to prevent the video from playing
                     video_path[0] = '\0';
                 }
 
@@ -1263,7 +1260,11 @@ static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
         }
     }
 
-    DisableHook();
+    if (!SkipAllIntro)
+    {
+        DisableHook();
+    }
+
     return CreateVideoTexture(video_path, a2);
 }
 
