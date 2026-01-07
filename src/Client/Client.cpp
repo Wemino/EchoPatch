@@ -1552,8 +1552,6 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
     DWORD addr_UpdateSlider = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
     DWORD addr_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
-    DWORD addr_HUDWeaponListInit = ScanModuleSignature(g_State.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
-    DWORD addr_HUDGrenadeListInit = ScanModuleSignature(g_State.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
     DWORD addr_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
     DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
 
@@ -1564,8 +1562,6 @@ static void ApplyHUDScalingClientPatch()
         addr_GetRectF == 0 ||
         addr_UpdateSlider == 0 ||
         addr_HUDWeaponListReset == 0 ||
-        addr_HUDWeaponListInit == 0 ||
-        addr_HUDGrenadeListInit == 0 ||
         addr_InitAdditionalTextureData == 0 ||
         addr_HUDPausedInit == 0) {
         return;
@@ -1576,8 +1572,6 @@ static void ApplyHUDScalingClientPatch()
     HookHelper::ApplyHook((void*)addr_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
     HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
     HookHelper::ApplyHook((void*)addr_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
-    HookHelper::ApplyHook((void*)addr_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
-    HookHelper::ApplyHook((void*)addr_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
     HookHelper::ApplyHook((void*)(addr_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
     HookHelper::ApplyHook((void*)addr_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
 	HUDTerminate = reinterpret_cast<decltype(HUDTerminate)>(addr_HUDTerminate);
@@ -1752,20 +1746,26 @@ static void ApplyGameDatabaseHook()
 
 static void ApplyClientPatchSet1()
 {
-    if (!HUDScaling && !SDLGamepadSupport) return;
+	if (!HUDScaling && !SDLGamepadSupport) return;
 
-    DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
-    DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+	DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
+	DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
+	DWORD addr_HUDWeaponListInit = ScanModuleSignature(g_State.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
+	DWORD addr_HUDGrenadeListInit = ScanModuleSignature(g_State.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
 	DWORD addr_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
 
-    if (addr_HUDWeaponListUpdateTriggerNames == 0 ||
-        addr_HUDGrenadeListUpdateTriggerNames == 0 ||
+	if (addr_HUDWeaponListUpdateTriggerNames == 0 ||
+		addr_HUDGrenadeListUpdateTriggerNames == 0 ||
+		addr_HUDWeaponListInit == 0 ||
+		addr_HUDGrenadeListInit == 0 ||
 		addr_ScreenDimsChanged == 0) {
-        return;
-    }
+		return;
+	}
 
 	HUDWeaponListUpdateTriggerNames = reinterpret_cast<decltype(HUDWeaponListUpdateTriggerNames)>(addr_HUDWeaponListUpdateTriggerNames - 0x10);
 	HUDGrenadeListUpdateTriggerNames = reinterpret_cast<decltype(HUDGrenadeListUpdateTriggerNames)>(addr_HUDGrenadeListUpdateTriggerNames - 0x10);
+	HookHelper::ApplyHook((void*)addr_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
+	HookHelper::ApplyHook((void*)addr_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 	HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
 }
 
