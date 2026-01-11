@@ -20,6 +20,11 @@ void(__cdecl* PolyGridFXCollisionHandlerCB)(int, int, int*, int*, float, BYTE*, 
 void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
+void(__thiscall* MoveLocalSolidObject)(int*) = nullptr;
+float* (__thiscall* VectorDivideScalar)(float*, float*, float) = nullptr;
+void(__thiscall* EnterSlowMo)(int*, int, bool, double, bool) = nullptr;
+unsigned int(__thiscall* HandleMsgSlowMo)(int*, void*) = nullptr;
+void(__thiscall* UpdateSlowMo)(int*) = nullptr;
 
 // FixKeyboardInputLanguage
 void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
@@ -231,7 +236,7 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	return g_State.lastReportedVelocity;
 }
 
-static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
+static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float velocity, BYTE* a6, int a7)
 {
 	uint32_t b1 = static_cast<uint32_t>(hBody1);
 	uint32_t b2 = static_cast<uint32_t>(hBody2);
@@ -252,19 +257,40 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 		}
 	}
 
-	// Only process splash if this pair hasn't splashed this frame
-	if (!foundEntry || (currentGameTime - foundEntry->lastTime) >= TARGET_FRAME_TIME)
+	bool allow = false;
+
+	if (!foundEntry)
 	{
-		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
+		allow = true;
+	}
+	else
+	{
+		double timeDiff = currentGameTime - foundEntry->lastTime;
+
+		if (timeDiff >= TARGET_FRAME_TIME)
+		{
+			foundEntry->burstCount = 0;
+			allow = true;
+		}
+		else if (foundEntry->burstCount < 2)
+		{
+			allow = true;
+		}
+	}
+
+	if (allow)
+	{
+		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, velocity, a6, a7);
 
 		if (foundEntry)
 		{
 			foundEntry->lastTime = currentGameTime;
+			foundEntry->burstCount++;
 		}
 		else
 		{
-			// Overwrite oldest entry in circular buffer (size 64)
-			g_State.splashCache[g_State.splashIndex] = { key, currentGameTime };
+			// Overwrite oldest entry in circular buffer
+			g_State.splashCache[g_State.splashIndex] = { key, currentGameTime, 1 };
 			g_State.splashIndex = (g_State.splashIndex + 1) % g_State.splashCache.size();
 		}
 	}
@@ -298,6 +324,92 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 	}
 
 	return GetTimerElapsedS(thisPtr);
+}
+
+void __fastcall MoveLocalSolidObject_Hook(int* thisPtr, int)
+{
+	bool bBodyInLiquid = *((BYTE*)thisPtr + 48);
+	bool bJumped = *((BYTE*)thisPtr + 120);
+
+	g_State.shouldPreserveYVelocity = (bBodyInLiquid && bJumped);
+
+	MoveLocalSolidObject(thisPtr);
+
+	g_State.shouldPreserveYVelocity = false;
+	g_State.pendingVelocityFix = false;
+}
+
+float* __fastcall VectorDivideScalar_Hook(float* thisPtr, int, float* result, float scalar)
+{
+	if (g_State.shouldPreserveYVelocity)
+	{
+		g_State.pendingVelocityFix = true;
+	}
+
+	return VectorDivideScalar(thisPtr, result, scalar);
+}
+
+void __fastcall EnterSlowMo_Hook(int* pThis, int, int hRec, bool bTrans, double fPeriod, bool bPlayer)
+{
+	double* pCharge = (double*)((char*)pThis + 880);
+	double fCurrentCharge = *pCharge;
+
+	// Clamp period to current charge (fixes visual jump)
+	if (bPlayer && fCurrentCharge > 0.0 && fPeriod > fCurrentCharge)
+	{
+		fPeriod = fCurrentCharge;
+	}
+
+	g_State.clientSlowMoCharge = fCurrentCharge;
+
+	EnterSlowMo(pThis, hRec, bTrans, fPeriod, bPlayer);
+}
+
+void __fastcall UpdateSlowMo_Hook(int* pThis, int)
+{
+	double* pCharge = (double*)((char*)pThis + 880);
+
+	// Keep server in sync with client charge
+	g_State.clientSlowMoCharge = *pCharge;
+
+	UpdateSlowMo(pThis);
+}
+
+unsigned int __fastcall HandleMsgSlowMo_Hook(int* pThis, int, void* pMsg)
+{
+	double* pCharge = (double*)((char*)pThis + 880);
+	int* pState = (int*)((char*)pThis + 640);
+
+	double fOldCharge = *pCharge;
+	int nOldState = *pState;
+
+	unsigned int result = HandleMsgSlowMo(pThis, pMsg);
+
+	double fNewCharge = *pCharge;
+	int nNewState = *pState;
+
+	g_State.clientSlowMoCharge = fNewCharge;
+
+	// Recharge protection, don't let server reset recharged amount
+	if (nOldState == 3 && nNewState == 3)
+	{
+		if (fNewCharge < fOldCharge)
+		{
+			*pCharge = fOldCharge;
+			g_State.clientSlowMoCharge = fOldCharge;
+		}
+	}
+	// Jump protection, prevent charge jumping up during active slowmo
+	else if (nNewState != 3)
+	{
+		if (fOldCharge > 0.0 && fNewCharge > fOldCharge)
+		{
+			*pCharge = fOldCharge;
+			g_State.clientSlowMoCharge = fOldCharge;
+		}
+	}
+
+	return result;
 }
 
 // ========================
@@ -1334,6 +1446,11 @@ static void ApplyHighFPSFixesClientPatch()
     DWORD addr_GetMaxRecentVelocityMag = ScanModuleSignature(g_State.GameClient, "F6 C4 41 75 2F 8D 8E 34 04 00 00 E8", "GetMaxRecentVelocityMag");
     DWORD addr_UpdateNormalControlFlags = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
     DWORD addr_PolyGridFXCollisionHandlerCB = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
+	DWORD addr_HandleMsgSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 34 01 00 00 53 56 8B 75 08", "HandleMsgSlowMo");
+	DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "DD 05 ?? ?? ?? ?? 89 86 18 03 00 00", "EnterSlowMo", 3);
+	DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
+	DWORD addr_MoveLocalSolidObject = ScanModuleSignature(g_State.GameClient, "81 EC A4 00 00 00 57 8B F9 8B 8F D8 03 00 00 E8", "MoveLocalSolidObject");
+	DWORD addr_VectorDivideScalar = ScanModuleSignature(g_State.GameClient, "D9 05 ?? ?? ?? ?? 8B 44 24 04 D8 74 24 08 D9 54 24 08", "VectorDivideScalar");
     addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
     if (addr_SurfaceJumpImpulse == 0 ||
@@ -1344,7 +1461,11 @@ static void ApplyHighFPSFixesClientPatch()
         addr_UpdateNormalFriction == 0 ||
         addr_GetTimerElapsedS == 0 ||
         addr_UpdateWaveProp == 0 ||
-        addr_PolyGridFXCollisionHandlerCB == 0) {
+		addr_HandleMsgSlowMo == 0 ||
+		addr_EnterSlowMo == 0 ||
+		addr_UpdateSlowMo == 0 ||
+		addr_MoveLocalSolidObject == 0 ||
+		addr_VectorDivideScalar == 0) {
         return;
     }
 
@@ -1357,6 +1478,11 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)addr_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
     HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
+	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
+	HookHelper::ApplyHook((void*)(addr_VectorDivideScalar), &VectorDivideScalar_Hook, (LPVOID*)&VectorDivideScalar);
+	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
+	HookHelper::ApplyHook((void*)(addr_EnterSlowMo), &EnterSlowMo_Hook, (LPVOID*)&EnterSlowMo);
+	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);
 }
 
 static void ApplyMouseAimMultiplierClientPatch()

@@ -176,6 +176,15 @@ struct GlobalState
 	double lastReportedVelocity = 0.0;
 	double prevWindowSpeed = 0.0;
 	bool isProcessingRagdoll = false;
+	bool shouldPreserveYVelocity = false;
+	bool pendingVelocityFix = false;
+	float lastPositiveYVelocity = 0.0f;
+
+	// ======================
+	// SlowMo Fix
+	// ======================
+	double clientSlowMoCharge = 0.0;
+	int phSlowMoRecord = 0;
 
 	// ======================
 	// Console
@@ -187,10 +196,11 @@ struct GlobalState
 	// ======================
 	// PolyGrid Timing
 	// ======================
-	struct SplashEntry 
-	{ 
+	struct SplashEntry
+	{
 		uint64_t key;
 		double lastTime;
+		int burstCount;
 	};
 
 	inline static std::array<SplashEntry, 64> splashCache{};

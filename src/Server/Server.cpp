@@ -4,6 +4,8 @@
 
 void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
 void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
+void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
+void(__thiscall* ServerExitSlowMo)(int*, bool, float) = nullptr;
 
 #pragma region Server Hooks
 
@@ -20,6 +22,24 @@ static void __fastcall PlayerInventoryInit_Hook(int thisPtr, int, int nCap)
 {
     g_State.CPlayerInventory = thisPtr;
     PlayerInventoryInit(thisPtr, nCap);
+}
+
+// ========================
+// HighFPSFixes
+// ========================
+
+void __fastcall ServerUpdateSlowMo_Hook(int* thisPtr, int)
+{
+    int hSlowMoRecord = *(int*)((char*)thisPtr + g_State.phSlowMoRecord);
+
+    // Force server exit when client charge depleted
+    if (hSlowMoRecord != 0 && g_State.clientSlowMoCharge <= 0.01)
+    {
+        ServerExitSlowMo(thisPtr, true, 0.0f);
+        return;
+    }
+
+    ServerUpdateSlowMo(thisPtr);
 }
 
 #pragma endregion
@@ -52,13 +72,26 @@ static void ApplySetWeaponCapacityServerPatch()
     DWORD addr_SetWeaponCapacityServer = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 56 18 85 D2 8D 4E 14 57 75", "SetWeaponCapacityServer");
     DWORD addr_PlayerInventoryInit = ScanModuleSignature(g_State.GameServer, "33 DB 3B CB 89 ?? 0C 74", "PlayerInventoryInit", 2);
 
-    if (addr_SetWeaponCapacityServer == 0 ||
-        addr_PlayerInventoryInit == 0) {
+    if (addr_SetWeaponCapacityServer == 0 || addr_PlayerInventoryInit == 0)       
         return;
-    }
 
     ApplyTrackedHook(addr_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
     ApplyTrackedHook(addr_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
+}
+
+static void ApplyHighFPSFixesServerPatch()
+{
+    if (!HighFPSFixes) return;
+
+    DWORD addr_ServerUpdateSlowMo = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 86 ?? ?? ?? ?? 85 C0 74 6B", "ServerUpdateSlowMo");
+    DWORD addr_ServerExitSlowMo = ScanModuleSignature(g_State.GameServer, "51 53 8B D9 8B 83 ?? ?? ?? ?? 85 C0 0F 84 ?? ?? ?? ?? DD 05", "ServerExitSlowMo");
+
+    if (addr_ServerUpdateSlowMo == 0 || addr_ServerExitSlowMo == 0)
+        return;
+
+    g_State.phSlowMoRecord = MemoryHelper::ReadMemory<int>(addr_ServerUpdateSlowMo + 0x5);
+    ApplyTrackedHook(addr_ServerUpdateSlowMo, &ServerUpdateSlowMo_Hook, (LPVOID*)&ServerUpdateSlowMo);
+    ServerExitSlowMo = reinterpret_cast<decltype(ServerExitSlowMo)>((int)addr_ServerExitSlowMo);
 }
 
 void ApplyServerPatch()
@@ -76,6 +109,7 @@ void ApplyServerPatch()
 
     ApplyPersistentWorldServerPatch();
     ApplySetWeaponCapacityServerPatch();
+    ApplyHighFPSFixesServerPatch();
 }
 
 #pragma endregion

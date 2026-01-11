@@ -36,6 +36,7 @@ void(__cdecl* ProcessConeLimitConstraint)(int, float*, float*, float*) = nullptr
 void(__cdecl* BuildJacobianRow) (int, float*, float*) = nullptr;
 void(__thiscall* ProcessBallSocketConstraint)(int, float*, float*) = nullptr;
 void(__thiscall* ProcessLimitedHingeConstraint)(int, float*, float*) = nullptr;
+int(__stdcall* SetVelocity)(int, float*) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
@@ -644,6 +645,39 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
 // HighFPSFixes
 // ========================
 
+static int __stdcall SetVelocity_Hook(int obj, float* vel)
+{
+    if (obj)
+    {
+        float currentY = vel[1];
+
+        if (g_State.pendingVelocityFix)
+        {
+            g_State.pendingVelocityFix = false;
+
+            if (g_State.currentFrameTime > 0.0f && g_State.currentFrameTime < TARGET_FRAME_TIME && currentY > 0.0f && currentY < g_State.lastPositiveYVelocity)
+            {
+                float frameRatio = g_State.currentFrameTime / TARGET_FRAME_TIME;
+                float preserveRatio = (1.0f - frameRatio) * 0.5f;
+
+                float difference = g_State.lastPositiveYVelocity - currentY;
+                vel[1] = currentY + difference * preserveRatio;
+                return SetVelocity(obj, vel);
+            }
+        }
+        if (currentY > 0.0f)
+        {
+            g_State.lastPositiveYVelocity = currentY;
+        }
+        else
+        {
+            g_State.lastPositiveYVelocity = 0.0f;
+        }
+    }
+
+    return SetVelocity(obj, vel);
+}
+
 static void __fastcall ProcessBallSocketConstraint_Hook(int thisPtr, int, float* in, float* out)
 {
     g_State.isProcessingRagdoll = ShouldClampRagdoll(thisPtr);
@@ -878,9 +912,6 @@ static int __fastcall DestroyTextureWrapper_Hook(int* thisPtr, int, int* a2)
 static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDirect3DBaseTexture9* pTexture)
 {
     HRESULT hr = D3D9_SetTexture(device, Stage, pTexture);
-
-    if (Stage >= 16)
-        return hr;
 
     bool isSharp = pTexture && std::binary_search(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), pTexture);
 
@@ -1352,6 +1383,7 @@ static void ApplyFixHighFPSPhysics()
     switch (g_State.CurrentFEARGame)
     {
         case FEAR:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D70), &SetVelocity_Hook, (LPVOID*)&SetVelocity, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x98390), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99050), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8D30), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
@@ -1359,6 +1391,7 @@ static void ApplyFixHighFPSPhysics()
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA9F00), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint, true);
             break;
         case FEARMP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D70), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x984B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99170), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8E50), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
@@ -1366,6 +1399,7 @@ static void ApplyFixHighFPSPhysics()
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAA020), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDDC0), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDC4B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD4C0), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFF710), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
@@ -1373,6 +1407,7 @@ static void ApplyFixHighFPSPhysics()
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1008E0), &ProcessConeLimitConstraint_Hook, (LPVOID*)&ProcessConeLimitConstraint);
             break;
         case FEARXP2:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDDF0), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD520), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDE530), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100780), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
