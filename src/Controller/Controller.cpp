@@ -1382,6 +1382,12 @@ void ProcessGameplayInput()
 
 static void ProcessMenuNavigation()
 {
+    if (IsInTransitionPeriod())
+    {
+        ClearMenuButtonStates();
+        return;
+    }
+
     const ULONGLONG currentTime = GetTickCount64();
 
     SDL_GamepadButton confirmButton = SDL_GAMEPAD_BUTTON_SOUTH;
