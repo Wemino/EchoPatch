@@ -175,6 +175,11 @@ struct GlobalState
 	double velocityTimeAccumulator = 0.0;
 	double lastReportedVelocity = 0.0;
 	double prevWindowSpeed = 0.0;
+	float windowStartX = 0.0f;
+	float windowStartY = 0.0f;
+	float windowStartZ = 0.0f;
+	double maxRawVelocityInWindow = 0.0;
+	int lowVelocityWindowCount = 0;
 	bool isProcessingRagdoll = false;
 	bool shouldPreserveYVelocity = false;
 	bool pendingVelocityFix = false;

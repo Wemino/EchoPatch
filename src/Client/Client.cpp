@@ -197,10 +197,29 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	if (dt <= 0.0 || dt > 0.2)
 		return g_State.lastReportedVelocity > 0.0 ? g_State.lastReportedVelocity : GetMaxRecentVelocityMag(thisPtr);
 
-	g_State.velocityAccumulator += GetMaxRecentVelocityMag(thisPtr);
+	double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
+
+	// m_vLastVel (offset 1076), m_vLastPos is 12 bytes before (offset 1064)
+	float* currentPos = (float*)((char*)thisPtr - 12);
+
+	// Snapshot starting position when a new window begins
+	if (g_State.velocityTimeAccumulator == 0.0)
+	{
+		g_State.windowStartX = currentPos[0];
+		g_State.windowStartY = currentPos[1];
+		g_State.windowStartZ = currentPos[2];
+		g_State.maxRawVelocityInWindow = 0.0;
+	}
+
+	g_State.velocityAccumulator += rawVelocity;
 	g_State.velocityTimeAccumulator += dt;
 
-	// Convert accumulated distance to normalized speed: (distance / time) * targetFrameTime
+	if (rawVelocity > g_State.maxRawVelocityInWindow)
+	{
+		g_State.maxRawVelocityInWindow = rawVelocity;
+	}
+
+	// Normalize accumulated velocity to target frame time for consistent output across all framerates
 	double currentWindowSpeed = (g_State.velocityAccumulator / g_State.velocityTimeAccumulator) * TARGET_FRAME_TIME;
 
 	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
@@ -208,25 +227,66 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 
 	if (timeIsUp || isStartingToMove)
 	{
-		if (isStartingToMove)
+		// Net displacement: compare window start to current position
+		// This filters out wall jitter where physics oscillates the player but they don't actually travel
+		// Unlike accumulated distance, net displacement is near zero if player vibrates in place
+		float dx = currentPos[0] - g_State.windowStartX;
+		float dy = currentPos[1] - g_State.windowStartY;
+		float dz = currentPos[2] - g_State.windowStartZ;
+
+		float netDisplacementSq = dx * dx + dy * dy + dz * dz;
+
+		bool hasNetMovement = netDisplacementSq > 0.01f;
+		bool lowVelocityWindow = g_State.maxRawVelocityInWindow < 40.0;
+
+		// Only count as blocked if low velocity and no net movement
+		if (lowVelocityWindow && !hasNetMovement)
 		{
-			g_State.lastReportedVelocity = currentWindowSpeed;
-			g_State.prevWindowSpeed = currentWindowSpeed;
+			g_State.lowVelocityWindowCount++;
 		}
 		else
 		{
-			// Max-of-two windows prevents aliasing dips at extreme FPS
+			g_State.lowVelocityWindowCount = 0;
+		}
+
+		if (g_State.lowVelocityWindowCount >= 2)
+		{
+			// Two consecutive windows with no net movement confirms wall collision
+			g_State.lastReportedVelocity = 0.0;
+			g_State.prevWindowSpeed = 0.0;
+		}
+		else if (isStartingToMove)
+		{
+			g_State.lastReportedVelocity = currentWindowSpeed;
+			g_State.prevWindowSpeed = currentWindowSpeed;
+			g_State.lowVelocityWindowCount = 0;
+		}
+		else if (lowVelocityWindow)
+		{
+			// Low velocity but has net movement means FPS fluctuation, not wall collision
+			// Hold previous speed with slight decay to keep animation smooth
+			g_State.lastReportedVelocity = g_State.prevWindowSpeed * 0.98;
+			g_State.prevWindowSpeed = g_State.lastReportedVelocity;
+		}
+		else
+		{
+			// Normal movement: use max of current and previous to prevent aliasing dips
 			g_State.lastReportedVelocity = std::max(currentWindowSpeed, g_State.prevWindowSpeed);
 
-			// Snap near-zero to true zero for clean idle state
-			if (g_State.lastReportedVelocity < 0.01)
-				g_State.lastReportedVelocity = 0.0;
-
-			// Decay prevWindowSpeed slowly to prevent double-dip glitches
 			if (currentWindowSpeed > g_State.prevWindowSpeed)
+			{
 				g_State.prevWindowSpeed = currentWindowSpeed;
+			}
 			else
-				g_State.prevWindowSpeed = std::max(currentWindowSpeed, g_State.prevWindowSpeed * 0.95);
+			{
+				g_State.prevWindowSpeed = std::max(currentWindowSpeed, g_State.prevWindowSpeed * 0.98);
+			}
+
+			// Snap very low values to zero for clean idle state
+			if (g_State.lastReportedVelocity < 1.0)
+			{
+				g_State.lastReportedVelocity = 0.0;
+			}
 		}
 
 		g_State.velocityAccumulator = 0.0;
