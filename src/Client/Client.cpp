@@ -21,7 +21,6 @@ void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 void(__thiscall* MoveLocalSolidObject)(int*) = nullptr;
-float* (__thiscall* VectorDivideScalar)(float*, float*, float) = nullptr;
 void(__thiscall* EnterSlowMo)(int*, int, bool, double, bool) = nullptr;
 unsigned int(__thiscall* HandleMsgSlowMo)(int*, void*) = nullptr;
 void(__thiscall* UpdateSlowMo)(int*) = nullptr;
@@ -389,24 +388,11 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 void __fastcall MoveLocalSolidObject_Hook(int* thisPtr, int)
 {
 	bool bBodyInLiquid = *((BYTE*)thisPtr + 48);
-	bool bJumped = *((BYTE*)thisPtr + 120);
+	bool bSwimJumped = *((BYTE*)thisPtr + 121);
 
-	g_State.shouldPreserveYVelocity = (bBodyInLiquid && bJumped);
+	g_State.pendingVelocityFix = (bBodyInLiquid && bSwimJumped);
 
 	MoveLocalSolidObject(thisPtr);
-
-	g_State.shouldPreserveYVelocity = false;
-	g_State.pendingVelocityFix = false;
-}
-
-float* __fastcall VectorDivideScalar_Hook(float* thisPtr, int, float* result, float scalar)
-{
-	if (g_State.shouldPreserveYVelocity)
-	{
-		g_State.pendingVelocityFix = true;
-	}
-
-	return VectorDivideScalar(thisPtr, result, scalar);
 }
 
 void __fastcall EnterSlowMo_Hook(int* pThis, int, int hRec, bool bTrans, double fPeriod, bool bPlayer)
@@ -1507,10 +1493,9 @@ static void ApplyHighFPSFixesClientPatch()
     DWORD addr_UpdateNormalControlFlags = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 18 53 55 56 57 8B F1 E8", "UpdateNormalControlFlags");
     DWORD addr_PolyGridFXCollisionHandlerCB = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
 	DWORD addr_HandleMsgSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 34 01 00 00 53 56 8B 75 08", "HandleMsgSlowMo");
+	DWORD addr_MoveLocalSolidObject = ScanModuleSignature(g_State.GameClient, "81 EC A4 00 00 00 57 8B F9 8B 8F D8 03 00 00 E8", "MoveLocalSolidObject");
 	DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "DD 05 ?? ?? ?? ?? 89 86 18 03 00 00", "EnterSlowMo", 3);
 	DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
-	DWORD addr_MoveLocalSolidObject = ScanModuleSignature(g_State.GameClient, "81 EC A4 00 00 00 57 8B F9 8B 8F D8 03 00 00 E8", "MoveLocalSolidObject");
-	DWORD addr_VectorDivideScalar = ScanModuleSignature(g_State.GameClient, "D9 05 ?? ?? ?? ?? 8B 44 24 04 D8 74 24 08 D9 54 24 08", "VectorDivideScalar");
     addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
     if (addr_SurfaceJumpImpulse == 0 ||
@@ -1524,8 +1509,7 @@ static void ApplyHighFPSFixesClientPatch()
 		addr_HandleMsgSlowMo == 0 ||
 		addr_EnterSlowMo == 0 ||
 		addr_UpdateSlowMo == 0 ||
-		addr_MoveLocalSolidObject == 0 ||
-		addr_VectorDivideScalar == 0) {
+		addr_MoveLocalSolidObject == 0) {
         return;
     }
 
@@ -1539,7 +1523,6 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
 	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
-	HookHelper::ApplyHook((void*)(addr_VectorDivideScalar), &VectorDivideScalar_Hook, (LPVOID*)&VectorDivideScalar);
 	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
 	HookHelper::ApplyHook((void*)(addr_EnterSlowMo), &EnterSlowMo_Hook, (LPVOID*)&EnterSlowMo);
 	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);

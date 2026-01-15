@@ -181,7 +181,6 @@ struct GlobalState
 	double maxRawVelocityInWindow = 0.0;
 	int lowVelocityWindowCount = 0;
 	bool isProcessingRagdoll = false;
-	bool shouldPreserveYVelocity = false;
 	bool pendingVelocityFix = false;
 	float lastPositiveYVelocity = 0.0f;
 

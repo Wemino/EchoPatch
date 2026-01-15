@@ -658,7 +658,7 @@ static int __stdcall SetVelocity_Hook(int obj, float* vel)
             if (g_State.currentFrameTime > 0.0f && g_State.currentFrameTime < TARGET_FRAME_TIME && currentY > 0.0f && currentY < g_State.lastPositiveYVelocity)
             {
                 float frameRatio = g_State.currentFrameTime / TARGET_FRAME_TIME;
-                float preserveRatio = (1.0f - frameRatio) * 0.5f;
+                float preserveRatio = (1.0f - frameRatio) * 0.125f;
 
                 float difference = g_State.lastPositiveYVelocity - currentY;
                 vel[1] = currentY + difference * preserveRatio;
