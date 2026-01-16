@@ -60,6 +60,7 @@ struct GlobalState
 	int screenWidth = 0;
 	int screenHeight = 0;
 	bool useVsyncOverride = false;
+	bool isUsingNvidiaDevice = false;
 
 	// ======================
 	// HUD Scaling

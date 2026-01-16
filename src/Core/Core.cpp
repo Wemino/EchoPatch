@@ -51,7 +51,8 @@ bool(__thiscall* FileClose)(DWORD*) = nullptr;
 int(__stdcall* CreateTextureWrapper)(DWORD*, int, int) = nullptr;
 int(__thiscall* DestroyTextureWrapper)(int*, int*) = nullptr;
 int(__thiscall* LoadWorld)(BYTE*, int, int) = nullptr;
-char(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
+bool(__cdecl* LoadWorldShadows)(int*) = nullptr;
+bool(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 char(__thiscall* GetSocketTransform)(DWORD*, unsigned int, DWORD*, char) = nullptr;
 bool(__cdecl* EndScene)() = nullptr;
 bool(__thiscall* ResetDevice)(void*, void*, unsigned char) = nullptr;
@@ -401,6 +402,21 @@ static inline bool IsHangingProp(int thisPtr)
     if (!owner) return false;
     int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
     return bodyCount == 3;
+}
+
+static void SetVertexBufferPool(uint8_t pool)
+{
+    DWORD offset = 0;
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    offset = 0x112234; break;
+        case FEARMP:  offset = 0x112354; break;
+        case FEARXP:  offset = 0x1B5A24; break;
+        case FEARXP2: offset = 0x1B6F94; break;
+        default: return;
+    }
+
+    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + offset, pool);
 }
 
 #pragma endregion
@@ -959,60 +975,53 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
 // FixNvidiaShadowCorruption
 // ===========================
 
-static char __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
+static bool __cdecl LoadWorldShadows_Hook(int* a1)
+{
+    if (g_State.isUsingNvidiaDevice)
+        SetVertexBufferPool(D3DPOOL_SYSTEMMEM);
+
+    bool result = LoadWorldShadows(a1);
+
+    if (g_State.isUsingNvidiaDevice)
+        SetVertexBufferPool(D3DPOOL_MANAGED);
+
+    return result;
+}
+
+static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
 {
     if (FixNvidiaShadowCorruption)
     {
         DWORD VendorId = a2[267];
 
-        // NVIDIA device is used for the game
-        if (VendorId == 0x10DE)
-        {
-            switch (g_State.CurrentFEARGame)
-            {
-                // CreateVertexBuffer: D3DPOOL_MANAGED -> D3DPOOL_SYSTEMMEM
-                case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 2); break;
-                case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 2); break;
-                case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 2); break;
-                case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 2); break;
-            }
-        }
-        else
-        {
-            switch (g_State.CurrentFEARGame)
-            {
-                // Should never happen but do it anyway
-                case FEAR:    MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112234, 1); break;
-                case FEARMP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x112354, 1); break;
-                case FEARXP:  MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B5A24, 1); break;
-                case FEARXP2: MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x1B6F94, 1); break;
-            }
-        }
+        // NVIDIA device?
+        g_State.isUsingNvidiaDevice = (VendorId == 0x10DE);
     }
 
-    char result = CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
+    bool result = CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
 
-    if (result && ReducedMipMapBias)
+    if (result)
     {
         IDirect3DDevice9* device = reinterpret_cast<IDirect3DDevice9*>(thisp[0]);
-        if (!device)
-            return result;
+        if (!device) return result;
 
         void** vtable = *reinterpret_cast<void***>(device);
-        void* newSetTextureAddr = vtable[65];
 
-        if (g_State.hookedSetTextureAddr)
+        if (ReducedMipMapBias)
         {
-            MH_RemoveHook(g_State.hookedSetTextureAddr);
-            D3D9_SetTexture = nullptr;
+            void* newSetTextureAddr = vtable[65];
+            if (g_State.hookedSetTextureAddr)
+            {
+                MH_RemoveHook(g_State.hookedSetTextureAddr);
+                D3D9_SetTexture = nullptr;
+            }
+
+            g_State.sharpTextures.clear();
+            std::fill(std::begin(g_State.stageIsDirty), std::end(g_State.stageIsDirty), false);
+            HookHelper::ApplyHook(newSetTextureAddr, &SetTexture_Hook, (LPVOID*)&D3D9_SetTexture);
+            g_State.hookedSetTextureAddr = newSetTextureAddr;
+            g_State.hookedDevice = device;
         }
-
-        g_State.sharpTextures.clear();
-        std::fill(std::begin(g_State.stageIsDirty), std::end(g_State.stageIsDirty), false);
-
-        HookHelper::ApplyHook(newSetTextureAddr, &SetTexture_Hook, (LPVOID*)&D3D9_SetTexture);
-        g_State.hookedSetTextureAddr = newSetTextureAddr;
-        g_State.hookedDevice = device;
     }
 
     return result;
@@ -1485,14 +1494,14 @@ static void ApplyOptimizeSaveSpeed()
 
 static void ApplyFixNvidiaShadowCorruption()
 {
-    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias) return;
+    if (!FixNvidiaShadowCorruption) return;
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF91E0), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF9300), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18F930), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x190F60), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF7AC0), &LoadWorldShadows_Hook, (LPVOID*)&LoadWorldShadows, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF7BE0), &LoadWorldShadows_Hook, (LPVOID*)&LoadWorldShadows); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18D930), &LoadWorldShadows_Hook, (LPVOID*)&LoadWorldShadows); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18EF30), &LoadWorldShadows_Hook, (LPVOID*)&LoadWorldShadows); break;
     }
 }
 
@@ -1686,6 +1695,19 @@ static void ApplyDisableJoystick()
     }
 }
 
+static void ApplyDeviceCreationHook()
+{
+    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias) return;
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF91E0), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF9300), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18F930), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x190F60), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice); break;
+    }
+}
+
 static void InitConsole(LPCSTR title)
 {
     if (!ConsoleEnabled || !title) return;
@@ -1849,6 +1871,7 @@ static void Init()
     ApplySaveFolderRedirect();
     ApplyForceRenderMode();
     ApplyDisableJoystick();
+    ApplyDeviceCreationHook();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
