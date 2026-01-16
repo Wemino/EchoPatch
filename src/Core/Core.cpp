@@ -883,6 +883,7 @@ static bool __fastcall FileClose_Hook(DWORD* thisp, int)
             FileSeek((HANDLE*)thisp, zero);
 
             FileWrite(thisp, g_State.saveBuffer.buffer.data(), (DWORD)g_State.saveBuffer.size);
+            SetEndOfFile(h);
         }
 
         g_State.saveBuffer.Reset();
