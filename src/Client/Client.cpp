@@ -129,7 +129,7 @@ static bool __fastcall LoadFxDll_Hook(int thisPtr, int, char* Source, char a3)
 
 	// Get the handle
 	wchar_t wFileName[MAX_PATH];
-	MultiByteToWideChar(CP_UTF8, 0, clientFXPath, -1, wFileName, MAX_PATH);
+	MultiByteToWideChar(CP_ACP, 0, clientFXPath, -1, wFileName, MAX_PATH);
 	HMODULE clientFxDll = GetModuleHandleW(wFileName);
 
 	if (clientFxDll)

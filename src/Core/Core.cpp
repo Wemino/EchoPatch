@@ -432,7 +432,7 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
 
     // Convert FileName to wide string
     wchar_t wFileName[MAX_PATH];
-    MultiByteToWideChar(CP_UTF8, 0, FileName, -1, wFileName, MAX_PATH);
+    MultiByteToWideChar(CP_ACP, 0, FileName, -1, wFileName, MAX_PATH);
 
     // Use FileName to get the module handle
     HMODULE ApiDLL = GetModuleHandleW(wFileName);
