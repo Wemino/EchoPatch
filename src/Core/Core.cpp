@@ -31,12 +31,13 @@ HRESULT(WINAPI* D3D9_SetTexture)(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
+int(__stdcall* SetVelocity)(int, float*) = nullptr;
+int(__thiscall* ProcessBreakableConstraint)(int, float*, int) = nullptr;
 void(__cdecl* ProcessTwistLimitConstraint)(int, float*, float*) = nullptr;
 void(__cdecl* ProcessConeLimitConstraint)(int, float*, float*, float*) = nullptr;
 void(__cdecl* BuildJacobianRow) (int, float*, float*) = nullptr;
 void(__thiscall* ProcessBallSocketConstraint)(int, float*, float*) = nullptr;
 void(__thiscall* ProcessLimitedHingeConstraint)(int, float*, float*) = nullptr;
-int(__stdcall* SetVelocity)(int, float*) = nullptr;
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 int(__thiscall* MainGameLoop)(int) = nullptr;
 int(__cdecl* SetRenderMode)(int) = nullptr;
@@ -387,12 +388,19 @@ DWORD ScanModuleSignature(HMODULE Module, std::string_view Signature, const char
 static inline bool ShouldClampRagdoll(int thisPtr)
 {
     int owner = *reinterpret_cast<int*>(thisPtr + 0x14);
-    if (!owner)
-        return false;
+    if (!owner) return false;
 
     // Ragdolls have 5+ bodies (bones), simple props have 2-4
     int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
     return bodyCount >= 5;
+}
+
+static inline bool IsHangingProp(int thisPtr)
+{
+    int owner = *reinterpret_cast<int*>(thisPtr + 0x14);
+    if (!owner) return false;
+    int bodyCount = *reinterpret_cast<int*>(owner + 0x40);
+    return bodyCount == 3;
 }
 
 #pragma endregion
@@ -676,6 +684,19 @@ static int __stdcall SetVelocity_Hook(int obj, float* vel)
     }
 
     return SetVelocity(obj, vel);
+}
+
+
+static int __fastcall ProcessBreakableConstraint_Hook(int thisPtr, int, float* constraintInstance, int a3)
+{
+    // Stabilize the industrial strip light of the first map
+    if (IsHangingProp(thisPtr) && constraintInstance[3] > 250.0f)
+    {
+        constraintInstance[3] = 250.0f;
+        return ProcessBreakableConstraint(thisPtr, constraintInstance, a3);
+    }
+
+    return ProcessBreakableConstraint(thisPtr, constraintInstance, a3);
 }
 
 static void __fastcall ProcessBallSocketConstraint_Hook(int thisPtr, int, float* in, float* out)
@@ -1384,6 +1405,7 @@ static void ApplyFixHighFPSPhysics()
     {
         case FEAR:
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D70), &SetVelocity_Hook, (LPVOID*)&SetVelocity, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x4A050), &ProcessBreakableConstraint_Hook, (LPVOID*)&ProcessBreakableConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x98390), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99050), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint, true);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8D30), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow, true);
@@ -1392,6 +1414,7 @@ static void ApplyFixHighFPSPhysics()
             break;
         case FEARMP:
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D70), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x4A170), &ProcessBreakableConstraint_Hook, (LPVOID*)&ProcessBreakableConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x984B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x99170), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA8E50), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
@@ -1400,6 +1423,7 @@ static void ApplyFixHighFPSPhysics()
             break;
         case FEARXP:
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDDC0), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x66D80), &ProcessBreakableConstraint_Hook, (LPVOID*)&ProcessBreakableConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDC4B0), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD4C0), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xFF710), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
@@ -1408,6 +1432,7 @@ static void ApplyFixHighFPSPhysics()
             break;
         case FEARXP2:
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDDF0), &SetVelocity_Hook, (LPVOID*)&SetVelocity);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x679F0), &ProcessBreakableConstraint_Hook, (LPVOID*)&ProcessBreakableConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDD520), &ProcessBallSocketConstraint_Hook, (LPVOID*)&ProcessBallSocketConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xDE530), &ProcessLimitedHingeConstraint_Hook, (LPVOID*)&ProcessLimitedHingeConstraint);
             HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x100780), &BuildJacobianRow_Hook, (LPVOID*)&BuildJacobianRow);
