@@ -1,7 +1,7 @@
 class FpsLimiter
 {
 public:
-    explicit FpsLimiter(double targetFps = 240.0)
+    explicit FpsLimiter(double targetFps = 300.0)
     {
         timeBeginPeriod(1);
 

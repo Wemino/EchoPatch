@@ -178,7 +178,7 @@ static void ReadConfig()
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
-    MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 240.0f);
+    MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 300.0f);
     DynamicVsync = IniHelper::ReadInteger("Graphics", "DynamicVsync", 1) == 1;
     HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
     NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;

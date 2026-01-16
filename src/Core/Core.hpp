@@ -110,7 +110,7 @@ struct GlobalState
 	// FPS Limiter
 	// ======================
 	bool isUsingFpsLimiter = false;
-	FpsLimiter fpsLimiter{ 240.0f };
+	FpsLimiter fpsLimiter{ 300.0f };
 
 	// ======================
 	// HUD Update State
