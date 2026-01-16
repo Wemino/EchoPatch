@@ -6,6 +6,8 @@
 #include "LAAPatcher.hpp"
 #include "ConsoleMgr.hpp"
 #include "../helper.hpp"
+#include <shlwapi.h>
+#include <ShlObj_core.h>
 
 // ======================
 // Constants
@@ -1340,25 +1342,15 @@ static int __stdcall CreateVideoTexture_Hook(char* video_path, int a2)
 
 static HRESULT WINAPI SHGetFolderPathA_Hook(HWND hwnd, int csidl, HANDLE hToken, DWORD dwFlags, LPSTR pszPath)
 {
-    int original_csidl = csidl;
-    if (original_csidl == 0x802E)
-    {
-        csidl = 0x8005; // Change to CSIDL_MYDOCUMENTS
-    }
+    BOOL shouldRedirect = (csidl == (CSIDL_COMMON_DOCUMENTS | CSIDL_FLAG_CREATE));
 
-    HRESULT hr = ori_SHGetFolderPathA(hwnd, csidl, hToken, dwFlags, pszPath);
+    HRESULT hr = ori_SHGetFolderPathA(hwnd, shouldRedirect ? (CSIDL_MYDOCUMENTS | CSIDL_FLAG_CREATE) : csidl, hToken, dwFlags, pszPath);
 
-    // Only modify the path if the original csidl was 0x802E and the call succeeded
-    if (SUCCEEDED(hr) && original_csidl == 0x802E)
+    if (SUCCEEDED(hr) && shouldRedirect)
     {
-        size_t currentLen = strlen(pszPath);
-        if (currentLen > 0)
+        if (PathAppendA(pszPath, "My Games") == FALSE)
         {
-            if (pszPath[currentLen - 1] != '\\')
-            {
-                strcat_s(pszPath, MAX_PATH, "\\");
-            }
-            strcat_s(pszPath, MAX_PATH, "My Games");
+            return E_FAIL;
         }
     }
 
