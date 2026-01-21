@@ -129,10 +129,17 @@ static bool s_wasTouchpadPressed[2] = { false, false };
 static int s_buttonCommands[SDL_GAMEPAD_BUTTON_COUNT] = {};
 static int s_triggerCommands[2] = {};
 
-static int s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_COUNT] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static int s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_COUNT] = {};
 static int s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_COUNT] = {};
-static int s_triggerHoldCommands[2] = { -1, -1 };
+static int s_triggerHoldCommands[2] = {};
 static int s_triggerHoldTimes[2] = {};
+
+// ==========================================================
+// Static State - Hold Tracking
+// ==========================================================
+
+static bool s_buttonHoldTriggered[SDL_GAMEPAD_BUTTON_COUNT] = {};
+static bool s_triggerHoldTriggered[2] = {};
 
 // ==========================================================
 // Button Names
@@ -229,7 +236,7 @@ static const ButtonNameSet s_nintendoNames = []()
     set.triggers[0] = { L"ZL", L"ZL Trigger" };
     set.triggers[1] = { L"ZR", L"ZR Trigger" };
     return set;
- }();
+}();
 
 static const ButtonNameSet& GetButtonNameSet()
 {
@@ -279,7 +286,6 @@ static void UpdateFrameTiming()
     QueryPerformanceCounter(&currentTime);
 
     s_frameTiming.deltaTime = static_cast<float>(currentTime.QuadPart - s_frameTiming.lastFrameTime.QuadPart) / static_cast<float>(s_frameTiming.frequency.QuadPart);
-
     s_frameTiming.deltaTime = std::clamp(s_frameTiming.deltaTime, 0.0001f, 0.1f);
     s_frameTiming.lastFrameTime = currentTime;
 }
@@ -375,6 +381,13 @@ static void ResetControllerState()
     s_touchpadFinger[1] = TouchpadState();
     s_wasTouchpadPressed[0] = false;
     s_wasTouchpadPressed[1] = false;
+
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+    {
+        s_buttonHoldTriggered[i] = false;
+    }
+    s_triggerHoldTriggered[0] = false;
+    s_triggerHoldTriggered[1] = false;
 }
 
 // ==========================================================
@@ -969,13 +982,14 @@ static void ReleaseAllGameButtons()
 
         int commandId = s_buttonCommands[i];
         int holdCommandId = s_buttonHoldCommands[i];
-        bool hasHoldAction = (holdCommandId >= 0);
+        int holdTime = s_buttonHoldTimes[i];
+        bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
         int simulatedKey = GetSimulatedKey(commandId);
 
         if (hasHoldAction)
         {
             // Only release hold action if it was triggered
-            if (btnState.holdTriggered)
+            if (s_buttonHoldTriggered[i])
             {
                 int holdSimulatedKey = GetSimulatedKey(holdCommandId);
                 if (holdSimulatedKey != 0)
@@ -1005,6 +1019,7 @@ static void ReleaseAllGameButtons()
         }
 
         btnState = {};
+        s_buttonHoldTriggered[i] = false;
     }
 
     // Release all held triggers
@@ -1015,12 +1030,13 @@ static void ReleaseAllGameButtons()
 
         int commandId = s_triggerCommands[i];
         int holdCommandId = s_triggerHoldCommands[i];
-        bool hasHoldAction = (holdCommandId >= 0);
+        int holdTime = s_triggerHoldTimes[i];
+        bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
         if (hasHoldAction)
         {
             // Only release hold action if it was triggered
-            if (btnState.holdTriggered)
+            if (s_triggerHoldTriggered[i])
             {
                 int holdSimulatedKey = GetSimulatedKey(holdCommandId);
                 if (holdSimulatedKey != 0)
@@ -1051,6 +1067,7 @@ static void ReleaseAllGameButtons()
         }
 
         btnState = {};
+        s_triggerHoldTriggered[i] = false;
     }
 }
 
@@ -1195,77 +1212,24 @@ static int SanitizeCommandId(int cmd, int invalidValue = -1)
     return cmd;
 }
 
-void ConfigureGamepadMappings(int btnSouth, int btnEast, int btnWest, int btnNorth, int btnLeftStick, int btnRightStick, int btnLeftShoulder, int btnRightShoulder, int btnDpadUp, int btnDpadDown, int btnDpadLeft, int btnDpadRight, int btnBack, int btnStart, int axisLeftTrigger, int axisRightTrigger, int btnMisc1, int btnRightPaddle1, int btnLeftPaddle1, int btnRightPaddle2, int btnLeftPaddle2)
+void ConfigureButton(int buttonIndex, int commandId, int holdCommandId, int holdTimeMs)
 {
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_SOUTH] = SanitizeCommandId(btnSouth);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_EAST] = SanitizeCommandId(btnEast);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_WEST] = SanitizeCommandId(btnWest);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_NORTH] = SanitizeCommandId(btnNorth);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_STICK] = SanitizeCommandId(btnLeftStick);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = SanitizeCommandId(btnRightStick);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = SanitizeCommandId(btnLeftShoulder);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = SanitizeCommandId(btnRightShoulder);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_UP] = SanitizeCommandId(btnDpadUp);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = SanitizeCommandId(btnDpadDown);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = SanitizeCommandId(btnDpadLeft);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = SanitizeCommandId(btnDpadRight);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_BACK] = SanitizeCommandId(btnBack);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_START] = SanitizeCommandId(btnStart);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_MISC1] = SanitizeCommandId(btnMisc1);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = SanitizeCommandId(btnRightPaddle1);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = SanitizeCommandId(btnLeftPaddle1);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = SanitizeCommandId(btnRightPaddle2);
-    s_buttonCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = SanitizeCommandId(btnLeftPaddle2);
-
-    s_triggerCommands[0] = SanitizeCommandId(axisLeftTrigger, 0);
-    s_triggerCommands[1] = SanitizeCommandId(axisRightTrigger, 0);
+    if (buttonIndex >= 0 && buttonIndex < SDL_GAMEPAD_BUTTON_COUNT)
+    {
+        s_buttonCommands[buttonIndex] = SanitizeCommandId(commandId, 0);
+        s_buttonHoldCommands[buttonIndex] = SanitizeCommandId(holdCommandId);
+        s_buttonHoldTimes[buttonIndex] = holdTimeMs;
+    }
 }
 
-void ConfigureGamepadHoldMappings(int btnSouthHold, int btnSouthHoldTime, int btnEastHold, int btnEastHoldTime, int btnWestHold, int btnWestHoldTime, int btnNorthHold, int btnNorthHoldTime, int btnLeftStickHold, int btnLeftStickHoldTime, int btnRightStickHold, int btnRightStickHoldTime, int btnLeftShoulderHold, int btnLeftShoulderHoldTime, int btnRightShoulderHold, int btnRightShoulderHoldTime, int btnDpadUpHold, int btnDpadUpHoldTime, int btnDpadDownHold, int btnDpadDownHoldTime, int btnDpadLeftHold, int btnDpadLeftHoldTime, int btnDpadRightHold, int btnDpadRightHoldTime, int btnBackHold, int btnBackHoldTime, int btnStartHold, int btnStartHoldTime, int axisLeftTriggerHold, int axisLeftTriggerHoldTime, int axisRightTriggerHold, int axisRightTriggerHoldTime, int btnMisc1Hold, int btnMisc1HoldTime, int btnRightPaddle1Hold, int btnRightPaddle1HoldTime, int btnLeftPaddle1Hold, int btnLeftPaddle1HoldTime, int btnRightPaddle2Hold, int btnRightPaddle2HoldTime, int btnLeftPaddle2Hold, int btnLeftPaddle2HoldTime)
+void ConfigureTrigger(int triggerIndex, int commandId, int holdCommandId, int holdTimeMs)
 {
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_SOUTH] = SanitizeCommandId(btnSouthHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_SOUTH] = btnSouthHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_EAST] = SanitizeCommandId(btnEastHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_EAST] = btnEastHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_WEST] = SanitizeCommandId(btnWestHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_WEST] = btnWestHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_NORTH] = SanitizeCommandId(btnNorthHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_NORTH] = btnNorthHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_LEFT_STICK] = SanitizeCommandId(btnLeftStickHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_LEFT_STICK] = btnLeftStickHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = SanitizeCommandId(btnRightStickHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_RIGHT_STICK] = btnRightStickHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = SanitizeCommandId(btnLeftShoulderHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_LEFT_SHOULDER] = btnLeftShoulderHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = SanitizeCommandId(btnRightShoulderHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER] = btnRightShoulderHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_DPAD_UP] = SanitizeCommandId(btnDpadUpHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_DPAD_UP] = btnDpadUpHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = SanitizeCommandId(btnDpadDownHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_DPAD_DOWN] = btnDpadDownHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = SanitizeCommandId(btnDpadLeftHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_DPAD_LEFT] = btnDpadLeftHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = SanitizeCommandId(btnDpadRightHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_DPAD_RIGHT] = btnDpadRightHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_BACK] = SanitizeCommandId(btnBackHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_BACK] = btnBackHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_START] = SanitizeCommandId(btnStartHold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_START] = btnStartHoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_MISC1] = SanitizeCommandId(btnMisc1Hold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_MISC1] = btnMisc1HoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = SanitizeCommandId(btnRightPaddle1Hold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1] = btnRightPaddle1HoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = SanitizeCommandId(btnLeftPaddle1Hold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_LEFT_PADDLE1] = btnLeftPaddle1HoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = SanitizeCommandId(btnRightPaddle2Hold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2] = btnRightPaddle2HoldTime;
-    s_buttonHoldCommands[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = SanitizeCommandId(btnLeftPaddle2Hold);
-    s_buttonHoldTimes[SDL_GAMEPAD_BUTTON_LEFT_PADDLE2] = btnLeftPaddle2HoldTime;
-
-    s_triggerHoldCommands[0] = SanitizeCommandId(axisLeftTriggerHold);
-    s_triggerHoldTimes[0] = axisLeftTriggerHoldTime;
-    s_triggerHoldCommands[1] = SanitizeCommandId(axisRightTriggerHold);
-    s_triggerHoldTimes[1] = axisRightTriggerHoldTime;
+    if (triggerIndex >= 0 && triggerIndex < 2)
+    {
+        s_triggerCommands[triggerIndex] = SanitizeCommandId(commandId, 0);
+        s_triggerHoldCommands[triggerIndex] = SanitizeCommandId(holdCommandId);
+        s_triggerHoldTimes[triggerIndex] = holdTimeMs;
+    }
 }
 
 // ==========================================================
@@ -1370,8 +1334,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     auto& btnState = g_Controller.gameButtons[button];
     int holdCommandId = s_buttonHoldCommands[button];
     int holdTime = s_buttonHoldTimes[button];
-
-    bool hasHoldAction = (holdCommandId >= 0);
+    bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
     // Activate instead of Reload
     if (commandId == 88 && (g_State.canActivate || g_State.canSwap || g_State.isOperatingTurret))
@@ -1384,7 +1347,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     if (IsInTransitionPeriod())
     {
         btnState.isPressed = isPressed;
-        btnState.holdTriggered = false;
+        s_buttonHoldTriggered[button] = false;
         return;
     }
 
@@ -1396,7 +1359,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     {
         UpdateInputMode(true);
         btnState.pressStartTime = GetTickCount64();
-        btnState.holdTriggered = false;
+        s_buttonHoldTriggered[button] = false;
         btnState.wasHandled = true;
 
         // If no hold action configured, execute tap action immediately
@@ -1415,19 +1378,18 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             }
         }
     }
-    // Button held
     else if (isPressed && btnState.isPressed)
     {
         if (hasHoldAction)
         {
             // Check if hold threshold reached
-            if (!btnState.holdTriggered)
+            if (!s_buttonHoldTriggered[button])
             {
                 ULONGLONG elapsed = GetTickCount64() - btnState.pressStartTime;
                 if (elapsed >= static_cast<ULONGLONG>(holdTime))
                 {
                     // Hold threshold met, execute hold action
-                    btnState.holdTriggered = true;
+                    s_buttonHoldTriggered[button] = true;
 
                     if (holdSimulatedKey != 0)
                     {
@@ -1461,7 +1423,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     {
         if (hasHoldAction)
         {
-            if (btnState.holdTriggered)
+            if (s_buttonHoldTriggered[button])
             {
                 // Was holding, release hold action
                 if (holdSimulatedKey != 0)
@@ -1505,7 +1467,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             }
         }
         btnState.wasHandled = false;
-        btnState.holdTriggered = false;
+        s_buttonHoldTriggered[button] = false;
     }
 
     btnState.isPressed = isPressed;
@@ -1517,8 +1479,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
     auto& btnState = g_Controller.triggerButtons[triggerIndex];
     int holdCommandId = s_triggerHoldCommands[triggerIndex];
     int holdTime = s_triggerHoldTimes[triggerIndex];
-
-    bool hasHoldAction = (holdCommandId >= 0);
+    bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
     Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
     bool isPressed = value > TRIGGER_THRESHOLD;
@@ -1526,7 +1487,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
     if (IsInTransitionPeriod())
     {
         btnState.isPressed = isPressed;
-        btnState.holdTriggered = false;
+        s_triggerHoldTriggered[triggerIndex] = false;
         return;
     }
 
@@ -1537,7 +1498,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
     {
         UpdateInputMode(true);
         btnState.pressStartTime = GetTickCount64();
-        btnState.holdTriggered = false;
+        s_triggerHoldTriggered[triggerIndex] = false;
         btnState.wasHandled = true;
 
         // If no hold action configured, execute tap action immediately
@@ -1554,13 +1515,13 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
         if (hasHoldAction)
         {
             // Check if hold threshold reached
-            if (!btnState.holdTriggered)
+            if (!s_triggerHoldTriggered[triggerIndex])
             {
                 ULONGLONG elapsed = GetTickCount64() - btnState.pressStartTime;
                 if (elapsed >= static_cast<ULONGLONG>(holdTime))
                 {
                     // Hold threshold met, execute hold action
-                    btnState.holdTriggered = true;
+                    s_triggerHoldTriggered[triggerIndex] = true;
 
                     if (holdSimulatedKey != 0)
                     {
@@ -1591,7 +1552,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
     {
         if (hasHoldAction)
         {
-            if (btnState.holdTriggered)
+            if (s_triggerHoldTriggered[triggerIndex])
             {
                 // Was holding, release hold action
                 if (holdSimulatedKey != 0)
@@ -1614,12 +1575,11 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
         }
         else
         {
-            // No hold action configured, release tap action normally
             g_Controller.commandActive[commandId] = false;
             OnCommandOff(g_State.g_pGameClientShell, commandId);
         }
         btnState.wasHandled = false;
-        btnState.holdTriggered = false;
+        s_triggerHoldTriggered[triggerIndex] = false;
     }
 
     btnState.isPressed = isPressed;
