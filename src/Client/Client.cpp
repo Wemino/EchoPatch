@@ -1490,7 +1490,17 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 {
 	CHUDMgr_StartFlicker(thisPtr, fDuration);
 
-	uint32_t durationMs = static_cast<uint32_t>(fDuration * 1000.0f);
+	uint32_t durationMs;
+
+	if (fDuration <= 0.0f)
+	{
+		durationMs = 1000;
+	}
+	else
+	{
+		durationMs = static_cast<uint32_t>(fDuration * 1000.0f);
+	}
+
 	SetGamepadRumble(0, 8000, durationMs);
 }
 
