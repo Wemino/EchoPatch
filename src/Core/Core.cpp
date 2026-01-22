@@ -106,6 +106,7 @@ bool GyroEnabled = false;
 int GyroAimingMode = 0;
 float GyroSensitivity = 0.0f;
 float GyroSmoothing = 0.0f;
+bool GyroCalibrationPersistence = false;
 bool TouchpadEnabled = false;
 bool HideMouseCursor = false;
 float GPadAimSensitivity = 0.0f;
@@ -245,6 +246,7 @@ static void ReadConfig()
     GyroAimingMode = IniHelper::ReadInteger("Controller", "GyroAimingMode", 0);
     GyroSensitivity = IniHelper::ReadFloat("Controller", "GyroSensitivity", 1.0f);
     GyroSmoothing = IniHelper::ReadFloat("Controller", "GyroSmoothing", 0.016f);
+    GyroCalibrationPersistence = IniHelper::ReadInteger("Controller", "GyroCalibrationPersistence", 1) == 1;
     TouchpadEnabled = IniHelper::ReadInteger("Controller", "TouchpadEnabled", 1) == 1;
     HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 0) == 1;
     GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
@@ -478,6 +480,7 @@ static void ReadConfig()
     SetGyroEnabled(GyroEnabled);
     SetGyroSensitivity(GyroSensitivity);
     SetGyroSmoothing(GyroSmoothing);
+    SetGyroCalibrationPersistence(GyroCalibrationPersistence);
 }
 
 #pragma region Helper

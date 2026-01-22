@@ -322,6 +322,7 @@ extern bool GyroEnabled;
 extern int GyroAimingMode;
 extern float GyroSensitivity;
 extern float GyroSmoothing;
+extern bool GyroCalibrationPersistence;
 extern bool TouchpadEnabled;
 extern bool HideMouseCursor;
 extern float GPadAimSensitivity;

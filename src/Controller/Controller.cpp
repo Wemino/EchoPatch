@@ -3,6 +3,9 @@
 #include <Windows.h>
 #include <SDL3/SDL.h>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <iomanip>
 
 #include "../Core/Core.hpp"
 #include "Controller.hpp"
@@ -107,6 +110,10 @@ struct GyroAutoOffset
 static GyroConfig s_gyroConfig;
 static GyroProcessingState s_gyroProcessing;
 static GyroAutoOffset s_gyroOffset;
+
+static bool s_gyroCalibrationPersistenceEnabled = true;
+static bool s_gyroCalibrationSavedThisSession = false;
+static std::string s_currentControllerSerial;
 
 // ==========================================================
 // Static State - Touchpad
@@ -277,6 +284,87 @@ static int GetSimulatedKey(int commandId)
 }
 
 // ==========================================================
+// Gyro Calibration Persistence
+// ==========================================================
+
+static std::string GetGyroCalibrationFolder()
+{
+    if (g_State.IsExpansion())
+        return "..\\GyroCalibration\\";
+
+    return "GyroCalibration\\";
+}
+
+static std::string GetGyroCalibrationFilePath(const char* serial)
+{
+    if (!serial || serial[0] == '\0')
+        return "";
+
+    uint32_t hash = 0x811C9DC5;
+    for (const char* p = serial; *p; ++p)
+    {
+        hash ^= static_cast<uint32_t>(*p);
+        hash *= 0x01000193;
+    }
+
+    std::ostringstream filename;
+    filename << GetGyroCalibrationFolder() << std::hex << std::setfill('0') << std::setw(8) << hash << ".gyro";
+    return filename.str();
+}
+
+static void SaveGyroCalibration()
+{
+    if (s_currentControllerSerial.empty())
+        return;
+
+    std::string folderPath = GetGyroCalibrationFolder();
+    CreateDirectoryA(folderPath.c_str(), nullptr);
+
+    std::string filePath = GetGyroCalibrationFilePath(s_currentControllerSerial.c_str());
+    if (filePath.empty())
+        return;
+
+    std::ofstream file(filePath, std::ios::binary);
+    if (!file)
+        return;
+
+    file.write(reinterpret_cast<const char*>(&s_gyroOffset.offsetX), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&s_gyroOffset.offsetY), sizeof(float));
+    file.write(reinterpret_cast<const char*>(&s_gyroOffset.offsetZ), sizeof(float));
+
+    s_gyroCalibrationSavedThisSession = true;
+}
+
+static bool LoadGyroCalibration(const char* serial)
+{
+    if (!serial || serial[0] == '\0')
+        return false;
+
+    std::string filePath = GetGyroCalibrationFilePath(serial);
+    if (filePath.empty())
+        return false;
+
+    std::ifstream file(filePath, std::ios::binary);
+    if (!file)
+        return false;
+
+    float offsetX = 0.0, offsetY = 0.0, offsetZ = 0.0;
+    file.read(reinterpret_cast<char*>(&offsetX), sizeof(float));
+    file.read(reinterpret_cast<char*>(&offsetY), sizeof(float));
+    file.read(reinterpret_cast<char*>(&offsetZ), sizeof(float));
+
+    if (!file)
+        return false;
+
+    s_gyroOffset.offsetX = offsetX;
+    s_gyroOffset.offsetY = offsetY;
+    s_gyroOffset.offsetZ = offsetZ;
+    s_gyroOffset.hasInitialCalibration = true;
+
+    return true;
+}
+
+// ==========================================================
 // Frame Timing
 // ==========================================================
 
@@ -363,6 +451,23 @@ static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
     if (s_capabilities.hasGyro)
     {
         SDL_SetGamepadSensorEnabled(pGamepad, SDL_SENSOR_GYRO, true);
+
+        const char* serial = SDL_GetGamepadSerial(pGamepad);
+        if (serial && serial[0] != '\0')
+        {
+            s_currentControllerSerial = serial;
+
+            if (s_gyroCalibrationPersistenceEnabled)
+            {
+                LoadGyroCalibration(serial);
+            }
+        }
+        else
+        {
+            s_currentControllerSerial.clear();
+        }
+
+        s_gyroCalibrationSavedThisSession = false;
     }
 
     if (s_capabilities.hasAccel)
@@ -377,6 +482,8 @@ static void ResetControllerState()
     s_gyroState = GyroState();
     s_gyroProcessing = GyroProcessingState();
     s_gyroOffset = GyroAutoOffset();
+    s_gyroCalibrationSavedThisSession = false;
+    s_currentControllerSerial.clear();
     s_touchpadFinger[0] = TouchpadState();
     s_touchpadFinger[1] = TouchpadState();
     s_wasTouchpadPressed[0] = false;
@@ -498,6 +605,11 @@ void SetGyroSmoothing(float smoothing)
 void SetGyroInvertY(bool invert)
 {
     s_gyroConfig.invertY = invert;
+}
+
+void SetGyroCalibrationPersistence(bool enabled)
+{
+    s_gyroCalibrationPersistenceEnabled = enabled;
 }
 
 void ResetGyroState()
@@ -877,6 +989,11 @@ static void UpdateGyroOffset(float gyroX, float gyroY, float gyroZ, float accelX
             s_gyroOffset.offsetX += fmaxf(-maxStep, fminf(maxStep, diffX));
             s_gyroOffset.offsetY += fmaxf(-maxStep, fminf(maxStep, diffY));
             s_gyroOffset.offsetZ += fmaxf(-maxStep, fminf(maxStep, diffZ));
+        }
+
+        if (s_gyroCalibrationPersistenceEnabled && !s_gyroCalibrationSavedThisSession && !s_currentControllerSerial.empty())
+        {
+            SaveGyroCalibration();
         }
 
         s_gyroOffset.stillnessTimer = requiredTime * 0.5f;

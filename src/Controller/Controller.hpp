@@ -107,6 +107,7 @@ void SetGyroEnabled(bool enabled);
 void SetGyroSensitivity(float sensitivity);
 void SetGyroSmoothing(float smoothing);
 void SetGyroInvertY(bool invert);
+void SetGyroCalibrationPersistence(bool enabled);
 void ResetGyroState();
 
 // ==========================================================
