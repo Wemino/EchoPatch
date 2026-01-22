@@ -1494,15 +1494,15 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 	SetGamepadRumble(0, 8000, durationMs);
 }
 
-static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* a1, int a2)
+static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData, int a2)
 {
-	if (g_State.isDoingMeleeAttack && *a1)
+	if (g_State.isDoingMeleeAttack && *rImpactData)
 	{
 		SetGamepadRumble(50000, 40000, 120);
 		g_State.isDoingMeleeAttack = false;
 	}
 
-	return CClientWeapon_WeaponPath_OnImpactCB(a1, a2);
+	return CClientWeapon_WeaponPath_OnImpactCB(rImpactData, a2);
 }
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
