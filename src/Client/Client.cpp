@@ -2158,7 +2158,7 @@ static void ApplyConsoleClientPatch()
 
 static void ApplyClientFXHook()
 {
-	if (!HighFPSFixes || !SDLGamepadSupport || !RumbleEnabled) return;
+	if (!HighFPSFixes && !SDLGamepadSupport) return;
 
     DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
 

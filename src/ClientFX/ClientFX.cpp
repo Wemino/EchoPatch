@@ -96,7 +96,7 @@ static void ApplyHighFPSFixesClientFXPatch()
 
 static void ApplyControllerClientFXPatch()
 {
-    if (!SDLGamepadSupport || !RumbleEnabled) return;
+    if (!RumbleEnabled) return;
 
     DWORD addr_GetShakeIntensity = ScanModuleSignature(g_State.GameClientFX, "51 52 8B CF C7 44 24 14 00 00 80 3F E8", "GetShakeIntensity");
     addr_GetShakeIntensity = MemoryHelper::ResolveRelativeAddress(addr_GetShakeIntensity, 0xD);
