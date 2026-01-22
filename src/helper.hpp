@@ -731,6 +731,45 @@ namespace HashHelper
 		// Save
 		static constexpr uint32_t CheckPointOptimizeVideoMemory = FNV1a("CheckPointOptimizeVideoMemory");
 	};
+
+	struct WeaponHashes
+	{
+		static constexpr uint32_t Pistol = FNV1a("Pistol");
+		static constexpr uint32_t SMG = FNV1a("SMG");
+		static constexpr uint32_t Minigun = FNV1a("Minigun");
+		static constexpr uint32_t Laser = FNV1a("Laser");
+		static constexpr uint32_t AssaultRifle = FNV1a("AssaultRifle");
+		static constexpr uint32_t Rifle = FNV1a("Rifle");
+		static constexpr uint32_t NailGun = FNV1a("NailGun");
+		static constexpr uint32_t AdvancedRifle = FNV1a("AdvancedRifle");
+		static constexpr uint32_t Turret_Ceiling = FNV1a("Turret_Ceiling");
+		static constexpr uint32_t Shotgun = FNV1a("Shotgun");
+		static constexpr uint32_t GrenadeLauncher = FNV1a("GrenadeLauncher");
+		static constexpr uint32_t Cannon = FNV1a("Cannon");
+		static constexpr uint32_t Missile = FNV1a("Missile");
+		static constexpr uint32_t Plasma = FNV1a("Plasma");
+		static constexpr uint32_t ChainLightningGun = FNV1a("ChainLightningGun");
+		static constexpr uint32_t Frag = FNV1a("Frag");
+		static constexpr uint32_t Proximity = FNV1a("Proximity");
+		static constexpr uint32_t RemoteCharge = FNV1a("Remote Charge");
+		static constexpr uint32_t RemoteDetonator = FNV1a("Remote Detonator");
+		static constexpr uint32_t DeployableTurretGrenade = FNV1a("DeployableTurretGrenade");
+		static constexpr uint32_t Melee_RifleButt = FNV1a("Melee_RifleButt");
+		static constexpr uint32_t Melee_JumpKick = FNV1a("Melee_JumpKick");
+		static constexpr uint32_t Melee_SlideKick = FNV1a("Melee_SlideKick");
+		static constexpr uint32_t Melee_JabRight = FNV1a("Melee_JabRight");
+		static constexpr uint32_t Melee_JabLeft = FNV1a("Melee_JabLeft");
+		static constexpr uint32_t Melee_RunKickRight = FNV1a("Melee_RunKickRight");
+		static constexpr uint32_t Melee_RunKickLeft = FNV1a("Melee_RunKickLeft");
+	};
+
+	struct GearHashes
+	{
+		static constexpr uint32_t ArmorLightSP = FNV1a("Armor Light SP");
+		static constexpr uint32_t Medkit = FNV1a("Medkit");
+		static constexpr uint32_t HealthMax = FNV1a("HealthMax");
+		static constexpr uint32_t SlowMoMax = FNV1a("SlowMoMax");
+	};
 };
 
 #pragma once

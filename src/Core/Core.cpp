@@ -240,7 +240,7 @@ static void ReadConfig()
     // Controller
     MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
     SDLGamepadSupport = IniHelper::ReadInteger("Controller", "SDLGamepadSupport", 1) == 1;
-    RumbleEnabled = IniHelper::ReadInteger("Controller", "RumbleEnabled", 1) == 1;
+    RumbleEnabled = IniHelper::ReadInteger("Controller", "RumbleEnabled", 0) == 1;
     GyroEnabled = IniHelper::ReadInteger("Controller", "GyroEnabled", 0) == 1;
     GyroAimingMode = IniHelper::ReadInteger("Controller", "GyroAimingMode", 0);
     GyroSensitivity = IniHelper::ReadFloat("Controller", "GyroSensitivity", 1.0f);

@@ -1,11 +1,13 @@
 #include "../Core/Core.hpp"
 #include "MinHook.hpp"
 #include "../helper.hpp"
+#include "../Controller/Controller.hpp"
 
 void(__thiscall* SetWeaponCapacityServer)(int, uint8_t) = nullptr;
 void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
 void(__thiscall* ServerExitSlowMo)(int*, bool, float) = nullptr;
+bool(__thiscall* CPlayerInventory_UseGear)(int*, int, int) = nullptr;
 
 #pragma region Server Hooks
 
@@ -40,6 +42,44 @@ void __fastcall ServerUpdateSlowMo_Hook(int* thisPtr, int)
     }
 
     ServerUpdateSlowMo(thisPtr);
+}
+
+// ===============
+//  Rumble
+// ===============
+
+static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGear, bool a3)
+{
+    bool bUsed = CPlayerInventory_UseGear(thisPtr, hGear, a3);
+
+    if (bUsed)
+    {
+        const char* gearName = *(const char**)hGear;
+
+        if (gearName)
+        {
+            uint32_t hash = HashHelper::FNV1aRuntime(gearName);
+
+            switch (hash)
+            {
+                case HashHelper::GearHashes::ArmorLightSP:
+                case HashHelper::GearHashes::Medkit:
+                    SetGamepadRumble(15000, 22000, 150);
+                    break;
+
+                case HashHelper::GearHashes::HealthMax:
+                case HashHelper::GearHashes::SlowMoMax:
+                    SetGamepadRumble(55000, 45000, 300);
+                    break;
+
+                default:
+                    SetGamepadRumble(15000, 22000, 150);
+                    break;
+            }
+        }
+    }
+
+    return bUsed;
 }
 
 #pragma endregion
@@ -94,6 +134,18 @@ static void ApplyHighFPSFixesServerPatch()
     ServerExitSlowMo = reinterpret_cast<decltype(ServerExitSlowMo)>((int)addr_ServerExitSlowMo);
 }
 
+static void ApplyControllerServerPatch()
+{
+    if (!SDLGamepadSupport || !RumbleEnabled) return;
+
+    DWORD addr_UseGear = ScanModuleSignature(g_State.GameServer, "83 EC 18 57 8B F9 8B 4F 0C 8B 01 FF", "UseGear");
+
+    if (addr_UseGear)
+    {
+        ApplyTrackedHook(addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
+    }
+}
+
 void ApplyServerPatch()
 {
     if (g_State.hookedServerFunctionAddresses.size() != 0)
@@ -110,6 +162,7 @@ void ApplyServerPatch()
     ApplyPersistentWorldServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyHighFPSFixesServerPatch();
+    ApplyControllerServerPatch();
 }
 
 #pragma endregion

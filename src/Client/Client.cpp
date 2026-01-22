@@ -11,8 +11,9 @@
 // Client Function Pointers
 // ======================
 
-// HighFPSFixes
 bool(__thiscall* LoadFxDll)(int, char*, char) = nullptr;
+
+// HighFPSFixes
 void(__thiscall* UpdateOnGround)(int) = nullptr;
 void(__thiscall* UpdateWaveProp)(int, float) = nullptr;
 double(__thiscall* GetMaxRecentVelocityMag)(int) = nullptr;
@@ -88,6 +89,12 @@ void(__thiscall* ApplyLocalRotationOffset)(int, float*) = nullptr;
 void(__thiscall* UpdatePlayerMovement)(int) = nullptr;
 void(__thiscall* BeginAim)(BYTE*) = nullptr;
 void(__thiscall* EndAim)(BYTE*) = nullptr;
+void(__thiscall* CClientWeaponFire)(DWORD*) = nullptr;
+void(__thiscall* HandleMsgPlayerDamage)(DWORD*, int*) = nullptr;
+unsigned int(__thiscall* UpdateHealth)(DWORD*, unsigned int) = nullptr;
+int(__thiscall* UpdateArmor)(DWORD*, unsigned int) = nullptr;
+void(__thiscall* CHUDMgr_StartFlicker)(DWORD*, float) = nullptr;
+bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
@@ -295,7 +302,7 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	return g_State.lastReportedVelocity;
 }
 
-static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float velocity, BYTE* a6, int a7)
+static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, int* a3, int* a4, float a5, BYTE* a6, int a7)
 {
 	uint32_t b1 = static_cast<uint32_t>(hBody1);
 	uint32_t b2 = static_cast<uint32_t>(hBody2);
@@ -316,40 +323,19 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 		}
 	}
 
-	bool allow = false;
-
-	if (!foundEntry)
+	// Only process splash if this pair hasn't splashed this frame
+	if (!foundEntry || (currentGameTime - foundEntry->lastTime) >= TARGET_FRAME_TIME)
 	{
-		allow = true;
-	}
-	else
-	{
-		double timeDiff = currentGameTime - foundEntry->lastTime;
-
-		if (timeDiff >= TARGET_FRAME_TIME)
-		{
-			foundEntry->burstCount = 0;
-			allow = true;
-		}
-		else if (foundEntry->burstCount < 2)
-		{
-			allow = true;
-		}
-	}
-
-	if (allow)
-	{
-		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, velocity, a6, a7);
+		PolyGridFXCollisionHandlerCB(hBody1, hBody2, a3, a4, a5, a6, a7);
 
 		if (foundEntry)
 		{
 			foundEntry->lastTime = currentGameTime;
-			foundEntry->burstCount++;
 		}
 		else
 		{
-			// Overwrite oldest entry in circular buffer
-			g_State.splashCache[g_State.splashIndex] = { key, currentGameTime, 1 };
+			// Overwrite oldest entry in circular buffer (size 64)
+			g_State.splashCache[g_State.splashIndex] = { key, currentGameTime };
 			g_State.splashIndex = (g_State.splashIndex + 1) % g_State.splashCache.size();
 		}
 	}
@@ -1036,16 +1022,6 @@ static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId)
 	return (commandId < 117 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
 }
 
-static bool __fastcall OnCommandOn_Hook(int thisPtr, int, int commandId)
-{
-	return OnCommandOn(thisPtr, commandId);
-}
-
-static bool __fastcall OnCommandOff_Hook(int thisPtr, int, int commandId)
-{
-	return OnCommandOff(thisPtr, commandId);
-}
-
 static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
 {
 	if (!g_Controller.isConnected || g_State.isConsoleOpen)
@@ -1232,6 +1208,301 @@ static void __fastcall EndAim_Hook(BYTE* thisPtr, int)
 {
 	EndAim(thisPtr);
 	g_State.isAiming = *thisPtr;
+}
+
+static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
+{
+	g_State.isDoingMeleeAttack = false;
+
+	DWORD ptrAmmo = thisPtr[106];
+
+	if (ptrAmmo)
+	{
+		const char* hAmmoData = *(const char**)ptrAmmo;
+		if (hAmmoData)
+		{
+			const uint32_t weaponHash = HashHelper::FNV1aRuntime(hAmmoData);
+
+			switch (weaponHash)
+			{
+				case HashHelper::WeaponHashes::Melee_RifleButt:
+				case HashHelper::WeaponHashes::Melee_JumpKick:
+				case HashHelper::WeaponHashes::Melee_SlideKick:
+				case HashHelper::WeaponHashes::Melee_JabRight:
+				case HashHelper::WeaponHashes::Melee_JabLeft:
+				case HashHelper::WeaponHashes::Melee_RunKickRight:
+				case HashHelper::WeaponHashes::Melee_RunKickLeft:
+					g_State.isDoingMeleeAttack = true;
+					break;
+
+				case HashHelper::WeaponHashes::Pistol:
+					SetGamepadRumble(30000, 35000, 110);
+					break;
+				case HashHelper::WeaponHashes::SMG:
+					SetGamepadRumble(15000, 20000, 70);
+					break;
+				case HashHelper::WeaponHashes::Minigun:
+					SetGamepadRumble(40000, 45000, 70);
+					break;
+				case HashHelper::WeaponHashes::Laser:
+					SetGamepadRumble(4000, 15000, 60);
+					break;
+
+				case HashHelper::WeaponHashes::AssaultRifle:
+					SetGamepadRumble(15000, 12000, 70);
+					break;
+				case HashHelper::WeaponHashes::Rifle:
+				case HashHelper::WeaponHashes::AdvancedRifle:
+					SetGamepadRumble(25000, 15000, 120);
+					break;
+				case HashHelper::WeaponHashes::NailGun:
+					SetGamepadRumble(35000, 40000, 100);
+					break;
+				case HashHelper::WeaponHashes::Turret_Ceiling:
+					SetGamepadRumble(40000, 45000, 110);
+					break;
+
+				case HashHelper::WeaponHashes::Shotgun:
+					SetGamepadRumble(45000, 30000, 150);
+					break;
+				case HashHelper::WeaponHashes::GrenadeLauncher:
+					SetGamepadRumble(40000, 20000, 180);
+					break;
+				case HashHelper::WeaponHashes::Cannon:
+					SetGamepadRumble(55000, 35000, 200);
+					break;
+				case HashHelper::WeaponHashes::Missile:
+					SetGamepadRumble(50000, 25000, 250);
+					break;
+
+				case HashHelper::WeaponHashes::Plasma:
+					SetGamepadRumble(42000, 55000, 140);
+					break;
+				case HashHelper::WeaponHashes::ChainLightningGun:
+					SetGamepadRumble(50000, 65000, 140);
+					break;
+
+				case HashHelper::WeaponHashes::Frag:
+				case HashHelper::WeaponHashes::Proximity:
+				case HashHelper::WeaponHashes::RemoteCharge:
+				case HashHelper::WeaponHashes::DeployableTurretGrenade:
+					SetGamepadRumble(8000, 6000, 100);
+					break;
+				case HashHelper::WeaponHashes::RemoteDetonator:
+					SetGamepadRumble(5000, 8000, 50);
+					break;
+			}
+		}
+	}
+
+	CClientWeaponFire(thisPtr);
+}
+
+static unsigned int __fastcall UpdateHealth_Hook(DWORD* thisPtr, int, unsigned int newHealth)
+{
+	if (g_State.isTakingDamage)
+	{
+		g_State.healthBefore = static_cast<uint16_t>(thisPtr[1]);
+	}
+
+	unsigned int result = UpdateHealth(thisPtr, newHealth);
+
+	if (g_State.isTakingDamage)
+	{
+		g_State.healthAfter = static_cast<uint16_t>(thisPtr[1]);
+	}
+
+	return result;
+}
+
+static int __fastcall UpdateArmor_Hook(DWORD* thisPtr, int, unsigned int newArmor)
+{
+	if (g_State.isTakingDamage)
+	{
+		g_State.armorBefore = static_cast<uint16_t>(thisPtr[2]);
+	}
+
+	int result = UpdateArmor(thisPtr, newArmor);
+
+	if (g_State.isTakingDamage)
+	{
+		g_State.armorAfter = static_cast<uint16_t>(thisPtr[2]);
+	}
+
+	return result;
+}
+
+static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
+{
+	g_State.isTakingDamage = true;
+	g_State.healthBefore = 0;
+	g_State.healthAfter = 0;
+	g_State.armorBefore = 0;
+	g_State.armorAfter = 0;
+
+	float damageBefore[12];
+	float* damageArray = (float*)((BYTE*)thisPtr + 428);
+	memcpy(damageBefore, damageArray, sizeof(damageBefore));
+
+	HandleMsgPlayerDamage(thisPtr, a2);
+
+	g_State.isTakingDamage = false;
+
+	bool playerDied = (g_State.healthAfter == 0) || (g_State.healthAfter > g_State.healthBefore);
+
+	uint16_t healthLost = 0;
+	uint16_t armorLost = 0;
+
+	if (!playerDied && g_State.healthBefore > g_State.healthAfter)
+		healthLost = g_State.healthBefore - g_State.healthAfter;
+
+	if (g_State.armorBefore > g_State.armorAfter)
+		armorLost = g_State.armorBefore - g_State.armorAfter;
+
+	uint16_t totalLost = healthLost + armorLost;
+
+	if (totalLost == 0 && !playerDied)
+		return;
+
+	float maxDelta = 0.0f;
+	int damageSector = -1;
+
+	for (int i = 0; i < 12; i++)
+	{
+		float delta = damageArray[i] - damageBefore[i];
+		if (delta > maxDelta && delta > 0.01f)
+		{
+			maxDelta = delta;
+			damageSector = i;
+		}
+	}
+
+	float damageScale;
+	uint32_t duration;
+
+	if (playerDied)
+	{
+		damageScale = 1.0f;
+		duration = 400;
+	}
+	else
+	{
+		damageScale = static_cast<float>(totalLost) / 50.0f;
+		if (damageScale > 1.0f) damageScale = 1.0f;
+		if (damageScale < 0.15f) damageScale = 0.15f;
+		duration = static_cast<uint32_t>(80 + damageScale * 170);
+	}
+
+	float healthPenalty = (healthLost > 0 || playerDied) ? 1.2f : 1.0f;
+
+	uint16_t baseIntensity = static_cast<uint16_t>((25000 + damageScale * 40000) * healthPenalty);
+	if (baseIntensity > 65535) baseIntensity = 65535;
+
+	// Boost right-side hits (high-freq motor is physically weaker)
+	bool isRightSide = (damageSector == 0 || damageSector == 1 || damageSector == 11);
+	if (isRightSide)
+	{
+		baseIntensity = static_cast<uint16_t>(baseIntensity * 1.3f);
+		if (baseIntensity > 65535) baseIntensity = 65535;
+	}
+
+	uint16_t lowFreq, highFreq;
+
+	/*  Damage Sector Map:
+	 *          3
+	 *       4     2
+	 *     5         1
+	 *    6           0
+	 *     7         11
+	 *       8     10
+	 *          9
+	 */
+	if (damageSector >= 0)
+	{
+		switch (damageSector)
+		{
+			// Pure right (3 o'clock) - kill left motor completely
+			case 0:
+				lowFreq = 0;
+				highFreq = baseIntensity;
+				break;
+
+			// Right bias (2 & 4 o'clock)
+			case 1:
+			case 11:
+				lowFreq = static_cast<uint16_t>(baseIntensity * 0.1f);
+				highFreq = baseIntensity;
+				break;
+
+			// Pure left (9 o'clock) - kill right motor completely
+			case 6:
+				lowFreq = baseIntensity;
+				highFreq = 0;
+				break;
+
+			// Left bias (8 & 10 o'clock)
+			case 5:
+			case 7:
+				lowFreq = baseIntensity;
+				highFreq = static_cast<uint16_t>(baseIntensity * 0.1f);
+				break;
+
+			// Front (12 o'clock) - balanced impact
+			case 2:
+			case 3:
+			case 4:
+				lowFreq = static_cast<uint16_t>(baseIntensity * 0.6f);
+				highFreq = static_cast<uint16_t>(baseIntensity * 0.6f);
+				break;
+
+			// Back (6 o'clock) - heavy thud
+			case 8:
+			case 9:
+			case 10:
+				lowFreq = static_cast<uint16_t>(baseIntensity * 0.8f);
+				highFreq = static_cast<uint16_t>(baseIntensity * 0.2f);
+				break;
+
+			default:
+				lowFreq = baseIntensity;
+				highFreq = baseIntensity;
+				break;
+			}
+	}
+	else
+	{
+		lowFreq = baseIntensity;
+		highFreq = baseIntensity;
+	}
+
+	uint16_t currentIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
+	uint32_t currentTime = GetTickCount64();
+
+	if (playerDied || currentIntensity > g_State.lastRumbleIntensity || currentTime > g_State.lastRumbleTime + 100)
+	{
+		SetGamepadRumble(lowFreq, highFreq, duration);
+		g_State.lastRumbleTime = currentTime;
+		g_State.lastRumbleIntensity = currentIntensity;
+	}
+}
+
+static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDuration)
+{
+	CHUDMgr_StartFlicker(thisPtr, fDuration);
+
+	uint32_t durationMs = static_cast<uint32_t>(fDuration * 1000.0f);
+	SetGamepadRumble(0, 8000, durationMs);
+}
+
+static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* a1, int a2)
+{
+	if (g_State.isDoingMeleeAttack && *a1)
+	{
+		SetGamepadRumble(50000, 40000, 120);
+		g_State.isDoingMeleeAttack = false;
+	}
+
+	return CClientWeapon_WeaponPath_OnImpactCB(a1, a2);
 }
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
@@ -1667,8 +1938,6 @@ static void ApplyControllerClientPatch()
 
     HookHelper::ApplyHook((void*)(addr_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
     HookHelper::ApplyHook((void*)addr_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);
-    HookHelper::ApplyHook((void*)addr_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&OnCommandOn);
-    HookHelper::ApplyHook((void*)addr_OnCommandOff, &OnCommandOff_Hook, (LPVOID*)&OnCommandOff);
     HookHelper::ApplyHook((void*)addr_SetOperatingTurret, &SetOperatingTurret_Hook, (LPVOID*)&SetOperatingTurret);
     HookHelper::ApplyHook((void*)addr_GetTriggerNameFromCommandID, &GetTriggerNameFromCommandID_Hook, (LPVOID*)&GetTriggerNameFromCommandID);
     HookHelper::ApplyHook((void*)addr_HUDActivateObjectSetObject, &HUDActivateObjectSetObject_Hook, (LPVOID*)&HUDActivateObjectSetObject);
@@ -1677,6 +1946,8 @@ static void ApplyControllerClientPatch()
     HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
     HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
     HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
+	OnCommandOn = reinterpret_cast<decltype(OnCommandOn)>(addr_OnCommandOn);
+	OnCommandOff = reinterpret_cast<decltype(OnCommandOff)>(addr_OnCommandOff);
 	HUDSwapUpdateTriggerName = reinterpret_cast<decltype(HUDSwapUpdateTriggerName)>(addr_HUDSwapUpdateTriggerName);
 
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
@@ -1689,15 +1960,32 @@ static void ApplyControllerClientPatch()
 		DWORD addr_BeginAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 48 28 8B 81 5C 01 00 00", "BeginAim");
 		DWORD addr_EndAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 88 F4 05 00 00 85 C9", "EndAim");
 
-		if (addr_ApplyLocalRotationOffset != 0 &&
-			addr_UpdatePlayerMovement != 0 &&
-			addr_BeginAim != 0 &&
-			addr_EndAim != 0)
+		if (addr_ApplyLocalRotationOffset != 0 && addr_UpdatePlayerMovement != 0 && addr_BeginAim != 0 && addr_EndAim != 0)
 		{
 			HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
 			HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
 			HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
 			HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
+		}
+	}
+
+	if (RumbleEnabled)
+	{
+		DWORD addr_CClientWeaponFire = ScanModuleSignature(g_State.GameClient, "50 FF 57 7C 83 F8 02", "CClientWeaponFire", 4);
+		DWORD addr_HandleMsgPlayerDamage = ScanModuleSignature(g_State.GameClient, "81 EC 4C 01 00 00 55 56 8B B4 24 58 01 00 00", "HandleMsgPlayerDamage");
+		DWORD addr_UpdateHealth = ScanModuleSignature(g_State.GameClient, "8B 41 0C 8B 54 24 04 3B D0 76 02 8B D0 8B 41 04", "UpdateHealth");
+		DWORD addr_UpdateArmor = ScanModuleSignature(g_State.GameClient, "8B 51 10 8B 44 24 04 3B C2 76 02 8B C2 39 41 08", "UpdateArmor");
+		DWORD addr_CHUDMgr_StartFlicker = ScanModuleSignature(g_State.GameClient, "FF 50 70 8B B7 7C 04 00 00 3B B7 80 04 00 00", "CHUDMgr_StartFlicker");
+		DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
+
+		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0)
+		{
+			HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
+			HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
+			HookHelper::ApplyHook((void*)addr_UpdateHealth, &UpdateHealth_Hook, (LPVOID*)&UpdateHealth);
+			HookHelper::ApplyHook((void*)addr_UpdateArmor, &UpdateArmor_Hook, (LPVOID*)&UpdateArmor);
+			HookHelper::ApplyHook((void*)(addr_CHUDMgr_StartFlicker - 0x32), &CHUDMgr_StartFlicker_Hook, (LPVOID*)&CHUDMgr_StartFlicker);
+			HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
 		}
 	}
 
@@ -1860,7 +2148,7 @@ static void ApplyConsoleClientPatch()
 
 static void ApplyClientFXHook()
 {
-    if (!HighFPSFixes) return;
+	if (!HighFPSFixes || !SDLGamepadSupport || !RumbleEnabled) return;
 
     DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
 

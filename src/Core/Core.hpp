@@ -143,6 +143,16 @@ struct GlobalState
 	int screenPerformanceGPU = 0;
 	bool updateGyroCamera = false;
 	bool isAiming = false;
+	bool isDoingMeleeAttack = false;
+	bool isTakingDamage = false;
+	uint16_t healthBefore = 0;
+	uint16_t healthAfter = 0;
+	uint16_t armorBefore = 0;
+	uint16_t armorAfter = 0;
+	uint32_t lastRumbleTime;
+	uint16_t lastRumbleIntensity;
+	uint32_t lastShakeRumbleTime;
+	uint16_t lastShakeRumbleIntensity;
 
 	// ======================
 	// Server State
@@ -150,6 +160,11 @@ struct GlobalState
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
 	std::vector<DWORD> hookedServerFunctionAddresses;
+
+	// ======================
+	// ClientFX State
+	// ======================
+	std::vector<DWORD> hookedClientFXFunctionAddresses;
 
 	// ======================
 	// Weapon/Animation
@@ -205,7 +220,6 @@ struct GlobalState
 	{
 		uint64_t key;
 		double lastTime;
-		int burstCount;
 	};
 
 	inline static std::array<SplashEntry, 64> splashCache{};
@@ -303,6 +317,7 @@ extern bool FixWindowStyle;
 // Controller
 extern float MouseAimMultiplier;
 extern bool SDLGamepadSupport;
+extern bool RumbleEnabled;
 extern bool GyroEnabled;
 extern int GyroAimingMode;
 extern float GyroSensitivity;
@@ -316,13 +331,27 @@ extern float GPadAimEdgeDelayTime;
 extern float GPadAimEdgeMultiplier;
 extern float GPadAimAspectRatio;
 extern float GPadZoomMagThreshold;
-extern int GAMEPAD_SOUTH, GAMEPAD_EAST, GAMEPAD_WEST, GAMEPAD_NORTH;
-extern int GAMEPAD_LEFT_STICK, GAMEPAD_RIGHT_STICK;
-extern int GAMEPAD_LEFT_SHOULDER, GAMEPAD_RIGHT_SHOULDER;
-extern int GAMEPAD_DPAD_UP, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_RIGHT;
-extern int GAMEPAD_LEFT_TRIGGER, GAMEPAD_RIGHT_TRIGGER;
-extern int GAMEPAD_BACK, GAMEPAD_START;
-extern int GAMEPAD_MISC1, GAMEPAD_RIGHT_PADDLE1, GAMEPAD_LEFT_PADDLE1, GAMEPAD_RIGHT_PADDLE2, GAMEPAD_LEFT_PADDLE2;
+extern int GAMEPAD_SOUTH, GAMEPAD_SOUTH_HOLD, GAMEPAD_SOUTH_HOLD_TIME;
+extern int GAMEPAD_EAST, GAMEPAD_EAST_HOLD, GAMEPAD_EAST_HOLD_TIME;
+extern int GAMEPAD_WEST, GAMEPAD_WEST_HOLD, GAMEPAD_WEST_HOLD_TIME;
+extern int GAMEPAD_NORTH, GAMEPAD_NORTH_HOLD, GAMEPAD_NORTH_HOLD_TIME;
+extern int GAMEPAD_LEFT_STICK, GAMEPAD_LEFT_STICK_HOLD, GAMEPAD_LEFT_STICK_HOLD_TIME;
+extern int GAMEPAD_RIGHT_STICK, GAMEPAD_RIGHT_STICK_HOLD, GAMEPAD_RIGHT_STICK_HOLD_TIME;
+extern int GAMEPAD_LEFT_SHOULDER, GAMEPAD_LEFT_SHOULDER_HOLD, GAMEPAD_LEFT_SHOULDER_HOLD_TIME;
+extern int GAMEPAD_RIGHT_SHOULDER, GAMEPAD_RIGHT_SHOULDER_HOLD, GAMEPAD_RIGHT_SHOULDER_HOLD_TIME;
+extern int GAMEPAD_DPAD_UP, GAMEPAD_DPAD_UP_HOLD, GAMEPAD_DPAD_UP_HOLD_TIME;
+extern int GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_DOWN_HOLD, GAMEPAD_DPAD_DOWN_HOLD_TIME;
+extern int GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_LEFT_HOLD, GAMEPAD_DPAD_LEFT_HOLD_TIME;
+extern int GAMEPAD_DPAD_RIGHT, GAMEPAD_DPAD_RIGHT_HOLD, GAMEPAD_DPAD_RIGHT_HOLD_TIME;
+extern int GAMEPAD_LEFT_TRIGGER, GAMEPAD_LEFT_TRIGGER_HOLD, GAMEPAD_LEFT_TRIGGER_HOLD_TIME;
+extern int GAMEPAD_RIGHT_TRIGGER, GAMEPAD_RIGHT_TRIGGER_HOLD, GAMEPAD_RIGHT_TRIGGER_HOLD_TIME;
+extern int GAMEPAD_BACK, GAMEPAD_BACK_HOLD, GAMEPAD_BACK_HOLD_TIME;
+extern int GAMEPAD_START, GAMEPAD_START_HOLD, GAMEPAD_START_HOLD_TIME;
+extern int GAMEPAD_MISC1, GAMEPAD_MISC1_HOLD, GAMEPAD_MISC1_HOLD_TIME;
+extern int GAMEPAD_RIGHT_PADDLE1, GAMEPAD_RIGHT_PADDLE1_HOLD, GAMEPAD_RIGHT_PADDLE1_HOLD_TIME;
+extern int GAMEPAD_LEFT_PADDLE1, GAMEPAD_LEFT_PADDLE1_HOLD, GAMEPAD_LEFT_PADDLE1_HOLD_TIME;
+extern int GAMEPAD_RIGHT_PADDLE2, GAMEPAD_RIGHT_PADDLE2_HOLD, GAMEPAD_RIGHT_PADDLE2_HOLD_TIME;
+extern int GAMEPAD_LEFT_PADDLE2, GAMEPAD_LEFT_PADDLE2_HOLD, GAMEPAD_LEFT_PADDLE2_HOLD_TIME;
 
 // SkipIntro
 extern bool SkipSplashScreen;
