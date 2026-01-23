@@ -15,43 +15,57 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
 {
     bool result = CCameraShakeFX_GetShakeIntensity(thisPtr, fUnitLifetime, pCameraPos, pIntensity);
 
-    if (!result || *pIntensity <= 0.01f)
+    if (!result)
+        return result;
+
+    float intensity = *pIntensity;
+    if (intensity < 0.005f)
         return result;
 
     int props = *(int*)(thisPtr + 20);
     bool useRadius = *(bool*)(props + 52);
+    int falloffType = *(int*)(props + 56);
+    int intensityCurve = *(int*)(props + 68);
 
-    if (!useRadius && *pIntensity < 0.1f)
+    if (!useRadius || falloffType == 1)
         return result;
 
-    float intensity = *pIntensity;
     if (intensity > 1.0f) intensity = 1.0f;
 
-    uint16_t lowFreq, highFreq;
-    uint32_t duration;
+    float baseDesign = *(float*)(intensityCurve + 8);
 
-    if (fUnitLifetime < 0.05f)
+    uint16_t lowFreq = 0;
+    uint16_t highFreq = 0;
+    uint32_t duration = 150;
+
+    if (baseDesign < 0.2f)
     {
-        // Initial impact
-        uint16_t baseIntensity = static_cast<uint16_t>(35000 + intensity * 30000);
-        lowFreq = baseIntensity;
-        highFreq = static_cast<uint16_t>(baseIntensity * 0.6f);
-        duration = 250;
+        lowFreq = static_cast<uint16_t>(intensity * 25000.0f);
+        highFreq = 0;
+        duration = 120;
     }
     else
     {
-        // Sustained rumble, follows intensity curve
-        uint16_t baseIntensity = static_cast<uint16_t>(10000 + intensity * 20000);
-        lowFreq = baseIntensity;
-        highFreq = static_cast<uint16_t>(baseIntensity * 0.5f);
-        duration = 150;  // Overlaps with 50ms refresh
+        float scaled = intensity * intensity;
+
+        if (fUnitLifetime < 0.05f)
+        {
+            lowFreq = static_cast<uint16_t>(scaled * 65535.0f);
+            highFreq = static_cast<uint16_t>(scaled * 55000.0f);
+            duration = 200;
+        }
+        else
+        {
+            lowFreq = static_cast<uint16_t>(scaled * 50000.0f);
+            highFreq = static_cast<uint16_t>(scaled * 30000.0f);
+            duration = 150;
+        }
     }
 
     uint32_t currentTime = GetTickCount64();
     uint16_t maxIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
 
-    // Apply if: timer expired or stronger shake overrides weaker one
-    if (currentTime > g_State.lastShakeRumbleTime + 50 || maxIntensity > g_State.lastShakeRumbleIntensity + 2000)
+    if (currentTime > g_State.lastShakeRumbleTime + 50 || maxIntensity > g_State.lastShakeRumbleIntensity + 500)
     {
         SetGamepadRumble(lowFreq, highFreq, duration);
         g_State.lastShakeRumbleTime = currentTime;
