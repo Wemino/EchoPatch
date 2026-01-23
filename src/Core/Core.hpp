@@ -145,14 +145,15 @@ struct GlobalState
 	bool isAiming = false;
 	bool isDoingMeleeAttack = false;
 	bool isTakingDamage = false;
+	bool isFallDamage = false;
 	uint16_t healthBefore = 0;
 	uint16_t healthAfter = 0;
 	uint16_t armorBefore = 0;
 	uint16_t armorAfter = 0;
-	uint32_t lastRumbleTime;
 	uint16_t lastRumbleIntensity;
-	uint32_t lastShakeRumbleTime;
 	uint16_t lastShakeRumbleIntensity;
+	uint32_t lastShakeRumbleTime;
+	uint32_t lastRumbleTime;
 
 	// ======================
 	// Server State

@@ -95,6 +95,7 @@ unsigned int(__thiscall* UpdateHealth)(DWORD*, unsigned int) = nullptr;
 int(__thiscall* UpdateArmor)(DWORD*, unsigned int) = nullptr;
 void(__thiscall* CHUDMgr_StartFlicker)(DWORD*, float) = nullptr;
 bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
+bool(__thiscall* HandleFallLand)(DWORD*, float, int) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
@@ -1348,6 +1349,12 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 
 	g_State.isTakingDamage = false;
 
+	if (g_State.isFallDamage)
+	{
+		g_State.isFallDamage = false;
+		return;
+	}
+
 	bool playerDied = (g_State.healthAfter == 0) || (g_State.healthAfter > g_State.healthBefore);
 
 	uint16_t healthLost = 0;
@@ -1513,6 +1520,44 @@ static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData,
 	}
 
 	return CClientWeapon_WeaponPath_OnImpactCB(rImpactData, a2);
+}
+
+static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell, int surfaceType)
+{
+	HandleFallLand(thisPtr, fDistFell, surfaceType);
+
+	if (fDistFell < 275.0f)
+		return;
+
+	int liquidState = *(int*)((char*)thisPtr + 192);
+	if (liquidState > 0 && liquidState <= 3)
+		return;
+
+	uint16_t lowFreq, highFreq;
+	uint32_t duration;
+
+	if (fDistFell < 500.0f)
+	{
+		float t = (fDistFell - 275.0f) / 225.0f;
+		lowFreq = static_cast<uint16_t>(2000 + t * 3000);
+		highFreq = 0;
+		duration = static_cast<uint32_t>(60 + t * 40);
+	}
+	else
+	{
+		// 500+: Damage territory
+		float t = (fDistFell - 500.0f) / 900.0f;
+		if (t > 1.0f) t = 1.0f;
+
+		float scaled = t * t;
+
+		lowFreq = static_cast<uint16_t>(25000 + scaled * 40535);
+		highFreq = static_cast<uint16_t>(15000 + scaled * 50535);
+		duration = static_cast<uint32_t>(250 + scaled * 350);
+		g_State.isFallDamage = true;
+	}
+
+	SetGamepadRumble(lowFreq, highFreq, duration);
 }
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
@@ -1987,8 +2032,9 @@ static void ApplyControllerClientPatch()
 		DWORD addr_UpdateArmor = ScanModuleSignature(g_State.GameClient, "8B 51 10 8B 44 24 04 3B C2 76 02 8B C2 39 41 08", "UpdateArmor");
 		DWORD addr_CHUDMgr_StartFlicker = ScanModuleSignature(g_State.GameClient, "FF 50 70 8B B7 7C 04 00 00 3B B7 80 04 00 00", "CHUDMgr_StartFlicker");
 		DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
+		DWORD addr_HandleFallLand = ScanModuleSignature(g_State.GameClient, "81 EC 38 02 00 00 ?? 8B ?? ?? ?? C0 00 00 00", "HandleFallLand");
 
-		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0)
+		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0)
 		{
 			HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
 			HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
@@ -1996,6 +2042,7 @@ static void ApplyControllerClientPatch()
 			HookHelper::ApplyHook((void*)addr_UpdateArmor, &UpdateArmor_Hook, (LPVOID*)&UpdateArmor);
 			HookHelper::ApplyHook((void*)(addr_CHUDMgr_StartFlicker - 0x32), &CHUDMgr_StartFlicker_Hook, (LPVOID*)&CHUDMgr_StartFlicker);
 			HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
+			HookHelper::ApplyHook((void*)addr_HandleFallLand, &HandleFallLand_Hook, (LPVOID*)&HandleFallLand);
 		}
 	}
 
