@@ -1104,7 +1104,7 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 		shortName = true; 
 	}
 
-	const wchar_t* name = GetGamepadButtonName(commandId, shortName);
+	const wchar_t* name = GetGamepadButtonPrompt(commandId, shortName);
 	if (name)
 		return name;
 
@@ -1481,7 +1481,7 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 	}
 
 	uint16_t currentIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
-	uint32_t currentTime = GetTickCount64();
+	uint64_t currentTime = GetTickCount64();
 
 	if (playerDied || currentIntensity > g_State.lastRumbleIntensity || currentTime > g_State.lastRumbleTime + 100)
 	{

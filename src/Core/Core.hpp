@@ -152,8 +152,8 @@ struct GlobalState
 	uint16_t armorAfter = 0;
 	uint16_t lastRumbleIntensity;
 	uint16_t lastShakeRumbleIntensity;
-	uint32_t lastShakeRumbleTime;
-	uint32_t lastRumbleTime;
+	uint64_t lastShakeRumbleTime;
+	uint64_t lastRumbleTime;
 
 	// ======================
 	// Server State

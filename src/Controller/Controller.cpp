@@ -300,16 +300,18 @@ static std::string GetGyroCalibrationFilePath(const char* serial)
     if (!serial || serial[0] == '\0')
         return "";
 
-    uint32_t hash = 0x811C9DC5;
-    for (const char* p = serial; *p; ++p)
+    std::string sanitized;
+    for (const char* p = serial; *p; p++)
     {
-        hash ^= static_cast<uint32_t>(*p);
-        hash *= 0x01000193;
+        char c = *p;
+        if (isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_')
+            sanitized += c;
     }
 
-    std::ostringstream filename;
-    filename << GetGyroCalibrationFolder() << std::hex << std::setfill('0') << std::setw(8) << hash << ".gyro";
-    return filename.str();
+    if (sanitized.empty())
+        return "";
+
+    return GetGyroCalibrationFolder() + sanitized + ".gyro";
 }
 
 static void SaveGyroCalibration()
@@ -1376,6 +1378,77 @@ const wchar_t* GetGamepadButtonName(int commandId, bool shortName)
     return nullptr;
 }
 
+static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName)
+{
+    ButtonPromptInfo info = { nullptr, false };
+    const ButtonNameSet& names = GetButtonNameSet();
+
+    // Check tap commands first
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+    {
+        if (s_buttonCommands[i] == commandId && names.buttons[i].shortName != nullptr)
+        {
+            info.buttonName = shortName ? names.buttons[i].shortName : names.buttons[i].longName;
+            info.isHoldAction = false;
+            return info;
+        }
+    }
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (s_triggerCommands[i] == commandId)
+        {
+            info.buttonName = shortName ? names.triggers[i].shortName : names.triggers[i].longName;
+            info.isHoldAction = false;
+            return info;
+        }
+    }
+
+    // Check hold commands
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+    {
+        if (s_buttonHoldCommands[i] == commandId && s_buttonHoldTimes[i] > 0 && names.buttons[i].shortName != nullptr)
+        {
+            info.buttonName = shortName ? names.buttons[i].shortName : names.buttons[i].longName;
+            info.isHoldAction = true;
+            return info;
+        }
+    }
+
+    for (int i = 0; i < 2; i++)
+    {
+        if (s_triggerHoldCommands[i] == commandId && s_triggerHoldTimes[i] > 0)
+        {
+            info.buttonName = shortName ? names.triggers[i].shortName : names.triggers[i].longName;
+            info.isHoldAction = true;
+            return info;
+        }
+    }
+
+    return info;
+}
+
+const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName)
+{
+    static wchar_t s_promptBuffer[64];
+
+    ButtonPromptInfo info = GetGamepadButtonPromptInfo(commandId, shortName);
+
+    if (!info.buttonName)
+        return nullptr;
+
+    if (info.isHoldAction)
+    {
+        swprintf_s(s_promptBuffer, L"Hold %s", info.buttonName);
+    }
+    else
+    {
+        wcscpy_s(s_promptBuffer, info.buttonName);
+    }
+
+    return s_promptBuffer;
+}
+
 // ==========================================================
 // Event Processing
 // ==========================================================
@@ -1495,6 +1568,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             }
         }
     }
+    // Button held
     else if (isPressed && btnState.isPressed)
     {
         if (hasHoldAction)
@@ -1512,6 +1586,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
                     {
                         g_Controller.simulatedKeyPressCount++;
                         PostMessage(g_State.hWnd, WM_KEYDOWN, holdSimulatedKey, 0);
+                        PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
                     }
                     else
                     {
@@ -1543,11 +1618,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             if (s_buttonHoldTriggered[button])
             {
                 // Was holding, release hold action
-                if (holdSimulatedKey != 0)
-                {
-                    PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
-                }
-                else
+                if (holdSimulatedKey == 0)
                 {
                     g_Controller.commandActive[holdCommandId] = false;
                     OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
@@ -1567,6 +1638,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
                     // Set active for this frame, memset next frame will clear it
                     g_Controller.commandActive[commandId] = true;
                     OnCommandOn(g_State.g_pGameClientShell, commandId);
+                    OnCommandOff(g_State.g_pGameClientShell, commandId);
                 }
             }
         }
@@ -1577,7 +1649,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             {
                 PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
             }
-            else
+            else if (commandId != 0)
             {
                 g_Controller.commandActive[commandId] = false;
                 OnCommandOff(g_State.g_pGameClientShell, commandId);
@@ -1644,6 +1716,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
                     {
                         g_Controller.simulatedKeyPressCount++;
                         PostMessage(g_State.hWnd, WM_KEYDOWN, holdSimulatedKey, 0);
+                        PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
                     }
                     else
                     {
@@ -1672,11 +1745,7 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
             if (s_triggerHoldTriggered[triggerIndex])
             {
                 // Was holding, release hold action
-                if (holdSimulatedKey != 0)
-                {
-                    PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
-                }
-                else
+                if (holdSimulatedKey == 0)
                 {
                     g_Controller.commandActive[holdCommandId] = false;
                     OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
@@ -1688,10 +1757,12 @@ static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
                 // Set active for this frame, memset next frame will clear it
                 g_Controller.commandActive[commandId] = true;
                 OnCommandOn(g_State.g_pGameClientShell, commandId);
+                OnCommandOff(g_State.g_pGameClientShell, commandId);
             }
         }
         else
         {
+            // No hold action configured, release tap action normally
             g_Controller.commandActive[commandId] = false;
             OnCommandOff(g_State.g_pGameClientShell, commandId);
         }

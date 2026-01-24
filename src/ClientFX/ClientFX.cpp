@@ -66,7 +66,7 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
         }
     }
 
-    uint32_t currentTime = GetTickCount64();
+    uint64_t currentTime = GetTickCount64();
     uint16_t maxIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
 
     if (currentTime > g_State.lastShakeRumbleTime + 50 || maxIntensity > g_State.lastShakeRumbleIntensity + 500)

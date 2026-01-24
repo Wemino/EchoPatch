@@ -39,8 +39,8 @@ enum class CvarType { String, Float };
 struct DynamicCvar
 {
     std::string value;
-    int managerInstance;
-    CvarType type;
+    int managerInstance = 0;
+    CvarType type = CvarType::String;
 };
 
 enum class EditTargetType { None, Command, EngineVar, ConfigVar };

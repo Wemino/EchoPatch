@@ -62,6 +62,12 @@ struct ControllerState
     int simulatedKeyPressCount = 0;
 };
 
+struct ButtonPromptInfo
+{
+    const wchar_t* buttonName;
+    bool isHoldAction;
+};
+
 // ==========================================================
 // Global State (extern)
 // ==========================================================
@@ -134,6 +140,8 @@ void ConfigureTrigger(int triggerIndex, int commandId, int holdCommandId = -1, i
 // ==========================================================
 
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
+ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName);
+const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName);
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
 void OnKeyboardMouseInput();
 bool ShouldShowControllerPrompts();

@@ -281,10 +281,10 @@ static void ReadConfig()
     GAMEPAD_RIGHT_SHOULDER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER_HOLD", -1);
     GAMEPAD_RIGHT_SHOULDER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER_HOLD_TIME", 500);
     GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 77);
-    GAMEPAD_DPAD_UP_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP_HOLD", -1);
+    GAMEPAD_DPAD_UP_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP_HOLD", 102);
     GAMEPAD_DPAD_UP_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP_HOLD_TIME", 500);
     GAMEPAD_DPAD_DOWN = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN", 73);
-    GAMEPAD_DPAD_DOWN_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN_HOLD", -1);
+    GAMEPAD_DPAD_DOWN_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN_HOLD", 50);
     GAMEPAD_DPAD_DOWN_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN_HOLD_TIME", 500);
     GAMEPAD_DPAD_LEFT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT", 20);
     GAMEPAD_DPAD_LEFT_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT_HOLD", -1);
@@ -299,10 +299,10 @@ static void ReadConfig()
     GAMEPAD_RIGHT_TRIGGER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER_HOLD", -1);
     GAMEPAD_RIGHT_TRIGGER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER_HOLD_TIME", 500);
     GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
-    GAMEPAD_BACK_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK_HOLD", -1);
+    GAMEPAD_BACK_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK_HOLD", 74);
     GAMEPAD_BACK_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK_HOLD_TIME", 500);
     GAMEPAD_START = IniHelper::ReadInteger("Controller", "GAMEPAD_START", 13);
-    GAMEPAD_START_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_START_HOLD", -1);
+    GAMEPAD_START_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_START_HOLD", 75);
     GAMEPAD_START_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_START_HOLD_TIME", 500);
     GAMEPAD_MISC1 = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1", 50);
     GAMEPAD_MISC1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1_HOLD", -1);
@@ -310,13 +310,13 @@ static void ReadConfig()
     GAMEPAD_RIGHT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1", 82);
     GAMEPAD_RIGHT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD", -1);
     GAMEPAD_RIGHT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD_TIME", 500);
-    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", 102);
+    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", 75);
     GAMEPAD_LEFT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD", -1);
     GAMEPAD_LEFT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2", 75);
+    GAMEPAD_RIGHT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2", -1);
     GAMEPAD_RIGHT_PADDLE2_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2_HOLD", -1);
     GAMEPAD_RIGHT_PADDLE2_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2_HOLD_TIME", 500);
-    GAMEPAD_LEFT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2", 74);
+    GAMEPAD_LEFT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2", -1);
     GAMEPAD_LEFT_PADDLE2_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2_HOLD", -1);
     GAMEPAD_LEFT_PADDLE2_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2_HOLD_TIME", 500);
 
@@ -792,7 +792,7 @@ static int __stdcall SetVelocity_Hook(int obj, float* vel)
 
             if (g_State.currentFrameTime > 0.0f && g_State.currentFrameTime < TARGET_FRAME_TIME && currentY > 0.0f && currentY < g_State.lastPositiveYVelocity)
             {
-                float frameRatio = g_State.currentFrameTime / TARGET_FRAME_TIME;
+                float frameRatio = static_cast<float>(g_State.currentFrameTime) / TARGET_FRAME_TIME;
                 float preserveRatio = (1.0f - frameRatio) * 0.125f;
 
                 float difference = g_State.lastPositiveYVelocity - currentY;
