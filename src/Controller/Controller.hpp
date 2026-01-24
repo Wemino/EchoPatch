@@ -5,7 +5,7 @@
 // Types and Enums
 // ==========================================================
 
-static constexpr int MAX_COMMAND_ID = 116;
+static constexpr int MAX_COMMAND_ID = 114;
 
 enum class GamepadStyle
 {

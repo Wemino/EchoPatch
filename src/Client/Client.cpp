@@ -1016,7 +1016,7 @@ static bool __fastcall SetQueuedConsoleVariable_Hook(int thisPtr, int, const cha
 
 static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId)
 {
-	return (commandId < 117 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
+	return (commandId < MAX_COMMAND_ID + 1 && g_Controller.commandActive[commandId]) || IsCommandOn(thisPtr, commandId);
 }
 
 static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
