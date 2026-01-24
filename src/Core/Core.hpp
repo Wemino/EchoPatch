@@ -195,8 +195,7 @@ struct GlobalState
 	float windowStartX = 0.0f;
 	float windowStartY = 0.0f;
 	float windowStartZ = 0.0f;
-	double maxRawVelocityInWindow = 0.0;
-	int lowVelocityWindowCount = 0;
+	int impededWindowCount = 0;
 	bool isProcessingRagdoll = false;
 	bool pendingVelocityFix = false;
 	float lastPositiveYVelocity = 0.0f;

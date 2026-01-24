@@ -202,94 +202,90 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	double dt = g_State.currentFrameTime;
 
 	if (dt <= 0.0 || dt > 0.2)
+	{
 		return g_State.lastReportedVelocity > 0.0 ? g_State.lastReportedVelocity : GetMaxRecentVelocityMag(thisPtr);
+	}
 
 	double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
+	float* currentPos = (float*)((char*)thisPtr - 12); // m_vLastPos is 12 bytes before m_vLastVel
 
-	// m_vLastVel (offset 1076), m_vLastPos is 12 bytes before (offset 1064)
-	float* currentPos = (float*)((char*)thisPtr - 12);
-
-	// Snapshot starting position when a new window begins
 	if (g_State.velocityTimeAccumulator == 0.0)
 	{
 		g_State.windowStartX = currentPos[0];
 		g_State.windowStartY = currentPos[1];
 		g_State.windowStartZ = currentPos[2];
-		g_State.maxRawVelocityInWindow = 0.0;
+		g_State.velocityAccumulator = 0.0;
 	}
 
-	g_State.velocityAccumulator += rawVelocity;
+	// Proper time-weighted accumulation: ∫v(t)dt / ∫dt
+	g_State.velocityAccumulator += rawVelocity * dt;
 	g_State.velocityTimeAccumulator += dt;
 
-	if (rawVelocity > g_State.maxRawVelocityInWindow)
-	{
-		g_State.maxRawVelocityInWindow = rawVelocity;
-	}
-
-	// Normalize accumulated velocity to target frame time for consistent output across all framerates
-	double currentWindowSpeed = (g_State.velocityAccumulator / g_State.velocityTimeAccumulator) * TARGET_FRAME_TIME;
-
 	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
-	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && currentWindowSpeed > 0.1;
+	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && rawVelocity > 10.0;
 
 	if (timeIsUp || isStartingToMove)
 	{
-		// Net displacement: compare window start to current position
-		// This filters out wall jitter where physics oscillates the player but they don't actually travel
-		// Unlike accumulated distance, net displacement is near zero if player vibrates in place
 		float dx = currentPos[0] - g_State.windowStartX;
 		float dy = currentPos[1] - g_State.windowStartY;
 		float dz = currentPos[2] - g_State.windowStartZ;
 
-		float netDisplacementSq = dx * dx + dy * dy + dz * dz;
+		double netDisplacement = sqrt(dx * dx + dy * dy + dz * dz);
+		double displacementVelocity = netDisplacement / g_State.velocityTimeAccumulator;
+		double avgRawVelocity = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
 
-		bool hasNetMovement = netDisplacementSq > 0.01f;
-		bool lowVelocityWindow = g_State.maxRawVelocityInWindow < 40.0;
+		const double MOVING_THRESHOLD = 50.0;
 
-		// Only count as blocked if low velocity and no net movement
-		if (lowVelocityWindow && !hasNetMovement)
+		bool rawVelocityLow = avgRawVelocity < MOVING_THRESHOLD;
+		bool displacementLow = displacementVelocity < MOVING_THRESHOLD;
+
+		// Only blocked if both signals agree, handles slowmo where raw≈0 but displacement is high
+		bool isBlocked = rawVelocityLow && displacementLow;
+
+		// Use whichever signal shows movement (raw for normal play, displacement for slowmo)
+		double effectiveVelocity = std::max(avgRawVelocity, displacementVelocity);
+
+		// Cap displacement spikes from teleports/glitches to normal walking speed
+		if (displacementVelocity > avgRawVelocity && displacementVelocity > 400.0)
 		{
-			g_State.lowVelocityWindowCount++;
+			effectiveVelocity = std::max(avgRawVelocity, 400.0);
+		}
+
+		if (isBlocked)
+		{
+			g_State.impededWindowCount++;
 		}
 		else
 		{
-			g_State.lowVelocityWindowCount = 0;
+			g_State.impededWindowCount = 0;
 		}
 
-		if (g_State.lowVelocityWindowCount >= 2)
+		// Require 2 consecutive blocked windows (100ms) to confirm wall collision
+		if (g_State.impededWindowCount >= 2)
 		{
-			// Two consecutive windows with no net movement confirms wall collision
 			g_State.lastReportedVelocity = 0.0;
 			g_State.prevWindowSpeed = 0.0;
 		}
 		else if (isStartingToMove)
 		{
-			g_State.lastReportedVelocity = currentWindowSpeed;
-			g_State.prevWindowSpeed = currentWindowSpeed;
-			g_State.lowVelocityWindowCount = 0;
-		}
-		else if (lowVelocityWindow)
-		{
-			// Low velocity but has net movement means FPS fluctuation, not wall collision
-			// Hold previous speed with slight decay to keep animation smooth
-			g_State.lastReportedVelocity = g_State.prevWindowSpeed * 0.98;
-			g_State.prevWindowSpeed = g_State.lastReportedVelocity;
+			g_State.lastReportedVelocity = effectiveVelocity;
+			g_State.prevWindowSpeed = effectiveVelocity;
+			g_State.impededWindowCount = 0;
 		}
 		else
 		{
-			// Normal movement: use max of current and previous to prevent aliasing dips
-			g_State.lastReportedVelocity = std::max(currentWindowSpeed, g_State.prevWindowSpeed);
-
-			if (currentWindowSpeed > g_State.prevWindowSpeed)
+			// Instant response when accelerating, smoothed decay when decelerating
+			if (effectiveVelocity > g_State.prevWindowSpeed)
 			{
-				g_State.prevWindowSpeed = currentWindowSpeed;
+				g_State.lastReportedVelocity = effectiveVelocity;
+				g_State.prevWindowSpeed = effectiveVelocity;
 			}
 			else
 			{
-				g_State.prevWindowSpeed = std::max(currentWindowSpeed, g_State.prevWindowSpeed * 0.98);
+				g_State.prevWindowSpeed = g_State.prevWindowSpeed * 0.8 + effectiveVelocity * 0.2;
+				g_State.lastReportedVelocity = g_State.prevWindowSpeed;
 			}
 
-			// Snap very low values to zero for clean idle state
 			if (g_State.lastReportedVelocity < 1.0)
 			{
 				g_State.lastReportedVelocity = 0.0;
