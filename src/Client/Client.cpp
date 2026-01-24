@@ -1222,72 +1222,74 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 
 			switch (weaponHash)
 			{
-				case HashHelper::WeaponHashes::Melee_RifleButt:
-				case HashHelper::WeaponHashes::Melee_JumpKick:
-				case HashHelper::WeaponHashes::Melee_SlideKick:
-				case HashHelper::WeaponHashes::Melee_JabRight:
-				case HashHelper::WeaponHashes::Melee_JabLeft:
-				case HashHelper::WeaponHashes::Melee_RunKickRight:
-				case HashHelper::WeaponHashes::Melee_RunKickLeft:
-					g_State.isDoingMeleeAttack = true;
-					break;
+			case HashHelper::WeaponHashes::Melee_RifleButt:
+			case HashHelper::WeaponHashes::Melee_JumpKick:
+			case HashHelper::WeaponHashes::Melee_SlideKick:
+			case HashHelper::WeaponHashes::Melee_JabRight:
+			case HashHelper::WeaponHashes::Melee_JabLeft:
+			case HashHelper::WeaponHashes::Melee_RunKickRight:
+			case HashHelper::WeaponHashes::Melee_RunKickLeft:
+				g_State.isDoingMeleeAttack = true;
+				break;
 
-				case HashHelper::WeaponHashes::Pistol:
-					SetGamepadRumble(30000, 35000, 110);
-					break;
-				case HashHelper::WeaponHashes::SMG:
-					SetGamepadRumble(15000, 20000, 70);
-					break;
-				case HashHelper::WeaponHashes::Minigun:
-					SetGamepadRumble(40000, 45000, 70);
-					break;
-				case HashHelper::WeaponHashes::Laser:
-					SetGamepadRumble(4000, 15000, 60);
-					break;
+			case HashHelper::WeaponHashes::Frag:
+			case HashHelper::WeaponHashes::Proximity:
+			case HashHelper::WeaponHashes::RemoteCharge:
+			case HashHelper::WeaponHashes::DeployableTurretGrenade:
+				SetGamepadRumble(15000, 5000, 100);
+				break;
 
-				case HashHelper::WeaponHashes::AssaultRifle:
-					SetGamepadRumble(15000, 12000, 70);
-					break;
-				case HashHelper::WeaponHashes::Rifle:
-				case HashHelper::WeaponHashes::AdvancedRifle:
-					SetGamepadRumble(25000, 15000, 120);
-					break;
-				case HashHelper::WeaponHashes::NailGun:
-					SetGamepadRumble(35000, 40000, 100);
-					break;
-				case HashHelper::WeaponHashes::Turret_Ceiling:
-					SetGamepadRumble(40000, 45000, 110);
-					break;
+			case HashHelper::WeaponHashes::SMG:
+				SetGamepadRumble(18000, 25000, 70);
+				break;
 
-				case HashHelper::WeaponHashes::Shotgun:
-					SetGamepadRumble(45000, 30000, 150);
-					break;
-				case HashHelper::WeaponHashes::GrenadeLauncher:
-					SetGamepadRumble(40000, 20000, 180);
-					break;
-				case HashHelper::WeaponHashes::Cannon:
-					SetGamepadRumble(55000, 35000, 200);
-					break;
-				case HashHelper::WeaponHashes::Missile:
-					SetGamepadRumble(50000, 25000, 250);
-					break;
+			case HashHelper::WeaponHashes::Laser:
+				SetGamepadRumble(10000, 30000, 80);
+				break;
 
-				case HashHelper::WeaponHashes::Plasma:
-					SetGamepadRumble(42000, 55000, 140);
-					break;
-				case HashHelper::WeaponHashes::ChainLightningGun:
-					SetGamepadRumble(50000, 65000, 140);
-					break;
+			case HashHelper::WeaponHashes::AssaultRifle:
+				SetGamepadRumble(30000, 20000, 80);
+				break;
 
-				case HashHelper::WeaponHashes::Frag:
-				case HashHelper::WeaponHashes::Proximity:
-				case HashHelper::WeaponHashes::RemoteCharge:
-				case HashHelper::WeaponHashes::DeployableTurretGrenade:
-					SetGamepadRumble(8000, 6000, 100);
-					break;
-				case HashHelper::WeaponHashes::RemoteDetonator:
-					SetGamepadRumble(5000, 8000, 50);
-					break;
+			case HashHelper::WeaponHashes::Rifle:
+			case HashHelper::WeaponHashes::AdvancedRifle:
+				SetGamepadRumble(45000, 25000, 100);
+				break;
+
+			case HashHelper::WeaponHashes::Pistol:
+				SetGamepadRumble(30000, 35000, 110);
+				break;
+
+			case HashHelper::WeaponHashes::NailGun:
+				SetGamepadRumble(40000, 50000, 110);
+				break;
+
+			case HashHelper::WeaponHashes::Minigun:
+			case HashHelper::WeaponHashes::Turret_Ceiling:
+				SetGamepadRumble(40000, 45000, 110);
+				break;
+
+			case HashHelper::WeaponHashes::RemoteDetonator:
+				SetGamepadRumble(40000, 65535, 150);
+				break;
+
+			case HashHelper::WeaponHashes::Plasma:
+			case HashHelper::WeaponHashes::ChainLightningGun:
+				SetGamepadRumble(55000, 55000, 220);
+				break;
+
+			case HashHelper::WeaponHashes::Shotgun:
+				SetGamepadRumble(45000, 45000, 250);
+				break;
+
+			case HashHelper::WeaponHashes::Missile:
+				SetGamepadRumble(50000, 50000, 250);
+				break;
+
+			case HashHelper::WeaponHashes::GrenadeLauncher:
+			case HashHelper::WeaponHashes::Cannon:
+				SetGamepadRumble(60000, 60000, 250);
+				break;
 			}
 		}
 	}

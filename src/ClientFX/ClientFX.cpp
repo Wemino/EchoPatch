@@ -40,7 +40,11 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
 
     if (baseDesign < 0.2f)
     {
-        lowFreq = static_cast<uint16_t>(intensity * 25000.0f);
+        float normalized = (intensity - 0.005f) / 0.045f;
+        if (normalized < 0.0f) normalized = 0.0f;
+        if (normalized > 1.0f) normalized = 1.0f;
+
+        lowFreq = static_cast<uint16_t>(5000 + normalized * 11000);
         highFreq = 0;
         duration = 120;
     }

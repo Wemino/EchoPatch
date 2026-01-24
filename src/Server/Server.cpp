@@ -64,7 +64,7 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
             {
                 case HashHelper::GearHashes::ArmorLightSP:
                 case HashHelper::GearHashes::Medkit:
-                    SetGamepadRumble(15000, 22000, 150);
+                    SetGamepadRumble(20000, 22000, 150);
                     break;
 
                 case HashHelper::GearHashes::HealthMax:
