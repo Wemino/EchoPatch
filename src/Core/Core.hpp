@@ -141,9 +141,11 @@ struct GlobalState
 	int maxCurrentType = 0;
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
+	int detonatorListHead = 0;
 	bool updateGyroCamera = false;
 	bool isAiming = false;
 	bool isDoingMeleeAttack = false;
+	bool isUsingRemoteDetonator = false;
 	bool isTakingDamage = false;
 	bool isFallDamage = false;
 	uint16_t healthBefore = 0;

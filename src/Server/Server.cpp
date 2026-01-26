@@ -8,6 +8,7 @@ void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
 void(__thiscall* ServerExitSlowMo)(int*, bool, float) = nullptr;
 bool(__thiscall* CPlayerInventory_UseGear)(int*, int, int) = nullptr;
+void(__thiscall* DetonateRemoteCharges)(int*) = nullptr;
 
 #pragma region Server Hooks
 
@@ -82,6 +83,46 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
     return bUsed;
 }
 
+static void __fastcall DetonateRemoteCharges_Hook(int* thisPtr, int)
+{
+    if (g_State.isUsingRemoteDetonator)
+    {
+        int* listHead = (int*)thisPtr[g_State.detonatorListHead];
+        int* current = (int*)*listHead;
+
+        int count = 0;
+        while (current != listHead)
+        {
+            int hObj = current[5];
+
+            if (hObj != 0)
+            {
+                count++;
+            }
+
+            current = (int*)*current;
+        }
+
+        g_State.isUsingRemoteDetonator = false;
+
+        // Only rumble if bombs are detonating
+        if (count > 0)
+        {
+            Uint32 duration = 250 + (count * 100);
+
+            Uint16 lowCalc = 40000 + (count * 5000);
+            Uint16 highCalc = 30000 + (count * 7000);
+
+            if (lowCalc > 65535) lowCalc = 65535;
+            if (highCalc > 65535) highCalc = 65535;
+
+            SetGamepadRumble(lowCalc, highCalc, duration);
+        }
+    }
+
+    DetonateRemoteCharges(thisPtr);
+}
+
 #pragma endregion
 
 #pragma region Server Patches
@@ -139,11 +180,14 @@ static void ApplyControllerServerPatch()
     if (!SDLGamepadSupport || !RumbleEnabled) return;
 
     DWORD addr_UseGear = ScanModuleSignature(g_State.GameServer, "83 EC 18 57 8B F9 8B 4F 0C 8B 01 FF", "UseGear");
+    DWORD addr_DetonateRemoteCharges = ScanModuleSignature(g_State.GameServer, "56 57 8B F9 8B 87 ?? ?? 00 00 8B 30 3B F0 74 42", "DetonateRemoteCharges");
 
-    if (addr_UseGear)
-    {
-        ApplyTrackedHook(addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
-    }
+    if (addr_UseGear == 0 || addr_DetonateRemoteCharges == 0)
+        return;
+
+    g_State.detonatorListHead = MemoryHelper::ReadMemory<int>(addr_DetonateRemoteCharges + 0x6) / 4;
+    ApplyTrackedHook(addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
+    ApplyTrackedHook(addr_DetonateRemoteCharges, &DetonateRemoteCharges_Hook, (LPVOID*)&DetonateRemoteCharges);
 }
 
 void ApplyServerPatch()
