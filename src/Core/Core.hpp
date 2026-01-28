@@ -156,6 +156,7 @@ struct GlobalState
 	uint16_t lastShakeRumbleIntensity;
 	uint64_t lastShakeRumbleTime;
 	uint64_t lastRumbleTime;
+	uint64_t rumbleLockoutEndTime = 0;
 
 	// ======================
 	// Server State

@@ -117,6 +117,7 @@ static void __fastcall DetonateRemoteCharges_Hook(int* thisPtr, int)
             if (highCalc > 65535) highCalc = 65535;
 
             SetGamepadRumble(lowCalc, highCalc, duration);
+            g_State.rumbleLockoutEndTime = GetTickCount64() + duration;
         }
     }
 
