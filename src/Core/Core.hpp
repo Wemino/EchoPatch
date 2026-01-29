@@ -61,6 +61,7 @@ struct GlobalState
 	int screenHeight = 0;
 	bool useVsyncOverride = false;
 	bool isUsingNvidiaDevice = false;
+	uint64_t cachedVRAM = 0;
 
 	// ======================
 	// HUD Scaling
@@ -293,6 +294,7 @@ extern bool DisableRedundantHIDInit;
 extern bool HighFPSFixes;
 extern bool OptimizeSaveSpeed;
 extern bool FixNvidiaShadowCorruption;
+extern bool FastVRAMDetection;
 extern bool DisableXPWidescreenFiltering;
 extern bool FixKeyboardInputLanguage;
 extern bool WeaponFixes;

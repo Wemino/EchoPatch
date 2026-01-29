@@ -2,6 +2,7 @@
 
 #pragma comment(lib, "libMinHook.x86.lib")
 #pragma comment(lib, "SDL3-static.lib")
+#pragma comment(lib, "dxgi.lib")
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
 {

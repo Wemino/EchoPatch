@@ -1,13 +1,14 @@
+#include <shlwapi.h>
+#include <ShlObj_core.h>
+#include <dxgi.h>
+#include "MinHook.hpp"
+#include "LAAPatcher.hpp"
 #include "Core.hpp"
 #include "../Client/Client.hpp"
 #include "../Server/Server.hpp"
 #include "../Controller/Controller.hpp"
-#include "MinHook.hpp"
-#include "LAAPatcher.hpp"
 #include "ConsoleMgr.hpp"
 #include "../helper.hpp"
-#include <shlwapi.h>
-#include <ShlObj_core.h>
 
 // ======================
 // Constants
@@ -74,6 +75,7 @@ bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
 bool OptimizeSaveSpeed = false;
 bool FixNvidiaShadowCorruption = false;
+bool FastVRAMDetection = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
@@ -214,6 +216,7 @@ static void ReadConfig()
     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
     OptimizeSaveSpeed = IniHelper::ReadInteger("Fixes", "OptimizeSaveSpeed", 1) == 1;
     FixNvidiaShadowCorruption = IniHelper::ReadInteger("Fixes", "FixNvidiaShadowCorruption", 1) == 1;
+    FastVRAMDetection = IniHelper::ReadInteger("Fixes", "FastVRAMDetection", 1) == 1;
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
@@ -1102,6 +1105,30 @@ static bool __cdecl LoadWorldShadows_Hook(int* a1)
 
 static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
 {
+    if (FastVRAMDetection)
+    {
+        IDXGIFactory* pFactory = nullptr;
+        if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&pFactory) == S_OK)
+        {
+            IDXGIAdapter* pAdapter = nullptr;
+            if (pFactory->EnumAdapters(a2[0], &pAdapter) == S_OK)
+            {
+                DXGI_ADAPTER_DESC desc;
+                if (pAdapter->GetDesc(&desc) == S_OK)
+                {
+                    g_State.cachedVRAM = desc.DedicatedVideoMemory;
+                }
+                pAdapter->Release();
+            }
+            pFactory->Release();
+        }
+
+        if (g_State.cachedVRAM > 0xFFF00000)
+        {
+            g_State.cachedVRAM = 0xFFF00000;
+        }
+    }
+
     if (FixNvidiaShadowCorruption)
     {
         DWORD VendorId = a2[267];
@@ -1137,6 +1164,19 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
     }
 
     return result;
+}
+
+// =======================
+// FastVRAMDetection
+// =======================
+
+static uint64_t __stdcall GetVRAM_Hook()
+{
+    if (g_State.cachedVRAM != 0)
+        return g_State.cachedVRAM;
+
+    // Failsafe
+    return 0x20000000; // 512MB
 }
 
 // ===========================
@@ -1607,6 +1647,29 @@ static void ApplyFixNvidiaShadowCorruption()
     }
 }
 
+static void ApplyFastVRAMDetection()
+{
+    if (!FastVRAMDetection) return;
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0x8E950, (uintptr_t)&GetVRAM_Hook);
+            break;
+        case FEARMP:
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0x8EA70, (uintptr_t)&GetVRAM_Hook);
+            break;
+        case FEARXP:
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0xC70A0, (uintptr_t)&GetVRAM_Hook);
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0x18DC60, (uintptr_t)&GetVRAM_Hook);
+            break;
+        case FEARXP2:
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0xC80F0, (uintptr_t)&GetVRAM_Hook);
+            MemoryHelper::MakeJMP(g_State.BaseAddress + 0x18F260, (uintptr_t)&GetVRAM_Hook);
+            break;
+    }
+}
+
 static void ApplyFixScriptedAnimationCrash()
 {
     if (!FixScriptedAnimationCrash) return;
@@ -1799,7 +1862,7 @@ static void ApplyDisableJoystick()
 
 static void ApplyDeviceCreationHook()
 {
-    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias) return;
+    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection) return;
 
     switch (g_State.CurrentFEARGame)
     {
@@ -1955,6 +2018,7 @@ static void Init()
     ApplyFixHighFPSPhysics();
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();
+    ApplyFastVRAMDetection();
     ApplyFixKeyboardInputLanguage();
     ApplyFixScriptedAnimationCrash();
     ApplyFixWindow();
