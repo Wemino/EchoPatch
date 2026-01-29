@@ -311,6 +311,7 @@ extern bool ReducedMipMapBias;
 extern bool EnablePersistentWorldState;
 
 // Display
+extern float CustomFOV;
 extern bool HUDScaling;
 extern float HUDCustomScalingFactor;
 extern float SmallTextCustomScalingFactor;

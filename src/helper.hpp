@@ -730,6 +730,11 @@ namespace HashHelper
 
 		// Save
 		static constexpr uint32_t CheckPointOptimizeVideoMemory = FNV1a("CheckPointOptimizeVideoMemory");
+
+		// FOV
+		static constexpr uint32_t FovY = FNV1a("FovY");
+		static constexpr uint32_t FovYWidescreen = FNV1a("FovYWidescreen");
+		static constexpr uint32_t CameraAttachedOffsetZ = FNV1a("CameraAttachedOffsetZ");
 	};
 
 	struct WeaponHashes

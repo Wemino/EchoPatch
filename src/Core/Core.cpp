@@ -92,6 +92,7 @@ bool ReducedMipMapBias = false;
 bool EnablePersistentWorldState = false;
 
 // Display
+float CustomFOV = 0;
 bool HUDScaling = false;
 float HUDCustomScalingFactor = 0;
 float SmallTextCustomScalingFactor = 0;
@@ -233,6 +234,7 @@ static void ReadConfig()
     EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
 
     // Display
+    CustomFOV = IniHelper::ReadFloat("Display", "CustomFOV", 0.0f);
     HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
     HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
     SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.0f);
@@ -533,6 +535,31 @@ static void SetVertexBufferPool(uint8_t pool)
     MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + offset, pool);
 }
 
+float GetCameraOffset(float fov)
+{
+    constexpr float data[][2] = 
+    {
+        {70.0f,  0.0f},   {75.0f,  2.5f},   {78.0f,  4.5f},
+        {80.0f,  5.75f},  {85.0f,  8.5f},   {93.0f,  12.0f},
+        {95.0f,  13.0f},  {105.0f, 17.0f},  {115.0f, 19.5f},
+        {128.0f, 23.0f}
+    };
+    constexpr size_t N = sizeof(data) / sizeof(data[0]);
+
+    size_t i = 0;
+    if (fov >= data[N - 1][0])
+    {
+        i = N - 2;
+    }
+    else if (fov > data[0][0])
+    {
+        while (fov > data[i + 1][0]) i++;
+    }
+
+    float t = (fov - data[i][0]) / (data[i + 1][0] - data[i][0]);
+    return data[i][1] + t * (data[i + 1][1] - data[i][1]);
+}
+
 #pragma endregion
 
 #pragma region Core Hooks
@@ -610,9 +637,9 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
             break;
         }
 
-        case 'C':  // CameraFirstPersonLODBias, CrosshairSize, CheckPointOptimizeVideoMemory
+        case 'C':  // CameraFirstPersonLODBias, CrosshairSize, CheckPointOptimizeVideoMemory, CameraAttachedOffsetZ
         {
-            if (!NoLODBias && !HUDScaling && !OptimizeSaveSpeed) break;
+            if (!NoLODBias && !HUDScaling && !OptimizeSaveSpeed && CustomFOV == 0.0f) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
             if (NoLODBias && varHash == HashHelper::CVarHashes::CameraFirstPersonLODBias)
@@ -627,6 +654,22 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
             else if (OptimizeSaveSpeed && varHash == HashHelper::CVarHashes::CheckPointOptimizeVideoMemory)
             {
                 fValue = 0.0f;
+            }
+            else if (CustomFOV != 0.0f && varHash == HashHelper::CVarHashes::CameraAttachedOffsetZ)
+            {
+                fValue = GetCameraOffset(CustomFOV);
+            }
+            break;
+        }
+
+        case 'F':  // FovY*
+        {
+            if (CustomFOV == 0.0f) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (varHash == HashHelper::CVarHashes::FovY || varHash == HashHelper::CVarHashes::FovYWidescreen)
+            {
+                fValue = CustomFOV;
             }
             break;
         }
