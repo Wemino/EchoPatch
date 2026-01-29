@@ -1,3 +1,5 @@
+#define NOMINMAX
+
 #include "../Core/Core.hpp"
 #include "MinHook.hpp"
 #include "../helper.hpp"
@@ -8,7 +10,7 @@ void(__thiscall* PlayerInventoryInit)(int, int) = nullptr;
 void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
 void(__thiscall* ServerExitSlowMo)(int*, bool, float) = nullptr;
 bool(__thiscall* CPlayerInventory_UseGear)(int*, int, int) = nullptr;
-void(__thiscall* DetonateRemoteCharges)(int*) = nullptr;
+void(__thiscall* DetonateRemoteCharges)(DWORD*) = nullptr;
 
 #pragma region Server Hooks
 
@@ -83,40 +85,30 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
     return bUsed;
 }
 
-static void __fastcall DetonateRemoteCharges_Hook(int* thisPtr, int)
+static void __fastcall DetonateRemoteCharges_Hook(DWORD* thisPtr, int)
 {
     if (g_State.isUsingRemoteDetonator)
     {
-        int* listHead = (int*)thisPtr[g_State.detonatorListHead];
-        int* current = (int*)*listHead;
-
+        DWORD* listHead = (DWORD*)thisPtr[g_State.detonatorListHead];
+        DWORD* current = (DWORD*)*listHead;
         int count = 0;
+
         while (current != listHead)
         {
-            int hObj = current[5];
-
-            if (hObj != 0)
-            {
+            if (current[5] != 0)
                 count++;
-            }
 
-            current = (int*)*current;
+            current = (DWORD*)*current;
         }
 
         g_State.isUsingRemoteDetonator = false;
 
-        // Only rumble if bombs are detonating
         if (count > 0)
         {
-            Uint32 duration = 250 + (count * 100);
-
-            Uint16 lowCalc = 40000 + (count * 5000);
-            Uint16 highCalc = 30000 + (count * 7000);
-
-            if (lowCalc > 65535) lowCalc = 65535;
-            if (highCalc > 65535) highCalc = 65535;
-
-            SetGamepadRumble(lowCalc, highCalc, duration);
+            Uint32 duration = std::min(250 + (count * 100), 2000);
+            Uint16 low = std::min(40000 + count * 5000, 65535);
+            Uint16 high = std::min(30000 + count * 7000, 65535);
+            SetGamepadRumble(low, high, duration);
             g_State.rumbleLockoutEndTime = GetTickCount64() + duration;
         }
     }
