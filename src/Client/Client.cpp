@@ -1892,6 +1892,7 @@ static void ApplyHighFPSFixesClientPatch()
         addr_UpdateNormalFriction == 0 ||
         addr_GetTimerElapsedS == 0 ||
         addr_UpdateWaveProp == 0 ||
+		addr_PolyGridFXCollisionHandlerCB == 0 ||
 		addr_HandleMsgSlowMo == 0 ||
 		addr_EnterSlowMo == 0 ||
 		addr_UpdateSlowMo == 0 ||
@@ -2183,7 +2184,7 @@ static void ApplyHighResolutionReflectionsClientPatch()
     }
 }
 
-static void ApplyAutoResolutionClientCheck()
+static void ApplyAutoResolutionClientPatch()
 {
     if (!AutoResolution) return;
 
@@ -2396,7 +2397,7 @@ void ApplyClientPatch()
 	ApplyHUDScalingClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
-	ApplyAutoResolutionClientCheck();
+	ApplyAutoResolutionClientPatch();
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyWeaponFixesClientPatch();
 	ApplyConsoleClientPatch();
