@@ -96,6 +96,7 @@ int(__thiscall* UpdateArmor)(DWORD*, unsigned int) = nullptr;
 void(__thiscall* CHUDMgr_StartFlicker)(DWORD*, float) = nullptr;
 bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
 bool(__thiscall* HandleFallLand)(DWORD*, float, int) = nullptr;
+void(__thiscall* CTurretFX_SetDamageState)(DWORD*) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
@@ -1072,6 +1073,13 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 {
 	// Operating a turret?
 	g_State.isOperatingTurret = pTurret != 0;
+
+	if (!pTurret)
+	{
+		g_State.turretPrevDamageState = 0;
+		g_State.rumbleLockoutEndTime = 0;
+	}
+
 	return SetOperatingTurret(thisPtr, pTurret);
 }
 
@@ -1262,7 +1270,7 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 					break;
 
 				case HashHelper::WeaponHashes::Pistol:
-					SetGamepadRumble(30000, 35000, 110);
+					SetGamepadRumble(35000, 35000, 110);
 					break;
 
 				case HashHelper::WeaponHashes::NailGun:
@@ -1271,7 +1279,10 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 
 				case HashHelper::WeaponHashes::Minigun:
 				case HashHelper::WeaponHashes::Turret_Ceiling:
-					SetGamepadRumble(40000, 45000, 110);
+					if (GetTickCount64() > g_State.rumbleLockoutEndTime)
+					{
+						SetGamepadRumble(40000, 45000, 110);
+					}
 					break;
 
 				case HashHelper::WeaponHashes::Plasma:
@@ -1514,7 +1525,7 @@ static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData,
 {
 	if (g_State.isDoingMeleeAttack && *rImpactData)
 	{
-		SetGamepadRumble(50000, 40000, 120);
+		SetGamepadRumble(52000, 42000, 120);
 		g_State.isDoingMeleeAttack = false;
 	}
 
@@ -1557,6 +1568,56 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 	}
 
 	SetGamepadRumble(lowFreq, highFreq, duration);
+}
+
+void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
+{
+	uint32_t newDamageState = *(uint32_t*)((char*)thisPtr + 124);
+
+	CTurretFX_SetDamageState(thisPtr);
+
+	if (!g_State.isOperatingTurret)
+		return;
+
+	if (newDamageState > g_State.turretPrevDamageState)
+	{
+		uint16_t lowFreq, highFreq;
+		uint32_t duration;
+
+		switch (newDamageState)
+		{
+			default:
+			case 1:
+				lowFreq = 58000;
+				highFreq = 48000;
+				duration = 600;
+				break;
+			case 2:
+				lowFreq = 62000;
+				highFreq = 52000;
+				duration = 650;
+				break;
+			case 3:
+				lowFreq = 65000;
+				highFreq = 65000;
+				duration = 700;
+				break;
+			case 4:
+				lowFreq = 65535;
+				highFreq = 65535;
+				duration = 2000;
+				break;
+		}
+
+		SetGamepadRumble(lowFreq, highFreq, duration);
+		g_State.rumbleLockoutEndTime = GetTickCount64() + duration;
+	}
+	else if (GetTickCount64() > g_State.rumbleLockoutEndTime)
+	{
+		SetGamepadRumble(12000, 8000, 120);
+	}
+
+	g_State.turretPrevDamageState = newDamageState;
 }
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
@@ -2032,8 +2093,9 @@ static void ApplyControllerClientPatch()
 		DWORD addr_CHUDMgr_StartFlicker = ScanModuleSignature(g_State.GameClient, "FF 50 70 8B B7 7C 04 00 00 3B B7 80 04 00 00", "CHUDMgr_StartFlicker");
 		DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
 		DWORD addr_HandleFallLand = ScanModuleSignature(g_State.GameClient, "81 EC 38 02 00 00 ?? 8B ?? ?? ?? C0 00 00 00", "HandleFallLand");
+		DWORD addr_CTurretFX_SetDamageState = ScanModuleSignature(g_State.GameClient, "81 EC C8 00 00 00 53 56 57 8B F1 8B 46 4C 8B 0D", "CTurretFX_SetDamageState");
 
-		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0)
+		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0)
 		{
 			HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
 			HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
@@ -2042,16 +2104,21 @@ static void ApplyControllerClientPatch()
 			HookHelper::ApplyHook((void*)(addr_CHUDMgr_StartFlicker - 0x32), &CHUDMgr_StartFlicker_Hook, (LPVOID*)&CHUDMgr_StartFlicker);
 			HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
 			HookHelper::ApplyHook((void*)addr_HandleFallLand, &HandleFallLand_Hook, (LPVOID*)&HandleFallLand);
+			HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
 		}
 	}
 
-    if (!HideMouseCursor) return;
+	if (HideMouseCursor)
+	{
+		DWORD addr_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
+		DWORD addr_OnMouseMove = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
 
-    DWORD addr_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
-    DWORD addr_OnMouseMove = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
-
-    HookHelper::ApplyHook((void*)addr_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
-    HookHelper::ApplyHook((void*)addr_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
+		if (addr_UseCursor != 0 && addr_OnMouseMove != 0)
+		{
+			HookHelper::ApplyHook((void*)addr_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
+			HookHelper::ApplyHook((void*)addr_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
+		}
+	}
 }
 
 static void ApplyHUDScalingClientPatch()

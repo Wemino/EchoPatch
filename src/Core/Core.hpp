@@ -153,11 +153,12 @@ struct GlobalState
 	uint16_t healthAfter = 0;
 	uint16_t armorBefore = 0;
 	uint16_t armorAfter = 0;
-	uint16_t lastRumbleIntensity;
-	uint16_t lastShakeRumbleIntensity;
-	uint64_t lastShakeRumbleTime;
-	uint64_t lastRumbleTime;
+	uint16_t lastRumbleIntensity = 0;
+	uint16_t lastShakeRumbleIntensity = 0;
+	uint64_t lastShakeRumbleTime = 0;
+	uint64_t lastRumbleTime = 0;
 	uint64_t rumbleLockoutEndTime = 0;
+	int turretPrevDamageState = 0;
 
 	// ======================
 	// Server State
