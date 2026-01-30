@@ -1877,6 +1877,31 @@ static void ApplySaveFolderRedirect()
     HookHelper::ApplyHookAPI(L"shell32.dll", "SHGetFolderPathA", &SHGetFolderPathA_Hook, (LPVOID*)&ori_SHGetFolderPathA);
 }
 
+static void ApplyDisablePunkBuster()
+{
+    if (!DisablePunkBuster) return;
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:
+            MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x139B60, 0xC3);
+            MemoryHelper::WriteMemory<uint32_t>(g_State.BaseAddress + 0x16EAEC, 0x0);
+            break;
+        case FEARMP:
+            MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x139C80, 0xC3);
+            MemoryHelper::WriteMemory<uint32_t>(g_State.BaseAddress + 0x16EAEC, 0x0);
+            break;
+        case FEARXP:
+            MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x17CDB0, 0xC3);
+            MemoryHelper::WriteMemory<uint32_t>(g_State.BaseAddress + 0x211B34, 0x0);
+            break;
+        case FEARXP2:
+            MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + 0x17E2E0, 0xC3);
+            MemoryHelper::WriteMemory<uint32_t>(g_State.BaseAddress + 0x213B44, 0x0);
+            break;
+    }
+}
+
 static void ApplyForceRenderMode()
 {
     if (AutoResolution != 2) return;
@@ -2078,6 +2103,7 @@ static void Init()
     ApplySkipIntroHook();
     ApplyConsoleVariableHook();
     ApplySaveFolderRedirect();
+    ApplyDisablePunkBuster();
     ApplyForceRenderMode();
     ApplyDisableJoystick();
     ApplyDeviceCreationHook();

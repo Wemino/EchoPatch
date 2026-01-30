@@ -2282,18 +2282,6 @@ static void ApplyClientFXHook()
     }
 }
 
-static void ApplyDisablePunkBuster()
-{
-	if (!DisablePunkBuster) return;
-
-	DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 28 56 8B F1 8B 86 ?? ?? 00 00 85", "DisablePunkBuster");
-
-	if (addr != 0)
-	{
-		MemoryHelper::WriteMemory<uint8_t>(addr, 0xC3);
-	}
-}
-
 static void ApplyDisableHipFireAccuracyPenalty()
 {
     if (!DisableHipFireAccuracyPenalty) return;
@@ -2402,7 +2390,6 @@ void ApplyClientPatch()
 	ApplyWeaponFixesClientPatch();
 	ApplyConsoleClientPatch();
 	ApplyClientFXHook();
-	ApplyDisablePunkBuster();
 	ApplyDisableHipFireAccuracyPenalty();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
