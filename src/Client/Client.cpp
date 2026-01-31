@@ -1983,7 +1983,7 @@ static void ApplyPersistentWorldClientPatch()
 
     MemoryHelper::MakeNOP(addr_ShellCasing + 0x6, 4);
     MemoryHelper::MakeNOP(addr_DecalSaving + 0xF, 13);
-    MemoryHelper::WriteMemory<uint8_t>(addr_Decal + 0x5, 0x74);
+    MemoryHelper::WriteMemory<uint8_t>(addr_Decal + 0x5, 0xEB);
     HookHelper::ApplyHook((void*)addr_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
     HookHelper::ApplyHook((void*)addr_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
 }
