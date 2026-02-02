@@ -98,6 +98,9 @@
     <ClInclude Include="..\include\imgui\imstb_truetype.h">
       <Filter>imgui</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp">
+      <Filter>Controller</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini" />

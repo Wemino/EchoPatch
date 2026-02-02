@@ -106,6 +106,12 @@ const GyroState& GetGyroState();
 bool HasTouchpad();
 
 // ==========================================================
+// Accessors - Rumble
+// ==========================================================
+
+bool IsRumbleEnabled();
+
+// ==========================================================
 // Configuration - Gyro
 // ==========================================================
 
@@ -115,6 +121,12 @@ void SetGyroSmoothing(float smoothing);
 void SetGyroInvertY(bool invert);
 void SetGyroCalibrationPersistence(bool enabled);
 void ResetGyroState();
+
+// ==========================================================
+// Configuration - Rumble
+// ==========================================================
+
+void SetRumbleEnabled(bool enabled);
 
 // ==========================================================
 // Processing - Gyro

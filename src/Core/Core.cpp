@@ -481,7 +481,8 @@ static void ReadConfig()
     // 10 slots max
     MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
 
-    // Gyro Config
+    // Controller Config
+    SetRumbleEnabled(RumbleEnabled);
     SetGyroEnabled(GyroEnabled);
     SetGyroSensitivity(GyroSensitivity);
     SetGyroSmoothing(GyroSmoothing);

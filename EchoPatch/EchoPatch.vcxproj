@@ -209,6 +209,7 @@
     <ClInclude Include="..\include\ini.hpp" />
     <ClInclude Include="..\include\LAAPatcher.hpp" />
     <ClInclude Include="..\include\MinHook.hpp" />
+    <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp" />
     <ClInclude Include="..\src\helper.hpp" />
     <ClInclude Include="..\src\Core\Core.hpp" />
     <ClInclude Include="..\src\Core\DInputProxy.hpp" />

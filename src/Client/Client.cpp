@@ -2,6 +2,7 @@
 
 #include "../Core/Core.hpp"
 #include "../Controller/Controller.hpp"
+#include "../Controller/ScreenJoystickHook.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
 #include "MinHook.hpp"
@@ -61,7 +62,6 @@ int(__stdcall* DBGetRecord)(int, char*) = nullptr;
 int(__stdcall* DBGetInt32)(int, unsigned int, int) = nullptr;
 float(__stdcall* DBGetFloat)(int, unsigned int, float) = nullptr;
 const char* (__stdcall* DBGetString)(int, unsigned int, int) = nullptr;
-int(__thiscall* UpdateSlider)(int, int) = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDPausedInit)(int) = nullptr;
 
@@ -97,6 +97,7 @@ void(__thiscall* CHUDMgr_StartFlicker)(DWORD*, float) = nullptr;
 bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
 bool(__thiscall* HandleFallLand)(DWORD*, float, int) = nullptr;
 void(__thiscall* CTurretFX_SetDamageState)(DWORD*) = nullptr;
+void(__thiscall* CycleCtrlSetSelIndex)(int, unsigned __int8) = nullptr;
 const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
 bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
@@ -112,6 +113,7 @@ void(__thiscall* AccuracyMgrUpdate)(float*) = nullptr;
 // SDLGamepadSupport & HUDScaling
 int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
 int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
+void(__thiscall* SliderSetSliderPos)(int, int) = nullptr;
 
 // EnableCustomMaxWeaponCapacity & WeaponFixes
 void(__thiscall* OnEnterWorld)(int) = nullptr;
@@ -932,37 +934,48 @@ static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
 	return DBGetString(a1, a2, a3);
 }
 
-static int __fastcall UpdateSlider_Hook(int thisPtr, int, int index)
+static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 {
 	const char* sliderName = *reinterpret_cast<const char**>(thisPtr + 8);
 
-	if (sliderName[0] != 'I' && sliderName[0] != 'S')  // IDS_* and Screen*
-		return UpdateSlider(thisPtr, index);
-
-	const uint32_t nameHash = HashHelper::FNV1aRuntime(sliderName);
-
-	// If 'ScreenCrosshair_Size_Help' is next
-	if (nameHash == HashHelper::StringHashes::IDS_HELP_PICKUP_MSG_DUR)
+	if (HUDScaling)
 	{
-		g_State.crosshairSliderUpdated = false;
+		if (sliderName[0] != 'I' && sliderName[0] != 'S')  // IDS_* and Screen*
+		{
+			SliderSetSliderPos(thisPtr, nPos);
+			return;
+		}
+
+		const uint32_t nameHash = HashHelper::FNV1aRuntime(sliderName);
+
+		// If 'ScreenCrosshair_Size_Help' is next
+		if (nameHash == HashHelper::StringHashes::IDS_HELP_PICKUP_MSG_DUR)
+		{
+			g_State.crosshairSliderUpdated = false;
+		}
+
+		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
+		if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
+		{
+			float unscaledIndex = nPos / g_State.scalingFactorCrosshair;
+
+			// scs.nIncrement = 2
+			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
+
+			// Clamp to the range [4, 16].
+			nPos = std::clamp(newIndex, 4, 16);
+
+			// Only needed on the first time
+			g_State.crosshairSliderUpdated = true;
+		}
 	}
 
-	// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
-	if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
-	{
-		float unscaledIndex = index / g_State.scalingFactorCrosshair;
+	SliderSetSliderPos(thisPtr, nPos);
+}
 
-		// scs.nIncrement = 2
-		int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
-
-		// Clamp to the range [4, 16].
-		index = std::clamp(newIndex, 4, 16);
-
-		// Only needed on the first time
-		g_State.crosshairSliderUpdated = true;
-	}
-
-	return UpdateSlider(thisPtr, index);
+static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, int index)
+{
+	return CycleCtrlSetSelIndex(thisPtr, index);
 }
 
 static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
@@ -1622,28 +1635,46 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
-	if (ShouldShowControllerPrompts())
-	{
-		const uint32_t strHash = HashHelper::FNV1aRuntime(String);
+	const uint32_t strHash = HashHelper::FNV1aRuntime(String);
 
-		if (strHash == HashHelper::StringHashes::IDS_QUICKSAVE)
-		{
-			return L"Quick save";
-		}
-		else if (strHash == HashHelper::StringHashes::ScreenFailure_PressAnyKey)
-		{
-			switch (GetGamepadStyle())
+	switch (strHash)
+	{
+		case HashHelper::StringHashes::IDS_CONTROLLER_SENSITIVITY:      return L"Controller Sensitivity";
+		case HashHelper::StringHashes::IDS_EDGE_ACCELERATION:           return L"Edge Acceleration";
+		case HashHelper::StringHashes::IDS_GYRO_SENSITIVITY:            return L"Gyro Sensitivity";
+		case HashHelper::StringHashes::IDS_GYRO_SMOOTHING:              return L"Gyro Smoothing";
+		case HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY: return L"Adjust the sensitivity of the analog sticks.";
+		case HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION:      return L"Adjust the turn rate multiplier when the stick is pushed to the edge.";
+		case HashHelper::StringHashes::IDS_HELP_RUMBLE:                 return L"Enable or disable controller vibration feedback.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED:           return L"Enable or disable gyroscope aiming.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_TYPE:              return L"Choose when gyro aiming is active.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:       return L"Adjust the sensitivity of the gyroscope.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:         return L"Adjust smoothing applied to gyroscope input.";
+		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:               return L"Enable or disable touchpad functionality.";
+
+		case HashHelper::StringHashes::IDS_QUICKSAVE:
+			if (ShouldShowControllerPrompts())
 			{
-				case GamepadStyle::PlayStation:
-					return L"Press Circle to return to the main menu.\nPress any other button to continue.";
-				case GamepadStyle::Nintendo:
-					return L"Press B to return to the main menu.\nPress any other button to continue.";
-				case GamepadStyle::Xbox:
-				default:
-					return L"Press B to return to the main menu.\nPress any other button to continue.";
+				return L"Quick save";
 			}
+			break;
+
+		case HashHelper::StringHashes::ScreenFailure_PressAnyKey:
+			if (ShouldShowControllerPrompts())
+			{
+				switch (GetGamepadStyle())
+				{
+					case GamepadStyle::PlayStation:
+						return L"Press Circle to return to the main menu.\nPress any other button to continue.";
+					case GamepadStyle::Nintendo:
+						return L"Press B to return to the main menu.\nPress any other button to continue.";
+					case GamepadStyle::Xbox:
+					default:
+						return L"Press B to return to the main menu.\nPress any other button to continue.";
+				}
+			}
+			break;
 		}
-	}
 
 	return LoadGameString(ptr, String);
 }
@@ -2029,6 +2060,7 @@ static void ApplyControllerClientPatch()
     DWORD addr_SetCurrentType = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 85 DB 56 57 8B F1 7C 1C 8B BE E4", "SetCurrentType");
     DWORD addr_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
     DWORD addr_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
+	DWORD addr_CycleCtrlSetSelIndex = ScanModuleSignature(g_State.GameClient, "53 8A 5C 24 08 80 FB FE 77 26 8B 91 E4 00 00 00", "CycleCtrlSetSelIndex");
     DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
     DWORD addr_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
     addr_GetZoomMag = MemoryHelper::ResolveRelativeAddress(addr_GetZoomMag, 0xD);
@@ -2045,6 +2077,7 @@ static void ApplyControllerClientPatch()
         addr_SetCurrentType == 0 ||
         addr_HUDSwapUpdateTriggerName == 0 ||
         addr_GetZoomMag == 0 ||
+		addr_CycleCtrlSetSelIndex == 0 ||
         addr_DEditLoadModule == 0 ||
         addr_PerformanceScreenId == 0) {
         return;
@@ -2061,6 +2094,7 @@ static void ApplyControllerClientPatch()
     HookHelper::ApplyHook((void*)addr_SwitchToScreen, &SwitchToScreen_Hook, (LPVOID*)&SwitchToScreen);
     HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
     HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
+	HookHelper::ApplyHook((void*)addr_CycleCtrlSetSelIndex, &CycleCtrlSetSelIndex_Hook, (LPVOID*)&CycleCtrlSetSelIndex);
     HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
 	OnCommandOn = reinterpret_cast<decltype(OnCommandOn)>(addr_OnCommandOn);
 	OnCommandOff = reinterpret_cast<decltype(OnCommandOff)>(addr_OnCommandOff);
@@ -2069,44 +2103,40 @@ static void ApplyControllerClientPatch()
     g_State.screenPerformanceCPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0xD);
     g_State.screenPerformanceGPU = MemoryHelper::ReadMemory<uint8_t>(addr_PerformanceScreenId + 0x25);
 
-	if (GyroEnabled)
-	{
-		DWORD addr_ApplyLocalRotationOffset = ScanModuleSignature(g_State.GameClient, "DA E9 DF E0 F6 C4 44 7A 24 D9 ?? 04 D9", "ApplyLocalRotationOffset", 2);
-		DWORD addr_UpdatePlayerMovement = ScanModuleSignature(g_State.GameClient, "83 EC 0C 56 8B F1 E8 ?? ?? ?? ?? 8A 88 9E 05 00 00", "UpdatePlayerMovement");
-		DWORD addr_BeginAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 48 28 8B 81 5C 01 00 00", "BeginAim");
-		DWORD addr_EndAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 88 F4 05 00 00 85 C9", "EndAim");
+	// Gyro
+	DWORD addr_ApplyLocalRotationOffset = ScanModuleSignature(g_State.GameClient, "DA E9 DF E0 F6 C4 44 7A 24 D9 ?? 04 D9", "ApplyLocalRotationOffset", 2);
+	DWORD addr_UpdatePlayerMovement = ScanModuleSignature(g_State.GameClient, "83 EC 0C 56 8B F1 E8 ?? ?? ?? ?? 8A 88 9E 05 00 00", "UpdatePlayerMovement");
+	DWORD addr_BeginAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 48 28 8B 81 5C 01 00 00", "BeginAim");
+	DWORD addr_EndAim = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 56 8B F1 8B 88 F4 05 00 00 85 C9", "EndAim");
 
-		if (addr_ApplyLocalRotationOffset != 0 && addr_UpdatePlayerMovement != 0 && addr_BeginAim != 0 && addr_EndAim != 0)
-		{
-			HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
-			HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
-			HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
-			HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
-		}
+	if (addr_ApplyLocalRotationOffset != 0 && addr_UpdatePlayerMovement != 0 && addr_BeginAim != 0 && addr_EndAim != 0)
+	{
+		HookHelper::ApplyHook((void*)addr_ApplyLocalRotationOffset, &ApplyLocalRotationOffset_Hook, (LPVOID*)&ApplyLocalRotationOffset);
+		HookHelper::ApplyHook((void*)addr_UpdatePlayerMovement, &UpdatePlayerMovement_Hook, (LPVOID*)&UpdatePlayerMovement);
+		HookHelper::ApplyHook((void*)addr_BeginAim, &BeginAim_Hook, (LPVOID*)&BeginAim);
+		HookHelper::ApplyHook((void*)addr_EndAim, &EndAim_Hook, (LPVOID*)&EndAim);
 	}
 
-	if (RumbleEnabled)
-	{
-		DWORD addr_CClientWeaponFire = ScanModuleSignature(g_State.GameClient, "50 FF 57 7C 83 F8 02", "CClientWeaponFire", 4);
-		DWORD addr_HandleMsgPlayerDamage = ScanModuleSignature(g_State.GameClient, "81 EC 4C 01 00 00 55 56 8B B4 24 58 01 00 00", "HandleMsgPlayerDamage");
-		DWORD addr_UpdateHealth = ScanModuleSignature(g_State.GameClient, "8B 41 0C 8B 54 24 04 3B D0 76 02 8B D0 8B 41 04", "UpdateHealth");
-		DWORD addr_UpdateArmor = ScanModuleSignature(g_State.GameClient, "8B 51 10 8B 44 24 04 3B C2 76 02 8B C2 39 41 08", "UpdateArmor");
-		DWORD addr_CHUDMgr_StartFlicker = ScanModuleSignature(g_State.GameClient, "FF 50 70 8B B7 7C 04 00 00 3B B7 80 04 00 00", "CHUDMgr_StartFlicker");
-		DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
-		DWORD addr_HandleFallLand = ScanModuleSignature(g_State.GameClient, "81 EC 38 02 00 00 ?? 8B ?? ?? ?? C0 00 00 00", "HandleFallLand");
-		DWORD addr_CTurretFX_SetDamageState = ScanModuleSignature(g_State.GameClient, "81 EC C8 00 00 00 53 56 57 8B F1 8B 46 4C 8B 0D", "CTurretFX_SetDamageState");
+	// Rumble
+	DWORD addr_CClientWeaponFire = ScanModuleSignature(g_State.GameClient, "50 FF 57 7C 83 F8 02", "CClientWeaponFire", 4);
+	DWORD addr_HandleMsgPlayerDamage = ScanModuleSignature(g_State.GameClient, "81 EC 4C 01 00 00 55 56 8B B4 24 58 01 00 00", "HandleMsgPlayerDamage");
+	DWORD addr_UpdateHealth = ScanModuleSignature(g_State.GameClient, "8B 41 0C 8B 54 24 04 3B D0 76 02 8B D0 8B 41 04", "UpdateHealth");
+	DWORD addr_UpdateArmor = ScanModuleSignature(g_State.GameClient, "8B 51 10 8B 44 24 04 3B C2 76 02 8B C2 39 41 08", "UpdateArmor");
+	DWORD addr_CHUDMgr_StartFlicker = ScanModuleSignature(g_State.GameClient, "FF 50 70 8B B7 7C 04 00 00 3B B7 80 04 00 00", "CHUDMgr_StartFlicker");
+	DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
+	DWORD addr_HandleFallLand = ScanModuleSignature(g_State.GameClient, "81 EC 38 02 00 00 ?? 8B ?? ?? ?? C0 00 00 00", "HandleFallLand");
+	DWORD addr_CTurretFX_SetDamageState = ScanModuleSignature(g_State.GameClient, "81 EC C8 00 00 00 53 56 57 8B F1 8B 46 4C 8B 0D", "CTurretFX_SetDamageState");
 
-		if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0)
-		{
-			HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
-			HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
-			HookHelper::ApplyHook((void*)addr_UpdateHealth, &UpdateHealth_Hook, (LPVOID*)&UpdateHealth);
-			HookHelper::ApplyHook((void*)addr_UpdateArmor, &UpdateArmor_Hook, (LPVOID*)&UpdateArmor);
-			HookHelper::ApplyHook((void*)(addr_CHUDMgr_StartFlicker - 0x32), &CHUDMgr_StartFlicker_Hook, (LPVOID*)&CHUDMgr_StartFlicker);
-			HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
-			HookHelper::ApplyHook((void*)addr_HandleFallLand, &HandleFallLand_Hook, (LPVOID*)&HandleFallLand);
-			HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
-		}
+	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0)
+	{
+		HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
+		HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
+		HookHelper::ApplyHook((void*)addr_UpdateHealth, &UpdateHealth_Hook, (LPVOID*)&UpdateHealth);
+		HookHelper::ApplyHook((void*)addr_UpdateArmor, &UpdateArmor_Hook, (LPVOID*)&UpdateArmor);
+		HookHelper::ApplyHook((void*)(addr_CHUDMgr_StartFlicker - 0x32), &CHUDMgr_StartFlicker_Hook, (LPVOID*)&CHUDMgr_StartFlicker);
+		HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
+		HookHelper::ApplyHook((void*)addr_HandleFallLand, &HandleFallLand_Hook, (LPVOID*)&HandleFallLand);
+		HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
 	}
 
 	if (HideMouseCursor)
@@ -2120,6 +2150,8 @@ static void ApplyControllerClientPatch()
 			HookHelper::ApplyHook((void*)addr_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
 		}
 	}
+
+	ScreenJoystickHook::InstallHook();
 }
 
 static void ApplyHUDScalingClientPatch()
@@ -2131,7 +2163,6 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_HUDRender = ScanModuleSignature(g_State.GameClient, "53 8B D9 8A 43 08 84 C0 74", "HUDRender");
     DWORD addr_LayoutDBGetPosition = ScanModuleSignature(g_State.GameClient, "83 EC 10 8B 54 24 20 8B 0D", "LayoutDBGetPosition");
     DWORD addr_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
-    DWORD addr_UpdateSlider = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "UpdateSlider");
     DWORD addr_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
     DWORD addr_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
     DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
@@ -2141,7 +2172,6 @@ static void ApplyHUDScalingClientPatch()
         addr_HUDRender == 0 ||
         addr_LayoutDBGetPosition == 0 ||
         addr_GetRectF == 0 ||
-        addr_UpdateSlider == 0 ||
         addr_HUDWeaponListReset == 0 ||
         addr_InitAdditionalTextureData == 0 ||
         addr_HUDPausedInit == 0) {
@@ -2152,7 +2182,6 @@ static void ApplyHUDScalingClientPatch()
     HookHelper::ApplyHook((void*)addr_HUDRender, &HUDRender_Hook, (LPVOID*)&HUDRender);
     HookHelper::ApplyHook((void*)addr_LayoutDBGetPosition, &LayoutDBGetPosition_Hook, (LPVOID*)&LayoutDBGetPosition);
     HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
-    HookHelper::ApplyHook((void*)addr_UpdateSlider, &UpdateSlider_Hook, (LPVOID*)&UpdateSlider);
     HookHelper::ApplyHook((void*)(addr_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
     HookHelper::ApplyHook((void*)addr_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
 	HUDTerminate = reinterpret_cast<decltype(HUDTerminate)>(addr_HUDTerminate);
@@ -2322,12 +2351,14 @@ static void ApplyClientPatchSet1()
 	DWORD addr_HUDWeaponListInit = ScanModuleSignature(g_State.GameClient, "51 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDWeaponListInit");
 	DWORD addr_HUDGrenadeListInit = ScanModuleSignature(g_State.GameClient, "83 EC 08 53 55 57 8B F9 8B 07 FF 50 20 8B 0D", "HUDGrenadeListInit");
 	DWORD addr_ScreenDimsChanged = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 81 EC 98 00 00 00 85 C0 56 8B F1", "ScreenDimsChanged");
+	DWORD addr_SliderSetSliderPos = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 8B 86 7C 01 00 00 3B C8 89 8E 80 01 00 00", "SliderSetSliderPos");
 
 	if (addr_HUDWeaponListUpdateTriggerNames == 0 ||
 		addr_HUDGrenadeListUpdateTriggerNames == 0 ||
 		addr_HUDWeaponListInit == 0 ||
 		addr_HUDGrenadeListInit == 0 ||
-		addr_ScreenDimsChanged == 0) {
+		addr_ScreenDimsChanged == 0 ||
+		addr_SliderSetSliderPos == 0) {
 		return;
 	}
 
@@ -2336,6 +2367,7 @@ static void ApplyClientPatchSet1()
 	HookHelper::ApplyHook((void*)addr_HUDWeaponListInit, &HUDWeaponListInit_Hook, (LPVOID*)&HUDWeaponListInit);
 	HookHelper::ApplyHook((void*)addr_HUDGrenadeListInit, &HUDGrenadeListInit_Hook, (LPVOID*)&HUDGrenadeListInit);
 	HookHelper::ApplyHook((void*)addr_ScreenDimsChanged, &ScreenDimsChanged_Hook, (LPVOID*)&ScreenDimsChanged);
+	HookHelper::ApplyHook((void*)addr_SliderSetSliderPos, &SliderSetSliderPos_Hook, (LPVOID*)&SliderSetSliderPos);
 }
 
 static void ApplyClientPatchSet2()

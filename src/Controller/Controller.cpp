@@ -34,6 +34,7 @@ static constexpr ULONGLONG TRANSITION_GRACE_PERIOD = 200;
 
 static SDL_Gamepad* s_pGamepad = nullptr;
 static GamepadCapabilities s_capabilities;
+static bool s_rumbleEnabled = true;
 
 // ==========================================================
 // Static State - Frame Timing
@@ -577,6 +578,15 @@ const GyroState& GetGyroState()
 }
 
 // ==========================================================
+// Accessors - Rumble
+// ==========================================================
+
+bool IsRumbleEnabled()
+{
+    return s_rumbleEnabled;
+}
+
+// ==========================================================
 // Accessors - Touchpad
 // ==========================================================
 
@@ -620,6 +630,21 @@ void ResetGyroState()
     s_gyroProcessing.smoothedPitch = 0.0f;
     s_gyroProcessing.isInitialized = false;
     s_gyroOffset = GyroAutoOffset();
+}
+
+// ==========================================================
+// Configuration - Rumble
+// ==========================================================
+
+void SetRumbleEnabled(bool enabled)
+{
+    s_rumbleEnabled = enabled;
+
+    // If disabling, kill any currently active vibration immediately
+    if (!s_rumbleEnabled && s_pGamepad)
+    {
+        SDL_RumbleGamepad(s_pGamepad, 0, 0, 0);
+    }
 }
 
 // ==========================================================
@@ -1970,7 +1995,7 @@ void PollController()
 
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs)
 {
-    if (s_pGamepad)
+    if (s_pGamepad && s_rumbleEnabled)
     {
         SDL_RumbleGamepad(s_pGamepad, lowFreq, highFreq, durationMs);
     }

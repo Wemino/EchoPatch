@@ -701,6 +701,20 @@ namespace HashHelper
 		static constexpr uint32_t ScreenFailure_PressAnyKey = FNV1a("ScreenFailure_PressAnyKey");
 		static constexpr uint32_t ScreenCrosshair_Size_Help = FNV1a("ScreenCrosshair_Size_Help");
 		static constexpr uint32_t IDS_HELP_PICKUP_MSG_DUR = FNV1a("IDS_HELP_PICKUP_MSG_DUR");
+
+		static constexpr uint32_t IDS_CONTROLLER_SENSITIVITY = FNV1a("IDS_CONTROLLER_SENSITIVITY");
+		static constexpr uint32_t IDS_EDGE_ACCELERATION = FNV1a("IDS_EDGE_ACCELERATION");
+		static constexpr uint32_t IDS_GYRO_SENSITIVITY = FNV1a("IDS_GYRO_SENSITIVITY");
+		static constexpr uint32_t IDS_GYRO_SMOOTHING = FNV1a("IDS_GYRO_SMOOTHING");
+
+		static constexpr uint32_t IDS_HELP_CONTROLLER_SENSITIVITY = FNV1a("IDS_HELP_CONTROLLER_SENSITIVITY");
+		static constexpr uint32_t IDS_HELP_EDGE_ACCELERATION = FNV1a("IDS_HELP_EDGE_ACCELERATION");
+		static constexpr uint32_t IDS_HELP_RUMBLE = FNV1a("IDS_HELP_RUMBLE");
+		static constexpr uint32_t IDS_HELP_GYRO_ENABLED = FNV1a("IDS_HELP_GYRO_ENABLED");
+		static constexpr uint32_t IDS_HELP_GYRO_TYPE = FNV1a("IDS_HELP_GYRO_TYPE");
+		static constexpr uint32_t IDS_HELP_GYRO_SENSITIVITY = FNV1a("IDS_HELP_GYRO_SENSITIVITY");
+		static constexpr uint32_t IDS_HELP_GYRO_SMOOTHING = FNV1a("IDS_HELP_GYRO_SMOOTHING");
+		static constexpr uint32_t IDS_HELP_TOUCHPAD = FNV1a("IDS_HELP_TOUCHPAD");
 	};
 
 	// Console variable name hashes
