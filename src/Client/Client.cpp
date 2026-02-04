@@ -1006,7 +1006,7 @@ static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 	SliderSetSliderPos(thisPtr, nPos);
 }
 
-static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, int index)
+static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, unsigned __int8 index)
 {
 	const char* cycleName = *reinterpret_cast<const char**>(thisPtr + 8);
 	const uint32_t nameHash = HashHelper::FNV1aRuntime(cycleName);
