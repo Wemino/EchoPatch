@@ -1,5 +1,4 @@
 #include "../Core/Core.hpp"
-#include "MinHook.hpp"
 #include "../helper.hpp"
 #include "../Controller/Controller.hpp"
 

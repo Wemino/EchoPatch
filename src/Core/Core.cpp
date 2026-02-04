@@ -1,7 +1,6 @@
 #include <shlwapi.h>
 #include <ShlObj_core.h>
 #include <dxgi.h>
-#include "MinHook.hpp"
 #include "LAAPatcher.hpp"
 #include "Core.hpp"
 #include "../Client/Client.hpp"

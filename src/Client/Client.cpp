@@ -5,7 +5,6 @@
 #include "../Controller/ScreenJoystickHook.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
-#include "MinHook.hpp"
 #include "../helper.hpp"
 
 // ======================

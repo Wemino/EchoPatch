@@ -3,6 +3,7 @@
 #include "ini.hpp"
 #include <dsound.h>
 #include "Core/DInputProxy.hpp"
+#include "MinHook.hpp"
 
 namespace MemoryHelper
 {
