@@ -15,7 +15,7 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
 {
     bool result = CCameraShakeFX_GetShakeIntensity(thisPtr, fUnitLifetime, pCameraPos, pIntensity);
 
-    if (!result)
+    if (!result || !RumbleEnabled)
         return result;
 
     uint64_t currentTime = GetTickCount64();

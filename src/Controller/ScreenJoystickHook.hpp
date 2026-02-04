@@ -322,12 +322,10 @@ namespace ScreenJoystickHook
     {
         InitFromGlobals();
 
-        uint32_t* pThis = (uint32_t*)thisPtr;
-
-        int screenLeft = pThis[60];
-        int screenTop = pThis[61];
-        int screenRight = pThis[62];
-        int screenBottom = pThis[63];
+        int screenLeft = thisPtr[60];
+        int screenTop = thisPtr[61];
+        int screenRight = thisPtr[62];
+        int screenBottom = thisPtr[63];
 
         CallCreateTitleByName(thisPtr, L"Controller");
 
@@ -343,8 +341,8 @@ namespace ScreenJoystickHook
 
         CreateFrame(thisPtr, frameLeft, frameTop, frameRight, frameBottom);
 
-        pThis[69] = pThis[60];
-        pThis[70] = pThis[61];
+        thisPtr[69] = thisPtr[60];
+        thisPtr[70] = thisPtr[61];
 
         int toggleStruct[16];
         memset(toggleStruct, 0, sizeof(toggleStruct));

@@ -937,36 +937,69 @@ static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
 static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 {
 	const char* sliderName = *reinterpret_cast<const char**>(thisPtr + 8);
+	const uint32_t nameHash = HashHelper::FNV1aRuntime(sliderName);
 
 	if (HUDScaling)
 	{
-		if (sliderName[0] != 'I' && sliderName[0] != 'S')  // IDS_* and Screen*
-		{
-			SliderSetSliderPos(thisPtr, nPos);
-			return;
-		}
-
-		const uint32_t nameHash = HashHelper::FNV1aRuntime(sliderName);
-
-		// If 'ScreenCrosshair_Size_Help' is next
 		if (nameHash == HashHelper::StringHashes::IDS_HELP_PICKUP_MSG_DUR)
 		{
 			g_State.crosshairSliderUpdated = false;
 		}
 
-		// Update the index of 'ScreenCrosshair_Size_Help' as it will be wrong on the first time
 		if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
 		{
 			float unscaledIndex = nPos / g_State.scalingFactorCrosshair;
-
-			// scs.nIncrement = 2
 			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
-
-			// Clamp to the range [4, 16].
 			nPos = std::clamp(newIndex, 4, 16);
-
-			// Only needed on the first time
 			g_State.crosshairSliderUpdated = true;
+		}
+	}
+
+	if (SDLGamepadSupport)
+	{
+		if (nameHash == HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY)
+		{
+			float newValue = nPos / 25.0f;
+			if (newValue != GPadAimSensitivity)
+			{
+				GPadAimSensitivity = newValue;
+				SetConsoleVariableFloat("GPadAimSensitivity", newValue);
+				IniHelper::iniReader["Controller"]["GPadAimSensitivity"] = std::to_string(GPadAimSensitivity);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION)
+		{
+			float newValue = (nPos / 100.0f) * 1.4f + 1.0f;
+			if (newValue != GPadAimEdgeMultiplier)
+			{
+				GPadAimEdgeMultiplier = newValue;
+				SetConsoleVariableFloat("GPadAimEdgeMultiplier", newValue);
+				IniHelper::iniReader["Controller"]["GPadAimEdgeMultiplier"] = std::to_string(GPadAimEdgeMultiplier);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY)
+		{
+			float newValue = nPos / 50.0f;
+			if (newValue != GyroSensitivity)
+			{
+				GyroSensitivity = newValue;
+				SetGyroSensitivity(GyroSensitivity);
+				IniHelper::iniReader["Controller"]["GyroSensitivity"] = std::to_string(GyroSensitivity);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING)
+		{
+			float newValue = nPos / 1000.0f;
+			if (newValue != GyroSmoothing)
+			{
+				GyroSmoothing = newValue;
+				SetGyroSmoothing(GyroSmoothing);
+				IniHelper::iniReader["Controller"]["GyroSmoothing"] = std::to_string(GyroSmoothing);
+				IniHelper::Save();
+			}
 		}
 	}
 
@@ -975,7 +1008,55 @@ static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 
 static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, int index)
 {
-	return CycleCtrlSetSelIndex(thisPtr, index);
+	const char* cycleName = *reinterpret_cast<const char**>(thisPtr + 8);
+	const uint32_t nameHash = HashHelper::FNV1aRuntime(cycleName);
+
+	if (SDLGamepadSupport)
+	{
+		if (nameHash == HashHelper::StringHashes::IDS_HELP_RUMBLE)
+		{
+			bool newValue = (index == 1);
+			if (newValue != RumbleEnabled)
+			{
+				RumbleEnabled = newValue;
+				SetRumbleEnabled(RumbleEnabled);
+				IniHelper::iniReader["Controller"]["RumbleEnabled"] = std::to_string(RumbleEnabled ? 1 : 0);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED)
+		{
+			bool newValue = (index == 1);
+			if (newValue != GyroEnabled)
+			{
+				GyroEnabled = newValue;
+				SetGyroEnabled(GyroEnabled);
+				IniHelper::iniReader["Controller"]["GyroEnabled"] = std::to_string(GyroEnabled ? 1 : 0);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_GYRO_TYPE)
+		{
+			if (index != GyroAimingMode)
+			{
+				GyroAimingMode = index;
+				IniHelper::iniReader["Controller"]["GyroAimingMode"] = std::to_string(GyroAimingMode);
+				IniHelper::Save();
+			}
+		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_TOUCHPAD)
+		{
+			bool newValue = (index == 1);
+			if (newValue != TouchpadEnabled)
+			{
+				TouchpadEnabled = newValue;
+				IniHelper::iniReader["Controller"]["TouchpadEnabled"] = std::to_string(TouchpadEnabled ? 1 : 0);
+				IniHelper::Save();
+			}
+		}
+	}
+
+	CycleCtrlSetSelIndex(thisPtr, index);
 }
 
 static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
@@ -1235,7 +1316,7 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 
 	DWORD ptrAmmo = thisPtr[106];
 
-	if (ptrAmmo)
+	if (ptrAmmo && RumbleEnabled)
 	{
 		const char* hAmmoData = *(const char**)ptrAmmo;
 		if (hAmmoData)
@@ -1369,6 +1450,8 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 	memcpy(damageBefore, damageArray, sizeof(damageBefore));
 
 	HandleMsgPlayerDamage(thisPtr, a2);
+
+	if (!RumbleEnabled) return;
 
 	g_State.isTakingDamage = false;
 
