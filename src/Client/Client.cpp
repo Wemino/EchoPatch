@@ -1507,16 +1507,14 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 
 	float healthPenalty = (healthLost > 0 || playerDied) ? 1.2f : 1.0f;
 
-	uint16_t baseIntensity = static_cast<uint16_t>((25000 + damageScale * 40000) * healthPenalty);
-	if (baseIntensity > 65535) baseIntensity = 65535;
+	uint32_t rawIntensity = static_cast<uint32_t>((25000 + damageScale * 40000) * healthPenalty);
 
-	// Boost right-side hits (high-freq motor is physically weaker)
 	bool isRightSide = (damageSector == 0 || damageSector == 1 || damageSector == 11);
 	if (isRightSide)
-	{
-		baseIntensity = static_cast<uint16_t>(baseIntensity * 1.3f);
-		if (baseIntensity > 65535) baseIntensity = 65535;
-	}
+		rawIntensity = static_cast<uint32_t>(rawIntensity * 1.3f);
+
+	if (rawIntensity > 65535) rawIntensity = 65535;
+	uint16_t baseIntensity = static_cast<uint16_t>(rawIntensity);
 
 	uint16_t lowFreq, highFreq;
 
