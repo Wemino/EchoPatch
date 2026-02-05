@@ -169,7 +169,7 @@ static void ApplyHighFPSFixesServerPatch()
 
 static void ApplyControllerServerPatch()
 {
-    if (!SDLGamepadSupport || !RumbleEnabled) return;
+    if (!SDLGamepadSupport) return;
 
     DWORD addr_UseGear = ScanModuleSignature(g_State.GameServer, "83 EC 18 57 8B F9 8B 4F 0C 8B 01 FF", "UseGear");
     DWORD addr_DetonateRemoteCharges = ScanModuleSignature(g_State.GameServer, "56 57 8B F9 8B 87 ?? ?? 00 00 8B 30 3B F0 74 42", "DetonateRemoteCharges");
