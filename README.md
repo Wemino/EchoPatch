@@ -2,7 +2,7 @@
   <img src="assets/EchoPatch_Logo.png" style="max-width:75%">
 </p>
 
-Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, controller support, and other quality-of-life enhancements. It aims to be as non-intrusive as possible, with no file modifications and no gameplay changes by default, focusing solely on fixing issues and enhancing the overall experience.
+Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimizations, controller support, and other quality-of-life enhancements. It aims to be as non-intrusive as possible, applying runtime patches only, with no gameplay changes by default.
 
 ## How to Install
 > [!NOTE]  
@@ -17,7 +17,10 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > [!WARNING]
 > The GOG version defaults to a 60 FPS cap.  
 > To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
-> This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 240 FPS.
+> This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 300 FPS.
+
+> [!WARNING]
+> **Windows Defender Controlled Folder Access** (rare): If saves or settings are not persisting, Windows Defender may be blocking access to the save folder. Go to **Windows Defender > Controlled Folder Access > Add an allowed app** and add the game executable.
 
 ### Steam Deck/Linux Specific Instructions (Windows users can skip this)
 > [!WARNING]
@@ -47,8 +50,8 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 
 > **Note**: The base resolution (1024×768) is used as the reference for scaling, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
-## Fix High FPS Issues
-Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 240 FPS (particularly when using Slow-Mo):
+## High FPS Fixes
+Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 300 FPS (particularly when using Slow-Mo):
 - Havok ragdoll physics instability.
 - Water physics instability.
 - Excessive water splash effect repetitions.
@@ -59,25 +62,29 @@ Resolves multiple issues at high framerates, designed and optimized for smooth g
 - Walking animation prematurely reverting to idle, causing camera stutter.
 - Inability to perform a jump kick.
 - Excessive sliding on sloped surfaces.
+- Slow-motion charge and timer desynchronization.
 
 ## Optimized Save Performance
 Dramatically reduces save times by buffering file operations in memory instead of writing directly to disk.  
 The game performs hundreds of thousands of individual WriteFile calls per save (over 220,000 for a typical 2MB save file), causing multi-second delays even on high-end hardware.
 
+## Fast VRAM Detection
+Replaces the slow legacy DxDiag VRAM scan with instant DXGI detection, speeding up startup and performance settings access.
+
 ## Input & Frame Drop Fixes
-- **FPS Drop Fix**: Stops the game from initializing all HID devices as a controller to prevent framerate drops over time, rather than intercepting the call as in other fixes.  
+- **FPS Drop Fix**: Prevents framerate drops by stopping the game from initializing all HID devices as controllers.  
 - **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag.
 
-## Fix Rendering Corruption on Nvidia GPUs
+## Nvidia Rendering Fix
 Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs.  
 This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers, with a small performance trade-off for correct shadow rendering.
 
+> **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
+
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
-- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `240` is the recommended safe value, as some high FPS optimizations may not cover higher framerates.  
-- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor's refresh rate, reducing screen tearing. VSync will only be enabled if your monitor's refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable.  
-
-> **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
+- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `300` is recommended, as minor glitches may occur at uncapped framerates.  
+- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor's refresh rate, reducing screen tearing. VSync will only be enabled if your monitor's refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable. 
 
 ## Weapon Fixes
 Addresses several weapon-related issues:
@@ -92,39 +99,42 @@ Addresses several weapon-related issues:
 
 Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.
 
-| Controller Input                 | Action                         |
-|----------------------------------|--------------------------------|
-| **Left Analog Stick**            | Move                           |
-| **Right Analog Stick**           | Aim                            |
-| **Left Analog Stick** (Press)    | Use Health Kit                 |
-| **Right Analog Stick** (Press)   | Toggle Flashlight              |
-| **South** (A / Cross)            | Jump                           |
-| **East** (B / Circle)            | Crouch                         |
-| **West** (X / Square)            | Reload / Interact              |
-| **North** (Y / Triangle)         | Toggle Slow-Motion             |
-| **RT / R2 / ZR**                 | Fire                           |
-| **LT / L2 / ZL**                 | Aim / Zoom                     |
-| **RB / R1 / R**                  | Melee                          |
-| **LB / L1 / L**                  | Throw Grenade                  |
-| **D-Pad Up**                     | Next Weapon                    |
-| **D-Pad Down**                   | Next Grenade                   |
-| **D-Pad Left**                   | Lean Left                      |
-| **D-Pad Right**                  | Lean Right                     |
-| **Back / Share / −**             | Mission Status                 |
-| **Start / Options / +**          | Pause Menu                     |
-| **Share / Capture**              | Holster Weapon                 |
-| **Right Paddle 1**               | Center View                    |
-| **Left Paddle 1**                | Drop Weapon                    |
-| **Right Paddle 2**               | Quick Load                     |
-| **Left Paddle 2**                | Quick Save                     |
+| Controller Input                 | Action                              |
+|----------------------------------|-------------------------------------|
+| **Left Analog Stick**            | Move                                |
+| **Right Analog Stick**           | Aim                                 |
+| **Left Analog Stick** (Press)    | Use Health Kit                      |
+| **Right Analog Stick** (Press)   | Toggle Flashlight                   |
+| **South** (A / Cross)            | Jump                                |
+| **East** (B / Circle)            | Crouch                              |
+| **West** (X / Square)            | Reload / Interact                   |
+| **North** (Y / Triangle)         | Toggle Slow-Motion                  |
+| **RT / R2 / ZR**                 | Fire                                |
+| **LT / L2 / ZL**                 | Aim / Zoom                          |
+| **RB / R1 / R**                  | Melee                               |
+| **LB / L1 / L**                  | Throw Grenade                       |
+| **D-Pad Up**                     | Next Weapon (Hold: Drop Weapon)     |
+| **D-Pad Down**                   | Next Grenade (Hold: Holster Weapon) |
+| **D-Pad Left**                   | Lean Left                           |
+| **D-Pad Right**                  | Lean Right                          |
+| **Back / Share / −**             | Mission Status (Hold: Quick Save)   |
+| **Start / Options / +**          | Pause Menu (Hold: Quick Load)       |
+| **Share / Capture**              | Holster Weapon                      |
+| **Right Paddle 1**               | Center View                         |
+
+> **Note**: Buttons support hold actions for secondary commands. Configure hold bindings and duration via `EchoPatch.ini`. See [COMMANDS.md](https://github.com/Wemino/EchoPatch/blob/master/COMMANDS.md) for the full list of command IDs.
+
+### Rumble
+Supports controller vibration feedback.  
+Enable with `RumbleEnabled = 1` in `EchoPatch.ini`.
 
 ### Gyro Aiming
-
 Enables motion-controlled aiming using the controller's gyroscope for supported controllers (DualShock 4, DualSense, Switch Pro Controller).
 
 Configurable in the `[Controller]` section of `EchoPatch.ini`:
 - `GyroEnabled`: Set to `1` to enable gyro aiming.
 - `GyroAimingMode`: Determines when gyro is active (`0` = Always On, `1` = Aiming Only, `2` = Hip Fire Only).
+- `GyroCalibrationPersistence`: Set to `1` to save calibration data for automatic loading on reconnect if the controller has a unique serial number.
 
 > **Note**: If you experience gyro drift, place the controller on a stable surface for a few seconds to calibrate.
 
@@ -134,10 +144,22 @@ Configurable in the `[Controller]` section of `EchoPatch.ini`:
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
 > **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.  
-> **Note**: Custom controller mappings can be added via `gamecontrollerdb.txt`.
 
-## Fix Keyboard Input Initialization
-Corrects default control assignment on non‑English layouts by mapping hardware scan codes instead of English key names (preventing some "[unassigned]" entries on first launch or after resetting controls) while leaving the saved bindings in the save file unchanged.
+Some controller settings from `EchoPatch.ini` can also be adjusted directly in-game via a custom menu accessible from Options → Controls → Configure joystick/gamepad.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="75%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/ControllerMenu.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Controller Settings Menu</td>
+    </tr>
+  </table>
+</div>
+
+## Keyboard Input Fix
+Corrects default control assignments on non-English layouts by mapping hardware scan codes instead of English key names. Prevents "[unassigned]" entries on first launch or after resetting controls.
 
 ## Widescreen Resolution Support for Extraction Point
 Removes 4:3 restriction so all widescreen resolutions are available.
@@ -187,6 +209,23 @@ Improves texture sharpness at a distance by reducing mipmap bias. Certain textur
 ## Mouse Aim Multiplier
 Multiplier applied to mouse aiming to compensate for high sensitivity (does not affect profile settings).  
 Set `MouseAimMultiplier` in `EchoPatch.ini` (default `1.0`).
+
+## Custom FOV
+Overrides the default 70° field of view and applies automatic viewmodel correction to preserve proper viewmodel proportions at wider FOVs.  
+Set `CustomFOV` in `EchoPatch.ini` (0 = disabled).
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/FOV_NoCorrection.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/FOV_Corrected.png"></td>
+    </tr>
+    <tr>
+      <td align="center">FOV 95 (No Correction)</td>
+      <td align="center">FOV 95 (Corrected)</td>
+    </tr>
+  </table>
+</div>
 
 ## Disable Letterboxing
 Disables cutscene letterboxing when `DisableLetterbox = 1` in `EchoPatch.ini`.
