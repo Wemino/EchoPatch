@@ -54,7 +54,7 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
 {
     bool bUsed = CPlayerInventory_UseGear(thisPtr, hGear, a3);
 
-    if (bUsed)
+    if (bUsed && RumbleEnabled)
     {
         const char* gearName = *(const char**)hGear;
 
@@ -86,7 +86,7 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
 
 static void __fastcall DetonateRemoteCharges_Hook(DWORD* thisPtr, int)
 {
-    if (g_State.isUsingRemoteDetonator)
+    if (g_State.isUsingRemoteDetonator && RumbleEnabled)
     {
         DWORD* listHead = (DWORD*)thisPtr[g_State.detonatorListHead];
         DWORD* current = (DWORD*)*listHead;
