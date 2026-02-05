@@ -2163,7 +2163,11 @@ bool OnProcessAttach(HMODULE hModule)
             return false;
     }
 
-    SystemHelper::LoadProxyLibrary();
+    if (!SystemHelper::IsUALPresent())
+    {
+        SystemHelper::LoadProxyLibrary();
+    }
+
     HookHelper::ApplyHookAPI(L"user32.dll", "CreateWindowExA", &CreateWindowExA_Hook, (LPVOID*)&ori_CreateWindowExA);
     return true;
 }

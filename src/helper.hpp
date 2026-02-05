@@ -2,6 +2,7 @@
 
 #include "ini.hpp"
 #include <dsound.h>
+#include <stacktrace>
 #include "Core/DInputProxy.hpp"
 #include "MinHook.hpp"
 
@@ -219,7 +220,7 @@ namespace MemoryHelper
 		return Address;
 	}
 
-	inline DWORD ResolveRelativeAddress(uintptr_t BaseAddress, std::size_t InstructionOffset)
+	inline DWORD ResolveRelativeAddress(uintptr_t BaseAddress, size_t InstructionOffset)
 	{
 		if (BaseAddress == 0) return 0;
 
@@ -317,6 +318,21 @@ namespace SystemHelper
 
 		// Set up proxies to system DLL
 		g_dinput8.ProxySetup(hOriginal);
+	}
+
+	static bool IsUALPresent()
+	{
+		for (const auto& entry : std::stacktrace::current())
+		{
+			HMODULE hModule = NULL;
+			if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT, (LPCSTR)entry.native_handle(), &hModule))
+			{
+				if (GetProcAddress(hModule, "IsUltimateASILoader") != NULL)
+					return true;
+			}
+		}
+
+		return false;
 	}
 };
 
