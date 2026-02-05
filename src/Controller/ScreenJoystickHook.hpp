@@ -362,7 +362,7 @@ namespace ScreenJoystickHook
         sliderStruct[11] = 0x3F99999A;
         sliderStruct[12] = 0x3F99999A;
         sliderStruct[15] = kGap;
-        sliderStruct[19] = 3;
+        sliderStruct[19] = 2;
 
         int cycleStruct[15];
         memset(cycleStruct, 0, sizeof(cycleStruct));
