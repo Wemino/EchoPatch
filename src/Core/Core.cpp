@@ -46,8 +46,8 @@ int(__cdecl* SetRenderMode)(int) = nullptr;
 int(__stdcall* CreateVideoTexture)(char*, int) = nullptr;
 bool(__thiscall* FileWrite)(DWORD*, LPCVOID, DWORD) = nullptr;
 bool(__thiscall* FileOpen)(DWORD*, LPCSTR, char) = nullptr;
-bool(__thiscall* FileSeek)(HANDLE*, LARGE_INTEGER) = nullptr;
-bool(__thiscall* FileSeekEnd)(HANDLE*) = nullptr;
+bool(__thiscall* FileSeek)(DWORD*, LARGE_INTEGER) = nullptr;
+bool(__thiscall* FileSeekEnd)(DWORD*) = nullptr;
 bool(__thiscall* FileTell)(DWORD*, DWORD*) = nullptr;
 bool(__thiscall* FileClose)(DWORD*) = nullptr;
 int(__stdcall* CreateTextureWrapper)(DWORD*, int, int) = nullptr;
@@ -936,7 +936,7 @@ static bool __fastcall FileWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD
 {
     HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
-    if (g_State.saveBuffer.handle == h)
+    if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
     {
         LONGLONG endPos = g_State.saveBuffer.position + nNumberOfBytesToWrite;
 
@@ -946,8 +946,8 @@ static bool __fastcall FileWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD
         }
 
         memcpy(g_State.saveBuffer.buffer.data() + g_State.saveBuffer.position, lpBuffer, nNumberOfBytesToWrite);
-
         g_State.saveBuffer.position = endPos;
+
         if (endPos > g_State.saveBuffer.size)
         {
             g_State.saveBuffer.size = endPos;
@@ -973,11 +973,16 @@ static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char 
 
             if (filename.ends_with(".sav"))
             {
+                if (g_State.saveBuffer.IsActive())
+                {
+                    g_State.saveBuffer.Reset();
+                }
+
                 g_State.saveBuffer.handle = h;
                 g_State.saveBuffer.position = 0;
                 g_State.saveBuffer.size = 0;
                 g_State.saveBuffer.flushed = false;
-                g_State.saveBuffer.buffer.resize(6 * 1024 * 1024, 0);
+                g_State.saveBuffer.buffer.resize(6 * 1024 * 1024);
             }
         }
     }
@@ -985,12 +990,15 @@ static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char 
     return result;
 }
 
-static bool __fastcall FileSeek_Hook(HANDLE* thisp, int, LARGE_INTEGER liDistanceToMove)
+static bool __fastcall FileSeek_Hook(DWORD* thisp, int, LARGE_INTEGER liDistanceToMove)
 {
-    HANDLE h = thisp[1];
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
     if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
     {
+        if (liDistanceToMove.QuadPart < 0)
+            return false;
+
         g_State.saveBuffer.position = liDistanceToMove.QuadPart;
         return true;
     }
@@ -998,9 +1006,10 @@ static bool __fastcall FileSeek_Hook(HANDLE* thisp, int, LARGE_INTEGER liDistanc
     return FileSeek(thisp, liDistanceToMove);
 }
 
-static bool __fastcall FileSeekEnd_Hook(HANDLE* thisp, int)
+static bool __fastcall FileSeekEnd_Hook(DWORD* thisp, int)
 {
-    HANDLE h = thisp[1];
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+
     if (g_State.saveBuffer.handle == h && !g_State.saveBuffer.flushed)
     {
         g_State.saveBuffer.position = g_State.saveBuffer.size;
@@ -1035,8 +1044,7 @@ static bool __fastcall FileClose_Hook(DWORD* thisp, int)
             g_State.saveBuffer.flushed = true;
 
             LARGE_INTEGER zero = { 0 };
-            FileSeek((HANDLE*)thisp, zero);
-
+            FileSeek(thisp, zero);
             FileWrite(thisp, g_State.saveBuffer.buffer.data(), (DWORD)g_State.saveBuffer.size);
             SetEndOfFile(h);
         }
