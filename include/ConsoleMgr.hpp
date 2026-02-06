@@ -144,33 +144,38 @@ inline auto FindCvarCaseInsensitive(const std::string& name) -> decltype(g_dynam
 
 inline std::string FormatFloat(float value)
 {
-    if (value == 0.0f) return "0.0";
+    if (value == 0.0f)
+        return std::signbit(value) ? "-0.0" : "0.0";
 
-    static const double multipliers[] = 
-    {
-        1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0
-    };
+    char full[64];
+    snprintf(full, sizeof(full), "%.15f", (double)value);
 
-    char buf[64];
+    const char* dot = strchr(full, '.');
+    if (!dot)
+        return std::string(full) + ".0";
+
+    int dotIdx = (int)(dot - full);
+    int fullLen = (int)strlen(full);
+    char candidate[64];
 
     for (int decimals = 1; decimals <= 6; decimals++)
     {
-        double multiplier = multipliers[decimals];
-        double rounded = round((double)value * multiplier) / multiplier;
-
-        float roundedAsFloat = (float)rounded;
-        float diff = fabs(roundedAsFloat - value);
-
-        if (diff <= fabs(value) * 1e-6f || roundedAsFloat == value)
+        int truncLen = dotIdx + 1 + decimals;
+        if (truncLen <= fullLen)
         {
-            snprintf(buf, sizeof(buf), "%.*f", decimals, rounded);
-            return buf;
+            memcpy(candidate, full, truncLen);
+            candidate[truncLen] = '\0';
+            if (strtof(candidate, nullptr) == value)
+                return candidate;
         }
+
+        snprintf(candidate, sizeof(candidate), "%.*f", decimals, (double)value);
+        if (strtof(candidate, nullptr) == value)
+            return candidate;
     }
 
-    snprintf(buf, sizeof(buf), "%.6f", (double)value);
-
-    std::string str = buf;
+    snprintf(candidate, sizeof(candidate), "%.6f", (double)value);
+    std::string str(candidate);
     size_t dotPos = str.find('.');
     if (dotPos != std::string::npos)
     {
@@ -184,7 +189,6 @@ inline std::string FormatFloat(float value)
             str.erase(dotPos + 2);
         }
     }
-
     return str;
 }
 
