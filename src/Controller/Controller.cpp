@@ -127,8 +127,11 @@ struct TouchpadState
     float lastY = 0.0f;
 };
 
-static TouchpadState s_touchpadFinger[2];
-static bool s_wasTouchpadPressed[2] = { false, false };
+static constexpr int MAX_TOUCHPADS = 2;
+static constexpr int MAX_FINGERS = 2;
+
+static TouchpadState s_touchpadFinger[MAX_TOUCHPADS][MAX_FINGERS];
+static bool s_wasTouchpadPressed[MAX_TOUCHPADS] = {};
 
 // ==========================================================
 // Static State - Button Mappings
@@ -487,10 +490,15 @@ static void ResetControllerState()
     s_gyroOffset = GyroAutoOffset();
     s_gyroCalibrationSavedThisSession = false;
     s_currentControllerSerial.clear();
-    s_touchpadFinger[0] = TouchpadState();
-    s_touchpadFinger[1] = TouchpadState();
-    s_wasTouchpadPressed[0] = false;
-    s_wasTouchpadPressed[1] = false;
+
+    for (int tp = 0; tp < MAX_TOUCHPADS; tp++)
+    {
+        for (int f = 0; f < MAX_FINGERS; f++)
+        {
+            s_touchpadFinger[tp][f] = TouchpadState();
+        }
+        s_wasTouchpadPressed[tp] = false;
+    }
 
     for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
@@ -1118,69 +1126,16 @@ static void ClearMenuButtonStates()
 
 static void ReleaseAllGameButtons()
 {
-    // Release all held gamepad buttons
-    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+    auto ReleaseInput = [](ButtonState& btnState, bool& holdTriggered, int commandId, int holdCommandId, int holdTime)
     {
-        auto& btnState = g_Controller.gameButtons[i];
-        if (!btnState.isPressed) continue;
+        if (!btnState.isPressed) return;
 
-        int commandId = s_buttonCommands[i];
-        int holdCommandId = s_buttonHoldCommands[i];
-        int holdTime = s_buttonHoldTimes[i];
-        bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
-        int simulatedKey = GetSimulatedKey(commandId);
-
-        if (hasHoldAction)
-        {
-            // Only release hold action if it was triggered
-            if (s_buttonHoldTriggered[i])
-            {
-                int holdSimulatedKey = GetSimulatedKey(holdCommandId);
-                if (holdSimulatedKey != 0)
-                {
-                    PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
-                }
-                else
-                {
-                    g_Controller.commandActive[holdCommandId] = false;
-                    OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
-                }
-            }
-            // If hold wasn't triggered, tap action was never started, nothing to release
-        }
-        else
-        {
-            // No hold action, release tap action
-            if (simulatedKey != 0)
-            {
-                PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
-            }
-            else if (commandId != 0)
-            {
-                g_Controller.commandActive[commandId] = false;
-                OnCommandOff(g_State.g_pGameClientShell, commandId);
-            }
-        }
-
-        btnState = {};
-        s_buttonHoldTriggered[i] = false;
-    }
-
-    // Release all held triggers
-    for (int i = 0; i < 2; i++)
-    {
-        auto& btnState = g_Controller.triggerButtons[i];
-        if (!btnState.isPressed) continue;
-
-        int commandId = s_triggerCommands[i];
-        int holdCommandId = s_triggerHoldCommands[i];
-        int holdTime = s_triggerHoldTimes[i];
         bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
         if (hasHoldAction)
         {
             // Only release hold action if it was triggered
-            if (s_triggerHoldTriggered[i])
+            if (holdTriggered)
             {
                 int holdSimulatedKey = GetSimulatedKey(holdCommandId);
                 if (holdSimulatedKey != 0)
@@ -1211,7 +1166,19 @@ static void ReleaseAllGameButtons()
         }
 
         btnState = {};
-        s_triggerHoldTriggered[i] = false;
+        holdTriggered = false;
+    };
+
+    // Release all held gamepad buttons
+    for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
+    {
+        ReleaseInput(g_Controller.gameButtons[i], s_buttonHoldTriggered[i], s_buttonCommands[i], s_buttonHoldCommands[i], s_buttonHoldTimes[i]);
+    }
+
+    // Release all held triggers
+    for (int i = 0; i < 2; i++)
+    {
+        ReleaseInput(g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], s_triggerCommands[i], s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
     }
 }
 
@@ -1267,40 +1234,47 @@ static void ProcessTouchpadMouse()
     if (!s_pGamepad || !s_capabilities.hasTouchpad || !TouchpadEnabled)
         return;
 
-    for (int touchpadIndex = 0; touchpadIndex < 2; touchpadIndex++)
+    int numTouchpads = SDL_GetNumGamepadTouchpads(s_pGamepad);
+
+    for (int tp = 0; tp < numTouchpads && tp < MAX_TOUCHPADS; tp++)
     {
-        bool fingerDown = false;
-        float x = 0.0f, y = 0.0f, pressure = 0.0f;
+        int numFingers = SDL_GetNumGamepadTouchpadFingers(s_pGamepad, tp);
 
-        if (SDL_GetGamepadTouchpadFinger(s_pGamepad, touchpadIndex, 0, &fingerDown, &x, &y, &pressure))
+        for (int finger = 0; finger < numFingers && finger < MAX_FINGERS; finger++)
         {
-            if (fingerDown)
+            bool fingerDown = false;
+            float x = 0.0f, y = 0.0f, pressure = 0.0f;
+
+            if (SDL_GetGamepadTouchpadFinger(s_pGamepad, tp, finger, &fingerDown, &x, &y, &pressure))
             {
-                if (s_touchpadFinger[touchpadIndex].wasDown)
+                if (fingerDown)
                 {
-                    float deltaX = (x - s_touchpadFinger[touchpadIndex].lastX) * g_TouchpadConfig.currentWidth;
-                    float deltaY = (y - s_touchpadFinger[touchpadIndex].lastY) * g_TouchpadConfig.currentHeight;
-
-                    if (deltaX != 0.0f || deltaY != 0.0f)
+                    if (s_touchpadFinger[tp][finger].wasDown)
                     {
-                        UpdateInputMode(true);
+                        float deltaX = (x - s_touchpadFinger[tp][finger].lastX) * g_TouchpadConfig.currentWidth;
+                        float deltaY = (y - s_touchpadFinger[tp][finger].lastY) * g_TouchpadConfig.currentHeight;
 
-                        INPUT input = {};
-                        input.type = INPUT_MOUSE;
-                        input.mi.dwFlags = MOUSEEVENTF_MOVE;
-                        input.mi.dx = static_cast<LONG>(deltaX);
-                        input.mi.dy = static_cast<LONG>(deltaY);
-                        SendInput(1, &input, sizeof(INPUT));
+                        if (deltaX != 0.0f || deltaY != 0.0f)
+                        {
+                            UpdateInputMode(true);
+
+                            INPUT input = {};
+                            input.type = INPUT_MOUSE;
+                            input.mi.dwFlags = MOUSEEVENTF_MOVE;
+                            input.mi.dx = static_cast<LONG>(deltaX);
+                            input.mi.dy = static_cast<LONG>(deltaY);
+                            SendInput(1, &input, sizeof(INPUT));
+                        }
                     }
-                }
 
-                s_touchpadFinger[touchpadIndex].lastX = x;
-                s_touchpadFinger[touchpadIndex].lastY = y;
-                s_touchpadFinger[touchpadIndex].wasDown = true;
-            }
-            else
-            {
-                s_touchpadFinger[touchpadIndex].wasDown = false;
+                    s_touchpadFinger[tp][finger].lastX = x;
+                    s_touchpadFinger[tp][finger].lastY = y;
+                    s_touchpadFinger[tp][finger].wasDown = true;
+                }
+                else
+                {
+                    s_touchpadFinger[tp][finger].wasDown = false;
+                }
             }
         }
     }
@@ -1333,7 +1307,7 @@ static void ProcessTouchpadClick()
 
 static void ReleaseTouchpadClick()
 {
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < MAX_TOUCHPADS; i++)
     {
         if (s_wasTouchpadPressed[i])
         {
@@ -1455,7 +1429,9 @@ static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName
 
 const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName)
 {
-    static wchar_t s_promptBuffer[64];
+    static wchar_t s_promptBuffers[4][64];
+    static int s_promptIndex = 0;
+    wchar_t* buffer = s_promptBuffers[s_promptIndex++ & 3];
 
     ButtonPromptInfo info = GetGamepadButtonPromptInfo(commandId, shortName);
 
@@ -1464,14 +1440,14 @@ const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName)
 
     if (info.isHoldAction)
     {
-        swprintf_s(s_promptBuffer, L"Hold %s", info.buttonName);
+        swprintf_s(buffer, 64, L"Hold %s", info.buttonName);
     }
     else
     {
-        wcscpy_s(s_promptBuffer, info.buttonName);
+        wcscpy_s(buffer, 64, info.buttonName);
     }
 
-    return s_promptBuffer;
+    return buffer;
 }
 
 // ==========================================================
@@ -1544,11 +1520,8 @@ static void ProcessSDLEvents()
 // Gameplay Input Handlers
 // ==========================================================
 
-static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
+static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnState, bool& holdTriggered, int holdCommandId, int holdTime)
 {
-    auto& btnState = g_Controller.gameButtons[button];
-    int holdCommandId = s_buttonHoldCommands[button];
-    int holdTime = s_buttonHoldTimes[button];
     bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
     // Activate instead of Reload
@@ -1557,12 +1530,10 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
         commandId = 87;
     }
 
-    bool isPressed = SDL_GetGamepadButton(s_pGamepad, button);
-
     if (IsInTransitionPeriod())
     {
         btnState.isPressed = isPressed;
-        s_buttonHoldTriggered[button] = false;
+        holdTriggered = false;
         return;
     }
 
@@ -1574,7 +1545,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     {
         UpdateInputMode(true);
         btnState.pressStartTime = GetTickCount64();
-        s_buttonHoldTriggered[button] = false;
+        holdTriggered = false;
         btnState.wasHandled = true;
 
         // If no hold action configured, execute tap action immediately
@@ -1599,13 +1570,13 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
         if (hasHoldAction)
         {
             // Check if hold threshold reached
-            if (!s_buttonHoldTriggered[button])
+            if (!holdTriggered)
             {
                 ULONGLONG elapsed = GetTickCount64() - btnState.pressStartTime;
                 if (elapsed >= static_cast<ULONGLONG>(holdTime))
                 {
                     // Hold threshold met, execute hold action
-                    s_buttonHoldTriggered[button] = true;
+                    holdTriggered = true;
 
                     if (holdSimulatedKey != 0)
                     {
@@ -1640,7 +1611,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
     {
         if (hasHoldAction)
         {
-            if (s_buttonHoldTriggered[button])
+            if (holdTriggered)
             {
                 // Was holding, release hold action
                 if (holdSimulatedKey == 0)
@@ -1681,118 +1652,7 @@ static void HandleGamepadButton(SDL_GamepadButton button, int commandId)
             }
         }
         btnState.wasHandled = false;
-        s_buttonHoldTriggered[button] = false;
-    }
-
-    btnState.isPressed = isPressed;
-}
-
-static void HandleGamepadTrigger(int triggerIndex, SDL_GamepadAxis axis)
-{
-    int commandId = s_triggerCommands[triggerIndex];
-    auto& btnState = g_Controller.triggerButtons[triggerIndex];
-    int holdCommandId = s_triggerHoldCommands[triggerIndex];
-    int holdTime = s_triggerHoldTimes[triggerIndex];
-    bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
-
-    Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
-    bool isPressed = value > TRIGGER_THRESHOLD;
-
-    if (IsInTransitionPeriod())
-    {
-        btnState.isPressed = isPressed;
-        s_triggerHoldTriggered[triggerIndex] = false;
-        return;
-    }
-
-    int holdSimulatedKey = hasHoldAction ? GetSimulatedKey(holdCommandId) : 0;
-
-    // Trigger just pressed
-    if (isPressed && !btnState.isPressed)
-    {
-        UpdateInputMode(true);
-        btnState.pressStartTime = GetTickCount64();
-        s_triggerHoldTriggered[triggerIndex] = false;
-        btnState.wasHandled = true;
-
-        // If no hold action configured, execute tap action immediately
-        // If hold action exists, wait to see if it's a tap or hold
-        if (!hasHoldAction)
-        {
-            g_Controller.commandActive[commandId] = true;
-            OnCommandOn(g_State.g_pGameClientShell, commandId);
-        }
-    }
-    // Trigger held
-    else if (isPressed && btnState.isPressed)
-    {
-        if (hasHoldAction)
-        {
-            // Check if hold threshold reached
-            if (!s_triggerHoldTriggered[triggerIndex])
-            {
-                ULONGLONG elapsed = GetTickCount64() - btnState.pressStartTime;
-                if (elapsed >= static_cast<ULONGLONG>(holdTime))
-                {
-                    // Hold threshold met, execute hold action
-                    s_triggerHoldTriggered[triggerIndex] = true;
-
-                    if (holdSimulatedKey != 0)
-                    {
-                        g_Controller.simulatedKeyPressCount++;
-                        PostMessage(g_State.hWnd, WM_KEYDOWN, holdSimulatedKey, 0);
-                        PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
-                    }
-                    else
-                    {
-                        g_Controller.commandActive[holdCommandId] = true;
-                        OnCommandOn(g_State.g_pGameClientShell, holdCommandId);
-                    }
-                }
-            }
-            // Keep hold action active while held
-            else if (holdSimulatedKey == 0)
-            {
-                g_Controller.commandActive[holdCommandId] = true;
-            }
-        }
-        else
-        {
-            // No hold action, keep tap action active
-            g_Controller.commandActive[commandId] = true;
-        }
-    }
-    // Trigger just released
-    else if (!isPressed && btnState.isPressed)
-    {
-        if (hasHoldAction)
-        {
-            if (s_triggerHoldTriggered[triggerIndex])
-            {
-                // Was holding, release hold action
-                if (holdSimulatedKey == 0)
-                {
-                    g_Controller.commandActive[holdCommandId] = false;
-                    OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
-                }
-            }
-            else
-            {
-                // Released before hold threshold, pulse tap action for one frame
-                // Set active for this frame, memset next frame will clear it
-                g_Controller.commandActive[commandId] = true;
-                OnCommandOn(g_State.g_pGameClientShell, commandId);
-                OnCommandOff(g_State.g_pGameClientShell, commandId);
-            }
-        }
-        else
-        {
-            // No hold action configured, release tap action normally
-            g_Controller.commandActive[commandId] = false;
-            OnCommandOff(g_State.g_pGameClientShell, commandId);
-        }
-        btnState.wasHandled = false;
-        s_triggerHoldTriggered[triggerIndex] = false;
+        holdTriggered = false;
     }
 
     btnState.isPressed = isPressed;
@@ -1807,12 +1667,18 @@ void ProcessGameplayInput()
         int commandId = s_buttonCommands[i];
         if (commandId != 0)
         {
-            HandleGamepadButton(static_cast<SDL_GamepadButton>(i), commandId);
+            bool isPressed = SDL_GetGamepadButton(s_pGamepad, static_cast<SDL_GamepadButton>(i));
+            HandleGamepadInput(isPressed, commandId, g_Controller.gameButtons[i], s_buttonHoldTriggered[i], s_buttonHoldCommands[i], s_buttonHoldTimes[i]);
         }
     }
 
-    HandleGamepadTrigger(0, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
-    HandleGamepadTrigger(1, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+    for (int i = 0; i < 2; i++)
+    {
+        SDL_GamepadAxis axis = (i == 0) ? SDL_GAMEPAD_AXIS_LEFT_TRIGGER : SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+        Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
+        bool isPressed = value > TRIGGER_THRESHOLD;
+        HandleGamepadInput(isPressed, s_triggerCommands[i], g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
+    }
 }
 
 // ==========================================================
