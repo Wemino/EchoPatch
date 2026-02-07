@@ -83,13 +83,6 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
 
 #pragma endregion
 
-// Helper to track and store hooked addresses
-static void ApplyTrackedHook(DWORD address, LPVOID hookFunc, LPVOID* originalPtr)
-{
-    HookHelper::ApplyHook((void*)address, hookFunc, originalPtr);
-    g_State.hookedClientFXFunctionAddresses.push_back(address);
-}
-
 static void ApplyHighFPSFixesClientFXPatch()
 {
     if (!HighFPSFixes) return;
@@ -123,7 +116,7 @@ static void ApplyControllerClientFXPatch()
 
     if (addr_GetShakeIntensity)
     {
-        ApplyTrackedHook(addr_GetShakeIntensity, &CCameraShakeFX_GetShakeIntensity_Hook, (LPVOID*)&CCameraShakeFX_GetShakeIntensity);
+        HookHelper::ApplyHookReplaceable((void*)addr_GetShakeIntensity, &CCameraShakeFX_GetShakeIntensity_Hook, (LPVOID*)&CCameraShakeFX_GetShakeIntensity);
     }
 }
 
@@ -131,17 +124,6 @@ static void ApplyControllerClientFXPatch()
 
 void ApplyClientFXPatch()
 {
-    if (g_State.hookedClientFXFunctionAddresses.size() != 0)
-    {
-        // ClientFX has been unloaded, remove all previously installed hooks
-        for (DWORD address : g_State.hookedClientFXFunctionAddresses)
-        {
-            MH_RemoveHook((void*)address);
-        }
-
-        g_State.hookedClientFXFunctionAddresses.clear();
-    }
-
     ApplyHighFPSFixesClientFXPatch();
     ApplyControllerClientFXPatch();
 }

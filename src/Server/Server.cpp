@@ -119,13 +119,6 @@ static void __fastcall DetonateRemoteCharges_Hook(DWORD* thisPtr, int)
 
 #pragma region Server Patches
 
-// Helper to track and store hooked addresses
-static void ApplyTrackedHook(DWORD address, LPVOID hookFunc, LPVOID* originalPtr)
-{
-    HookHelper::ApplyHook((void*)address, hookFunc, originalPtr);
-    g_State.hookedServerFunctionAddresses.push_back(address);
-}
-
 static void ApplyPersistentWorldServerPatch()
 {
     if (!EnablePersistentWorldState) return;
@@ -148,8 +141,8 @@ static void ApplySetWeaponCapacityServerPatch()
     if (addr_SetWeaponCapacityServer == 0 || addr_PlayerInventoryInit == 0)       
         return;
 
-    ApplyTrackedHook(addr_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
-    ApplyTrackedHook(addr_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
+    HookHelper::ApplyHookReplaceable((void*)addr_SetWeaponCapacityServer, &SetWeaponCapacityServer_Hook, (LPVOID*)&SetWeaponCapacityServer);
+    HookHelper::ApplyHookReplaceable((void*)addr_PlayerInventoryInit, &PlayerInventoryInit_Hook, (LPVOID*)&PlayerInventoryInit);
 }
 
 static void ApplyHighFPSFixesServerPatch()
@@ -163,7 +156,7 @@ static void ApplyHighFPSFixesServerPatch()
         return;
 
     g_State.phSlowMoRecord = MemoryHelper::ReadMemory<int>(addr_ServerUpdateSlowMo + 0x5);
-    ApplyTrackedHook(addr_ServerUpdateSlowMo, &ServerUpdateSlowMo_Hook, (LPVOID*)&ServerUpdateSlowMo);
+    HookHelper::ApplyHookReplaceable((void*)addr_ServerUpdateSlowMo, &ServerUpdateSlowMo_Hook, (LPVOID*)&ServerUpdateSlowMo);
     ServerExitSlowMo = reinterpret_cast<decltype(ServerExitSlowMo)>((int)addr_ServerExitSlowMo);
 }
 
@@ -178,23 +171,12 @@ static void ApplyControllerServerPatch()
         return;
 
     g_State.detonatorListHead = MemoryHelper::ReadMemory<int>(addr_DetonateRemoteCharges + 0x6) / 4;
-    ApplyTrackedHook(addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
-    ApplyTrackedHook(addr_DetonateRemoteCharges, &DetonateRemoteCharges_Hook, (LPVOID*)&DetonateRemoteCharges);
+    HookHelper::ApplyHookReplaceable((void*)addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
+    HookHelper::ApplyHookReplaceable((void*)addr_DetonateRemoteCharges, &DetonateRemoteCharges_Hook, (LPVOID*)&DetonateRemoteCharges);
 }
 
 void ApplyServerPatch()
 {
-    if (g_State.hookedServerFunctionAddresses.size() != 0)
-    {
-        // Server has been unloaded, remove all previously installed hooks
-        for (DWORD address : g_State.hookedServerFunctionAddresses)
-        {
-            MH_RemoveHook((void*)address);
-        }
-
-        g_State.hookedServerFunctionAddresses.clear();
-    }
-
     ApplyPersistentWorldServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyHighFPSFixesServerPatch();

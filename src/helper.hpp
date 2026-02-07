@@ -484,6 +484,35 @@ namespace HookHelper
 		}
 	}
 
+	static void ApplyHookReplaceable(void* addr, LPVOID hookFunc, LPVOID* originalFunc)
+	{
+		if (!InitializeMinHook()) return;
+
+		MH_STATUS status = MH_CreateHook(addr, hookFunc, originalFunc);
+
+		if (status == MH_ERROR_ALREADY_CREATED)
+		{
+			MH_RemoveHook(addr);
+			status = MH_CreateHook(addr, hookFunc, originalFunc);
+		}
+
+		if (status != MH_OK)
+		{
+			char errorMsg[0x100];
+			sprintf_s(errorMsg, "Failed to create hook at address: %p\nError: %s", addr, MH_StatusToString(status));
+			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+			return;
+		}
+
+		status = MH_EnableHook(addr);
+		if (status != MH_OK)
+		{
+			char errorMsg[0x100];
+			sprintf_s(errorMsg, "Failed to enable hook at address: %p\nError: %s", addr, MH_StatusToString(status));
+			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+		}
+	}
+
 	static void ApplyHookAPI(LPCWSTR moduleName, LPCSTR apiName, LPVOID hookFunc, LPVOID* originalFunc)
 	{
 		if (!InitializeMinHook()) return;

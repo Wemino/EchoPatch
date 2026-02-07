@@ -165,12 +165,6 @@ struct GlobalState
 	// ======================
 	int CPlayerInventory = 0;
 	bool appliedCustomMaxWeaponCapacity = false;
-	std::vector<DWORD> hookedServerFunctionAddresses;
-
-	// ======================
-	// ClientFX State
-	// ======================
-	std::vector<DWORD> hookedClientFXFunctionAddresses;
 
 	// ======================
 	// Weapon/Animation
