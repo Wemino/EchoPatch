@@ -103,34 +103,29 @@ namespace MemoryHelper
 	inline DWORD PatternScan(HMODULE hModule, std::string_view signature)
 	{
 		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
-		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-			return 0;
+		if (dosHeader->e_magic != IMAGE_DOS_SIGNATURE) return 0;
 
 		auto ntHeaders = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<BYTE*>(hModule) + dosHeader->e_lfanew);
-		if (ntHeaders->Signature != IMAGE_NT_SIGNATURE)
-			return 0;
+		if (ntHeaders->Signature != IMAGE_NT_SIGNATURE) return 0;
 
-		DWORD sizeOfImage = ntHeaders->OptionalHeader.SizeOfImage;
-		BYTE* baseAddress = reinterpret_cast<BYTE*>(hModule);
+		BYTE* base = reinterpret_cast<BYTE*>(hModule);
+		DWORD imageSize = ntHeaders->OptionalHeader.SizeOfImage;
 
-		// Parse pattern
-		std::vector<uint8_t> patternBytes;
-		std::vector<bool> mask;
+		uint8_t pat[256] = {};
+		uint8_t msk[256] = {};
+		size_t patSize = 0;
 
-		for (size_t i = 0; i < signature.length(); i++)
+		for (size_t i = 0; i < signature.length() && patSize < 256; i++)
 		{
 			if (signature[i] == ' ') continue;
-
 			if (signature[i] == '?')
 			{
-				patternBytes.push_back(0);
-				mask.push_back(true);
-				if (i + 1 < signature.length() && signature[i + 1] == '?')
-					i++;
+				patSize++;
+				if (i + 1 < signature.length() && signature[i + 1] == '?') i++;
 			}
 			else
 			{
-				auto hexChar = [](char c) noexcept -> uint8_t 
+				auto h = [](char c) -> uint8_t
 				{
 					if (c >= '0' && c <= '9') return c - '0';
 					if (c >= 'A' && c <= 'F') return c - 'A' + 10;
@@ -138,53 +133,97 @@ namespace MemoryHelper
 					return 0;
 				};
 
-				uint8_t byte = (hexChar(signature[i]) << 4) | hexChar(signature[i + 1]);
-				patternBytes.push_back(byte);
-				mask.push_back(false);
+				pat[patSize] = (h(signature[i]) << 4) | h(signature[i + 1]);
+				msk[patSize] = 0xFF;
+				patSize++;
 				i++;
 			}
 		}
 
-		size_t patternSize = patternBytes.size();
-		if (patternSize == 0) return reinterpret_cast<DWORD>(baseAddress);
+		if (patSize == 0 || imageSize < patSize) return 0;
 
-		// Find first non-wildcard for optimized search
-		size_t firstCheck = 0;
-		while (firstCheck < patternSize && mask[firstCheck])
-			firstCheck++;
-
-		if (firstCheck == patternSize)
-			return reinterpret_cast<DWORD>(baseAddress);
-
-		// Use memchr with bounds checking
-		BYTE* scanStart = baseAddress;
-		BYTE* scanEnd = baseAddress + sizeOfImage - patternSize;
-		uint8_t firstByte = patternBytes[firstCheck];
-
-		while (scanStart <= scanEnd)
+		size_t a1 = SIZE_MAX, a2 = SIZE_MAX;
+		for (size_t i = 0; i < patSize; i++)
 		{
-			// Find next candidate using optimized memchr
-			BYTE* candidate = reinterpret_cast<BYTE*>(std::memchr(scanStart + firstCheck, firstByte, (scanEnd - scanStart) - firstCheck + 1));
-
-			if (!candidate) break;
-
-			candidate -= firstCheck;
-
-			// Verify full pattern
-			bool found = true;
-			for (size_t j = 0; j < patternSize; ++j)
+			if (msk[i])
 			{
-				if (!mask[j] && candidate[j] != patternBytes[j])
+				if (a1 == SIZE_MAX) a1 = i;
+				a2 = i;
+			}
+		}
+
+		if (a1 == SIZE_MAX) return reinterpret_cast<DWORD>(base);
+		const bool useDual = (a2 != a1);
+
+		__m128i simPat = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pat));
+		__m128i simMask = _mm_loadu_si128(reinterpret_cast<const __m128i*>(msk));
+		__m128i needle1 = _mm_set1_epi8(static_cast<char>(pat[a1]));
+		__m128i needle2 = useDual ? _mm_set1_epi8(static_cast<char>(pat[a2])) : _mm_setzero_si128();
+
+		BYTE* scanEnd = base + imageSize - patSize;
+
+		size_t maxAnchor = useDual ? (a1 > a2 ? a1 : a2) : a1;
+		size_t margin = maxAnchor + 16;
+		if (margin < patSize + 15) margin = patSize + 15;
+		if (margin < 31) margin = 31;
+
+		BYTE* simdEnd = (imageSize > margin) ? base + imageSize - margin : base;
+		BYTE* pos = base;
+
+		while (pos <= simdEnd)
+		{
+			__m128i blk1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos + a1));
+			int hits = _mm_movemask_epi8(_mm_cmpeq_epi8(blk1, needle1));
+
+			if (hits && useDual)
+			{
+				__m128i blk2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pos + a2));
+				hits &= _mm_movemask_epi8(_mm_cmpeq_epi8(blk2, needle2));
+			}
+
+			while (hits)
+			{
+				unsigned long bit;
+				_BitScanForward(&bit, hits);
+				hits &= hits - 1;
+
+				BYTE* cand = pos + bit;
+
+				__m128i mem = _mm_loadu_si128(reinterpret_cast<const __m128i*>(cand));
+				__m128i masked = _mm_and_si128(mem, simMask);
+
+				if (_mm_movemask_epi8(_mm_cmpeq_epi8(masked, simPat)) == 0xFFFF)
 				{
-					found = false;
-					break;
+					if (patSize <= 16)
+						return reinterpret_cast<DWORD>(cand);
+
+					bool ok = true;
+					for (size_t k = 16; k < patSize; k++)
+					{
+						if (msk[k] && cand[k] != pat[k]) { ok = false; break; }
+					}
+
+					if (ok) return reinterpret_cast<DWORD>(cand);
 				}
 			}
 
-			if (found)
-				return reinterpret_cast<DWORD>(candidate);
+			pos += 16;
+		}
 
-			scanStart = candidate + 1;
+		while (pos <= scanEnd)
+		{
+			if (pos[a1] == pat[a1] && (!useDual || pos[a2] == pat[a2]))
+			{
+				bool ok = true;
+				for (size_t k = 0; k < patSize; k++)
+				{
+					if (msk[k] && pos[k] != pat[k]) { ok = false; break; }
+				}
+
+				if (ok) return reinterpret_cast<DWORD>(pos);
+			}
+
+			pos++;
 		}
 
 		return 0;
