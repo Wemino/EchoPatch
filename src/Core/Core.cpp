@@ -1321,22 +1321,7 @@ static int __cdecl ConsoleOutput_Hook(int a1, int a2, char* Source)
 {
     if (Source && Source[0])
     {
-        size_t len = strlen(Source);
-        if (len > 0)
-        {
-            if (Source[len - 1] == '\n')
-            {
-                char buffer[512];
-                size_t copyLen = (len - 1 < sizeof(buffer) - 1) ? len - 1 : sizeof(buffer) - 1;
-                memcpy(buffer, Source, copyLen);
-                buffer[copyLen] = '\0';
-                Console::AddOutput("%s", buffer);
-            }
-            else
-            {
-                Console::AddOutput("%s", Source);
-            }
-        }
+        Console::AddOutput(Source);
     }
 
     return ConsoleOutput(a1, a2, Source);

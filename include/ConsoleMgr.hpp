@@ -3,11 +3,11 @@
 #include <d3d9.h>
 #include <Windows.h>
 #include <cstdio>
-#include <cstdarg>
 #include <string>
 #include <map>
 #include <set>
 #include <vector>
+#include <deque>
 #include <cmath>
 #include <algorithm>
 #include "../helper.hpp"
@@ -82,7 +82,7 @@ inline bool g_justOpened = false;
 inline bool g_cursorShownByUs = false;
 
 inline char g_inputBuffer[512] = {};
-inline std::vector<std::string> g_outputLines;
+inline std::deque<std::string> g_outputLines;
 inline bool g_scrollToBottom = false;
 
 inline std::vector<std::string> g_commandHistory;
@@ -1435,19 +1435,17 @@ namespace Console
         g_inReset = false;
     }
 
-    inline void AddOutput(const char* format, ...)
+    void AddOutput(const char* text)
     {
-        char buffer[1024];
-        va_list args;
-        va_start(args, format);
-        vsnprintf_s(buffer, sizeof(buffer), _TRUNCATE, format, args);
-        va_end(args);
+        size_t len = strlen(text);
 
-        g_outputLines.push_back(buffer);
+        if (len > 0 && text[len - 1] == '\n')
+            g_outputLines.emplace_back(text, len - 1);
+        else
+            g_outputLines.emplace_back(text);
+
         if (g_outputLines.size() > 500)
-        {
-            g_outputLines.erase(g_outputLines.begin());
-        }
+            g_outputLines.pop_front();
 
         g_scrollToBottom = true;
 
@@ -1456,7 +1454,7 @@ namespace Console
             time_t now = time(nullptr);
             struct tm t;
             localtime_s(&t, &now);
-            fprintf(g_logFile, "[%02d:%02d:%02d] %s\n", t.tm_hour, t.tm_min, t.tm_sec, buffer);
+            fprintf(g_logFile, "[%02d:%02d:%02d] %s\n", t.tm_hour, t.tm_min, t.tm_sec, g_outputLines.back().c_str());
             fflush(g_logFile);
         }
     }
