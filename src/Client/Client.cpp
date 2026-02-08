@@ -224,7 +224,9 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	g_State.velocityTimeAccumulator += dt;
 
 	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
-	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && rawVelocity > 10.0;
+
+	double runningAvg = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
+	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && runningAvg > 10.0;
 
 	if (timeIsUp || isStartingToMove)
 	{
@@ -236,13 +238,18 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		double displacementVelocity = netDisplacement / g_State.velocityTimeAccumulator;
 		double avgRawVelocity = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
 
-		const double MOVING_THRESHOLD = 50.0;
+		// How much of intended movement actually happened
+		// Normal ≈ 0.9-1.0, angled wall ≈ 0.05-0.08, straight wall ≈ 0.0
+		double velocityEfficiency = (avgRawVelocity > 5.0) ? (displacementVelocity / avgRawVelocity) : 1.0;
 
-		bool rawVelocityLow = avgRawVelocity < MOVING_THRESHOLD;
-		bool displacementLow = displacementVelocity < MOVING_THRESHOLD;
+		// Threshold catches low-speed cases, efficiency catches angled wall sliding
+		bool isBlocked = (avgRawVelocity < 50.0 && displacementVelocity < 50.0) || (velocityEfficiency < 0.15 && avgRawVelocity > 30.0);
 
-		// Only blocked if both signals agree, handles slowmo where raw≈0 but displacement is high
-		bool isBlocked = rawVelocityLow && displacementLow;
+		// Protect against slowmo timing (raw ≈ 0 but displacement spikes)
+		if (avgRawVelocity < 5.0 && displacementVelocity > 200.0)
+		{
+			isBlocked = false;
+		}
 
 		// Use whichever signal shows movement (raw for normal play, displacement for slowmo)
 		double effectiveVelocity = std::max(avgRawVelocity, displacementVelocity);
@@ -284,7 +291,7 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 			}
 			else
 			{
-				g_State.prevWindowSpeed = g_State.prevWindowSpeed * 0.8 + effectiveVelocity * 0.2;
+				g_State.prevWindowSpeed = g_State.prevWindowSpeed * 0.5 + effectiveVelocity * 0.5;
 				g_State.lastReportedVelocity = g_State.prevWindowSpeed;
 			}
 
