@@ -1158,8 +1158,8 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
 {
     if (FastVRAMDetection)
     {
-        IDXGIFactory* pFactory = nullptr;
-        if (CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&pFactory) == S_OK)
+        IDXGIFactory1* pFactory = nullptr;
+        if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&pFactory) == S_OK)
         {
             IDXGIAdapter* pAdapter = nullptr;
             if (pFactory->EnumAdapters(a2[0], &pAdapter) == S_OK)
@@ -1172,6 +1172,11 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
                 pAdapter->Release();
             }
             pFactory->Release();
+        }
+
+        if (g_State.cachedVRAM < (512u << 20))
+        {
+            g_State.cachedVRAM = 0;
         }
 
         if (g_State.cachedVRAM > 0xFFF00000)
@@ -1194,6 +1199,12 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
     {
         IDirect3DDevice9* device = reinterpret_cast<IDirect3DDevice9*>(thisp[0]);
         if (!device) return result;
+
+        if (FastVRAMDetection && g_State.cachedVRAM == 0)
+        {
+            UINT availMem = device->GetAvailableTextureMem();
+            g_State.cachedVRAM = (availMem > 0xFFF00000) ? 0xFFF00000 : availMem;
+        }
 
         void** vtable = *reinterpret_cast<void***>(device);
 
