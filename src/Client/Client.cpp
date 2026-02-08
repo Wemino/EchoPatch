@@ -269,17 +269,17 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 			g_State.impededWindowCount = 0;
 		}
 
-		// Require 2 consecutive blocked windows (100ms) to confirm wall collision
-		if (g_State.impededWindowCount >= 2)
-		{
-			g_State.lastReportedVelocity = 0.0;
-			g_State.prevWindowSpeed = 0.0;
-		}
-		else if (isStartingToMove)
+		// Player starting to move takes priority over block state, otherwise direction changes while wall-blocked stay stuck at zero
+		if (isStartingToMove)
 		{
 			g_State.lastReportedVelocity = effectiveVelocity;
 			g_State.prevWindowSpeed = effectiveVelocity;
 			g_State.impededWindowCount = 0;
+		}
+		else if (g_State.impededWindowCount >= 2)
+		{
+			g_State.lastReportedVelocity = 0.0;
+			g_State.prevWindowSpeed = 0.0;
 		}
 		else
 		{
