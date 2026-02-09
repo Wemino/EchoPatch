@@ -320,6 +320,7 @@ namespace ScreenJoystickHook
 
     static bool __fastcall CScreenJoystick_Build_Hook(int* thisPtr, int)
     {
+        g_State.isBuildingCScreenJoystick = true;
         InitFromGlobals();
 
         int screenLeft = thisPtr[60];
@@ -462,6 +463,8 @@ namespace ScreenJoystickHook
         }
 
         bool buildResult = CallBaseScreenBuild(thisPtr);
+
+        g_State.isBuildingCScreenJoystick = false;
 
         if (!buildResult)
             return false;

@@ -961,7 +961,7 @@ static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 		}
 	}
 
-	if (SDLGamepadSupport)
+	if (SDLGamepadSupport && !g_State.isBuildingCScreenJoystick)
 	{
 		if (nameHash == HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY)
 		{
@@ -1017,7 +1017,7 @@ static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, unsigned __in
 	const char* cycleName = *reinterpret_cast<const char**>(thisPtr + 8);
 	const uint32_t nameHash = HashHelper::FNV1aRuntime(cycleName);
 
-	if (SDLGamepadSupport)
+	if (SDLGamepadSupport && !g_State.isBuildingCScreenJoystick)
 	{
 		if (nameHash == HashHelper::StringHashes::IDS_HELP_RUMBLE)
 		{

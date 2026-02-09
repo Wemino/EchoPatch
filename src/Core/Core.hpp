@@ -159,6 +159,7 @@ struct GlobalState
 	uint64_t lastRumbleTime = 0;
 	uint64_t rumbleLockoutEndTime = 0;
 	int turretPrevDamageState = 0;
+	bool isBuildingCScreenJoystick = false;
 
 	// ======================
 	// Server State
@@ -252,7 +253,6 @@ struct GlobalState
 	// ======================
 	// MipMapBias Override
 	// ======================
-
 	bool isLoadingWorld = false;
 	void* hookedSetTextureAddr = nullptr;
 	IDirect3DDevice9* hookedDevice = nullptr;
