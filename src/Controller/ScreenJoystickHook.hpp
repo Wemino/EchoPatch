@@ -10,6 +10,7 @@ namespace ScreenJoystickHook
     static int g_GyroSensitivityInt = 50;
     static int g_GyroSmoothingInt = 16;
     static uint8_t g_TouchpadEnabled = 1;
+    static uint8_t g_GyroCalibrationPersistence = 1;
     static int g_ControllerSensitivityInt = 50;
     static int g_EdgeAccelerationInt = 43;
 
@@ -331,7 +332,7 @@ namespace ScreenJoystickHook
         int kGap = 200;
         int kWidth = 200;
         int fontSize = 16;
-        int numControls = 8;
+        int numControls = 9;
 
         int frameLeft = screenLeft + kGap - 5;
         int frameTop = screenTop - 5;
@@ -424,21 +425,32 @@ namespace ScreenJoystickHook
             addStringFn(gyroTypeCycle, L"Hip Fire Only");
         }
 
-        // 6. Gyro Sensitivity
+        // 6. Gyro Calibration Persistence
+        toggleStruct[1] = (int)"IDS_HELP_GYRO_PERSISTENCE_ENABLED";
+        toggleStruct[15] = (int)&g_GyroCalibrationPersistence;
+        int* gyroCalibration = CallAddToggleByName(thisPtr, L"Gyro Calibration Persistence", toggleStruct, fontSize);
+        if (gyroCalibration)
+        {
+            CallAddControl(thisPtr, gyroCalibration);
+            CallSetOnString(gyroCalibration, L"On");
+            CallSetOffString(gyroCalibration, L"Off");
+        }
+
+        // 7. Gyro Sensitivity
         sliderStruct[1] = (int)"IDS_HELP_GYRO_SENSITIVITY";
         sliderStruct[17] = 0;
         sliderStruct[18] = 100;
         sliderStruct[20] = (int)&g_GyroSensitivityInt;
         CallAddSlider(thisPtr, "IDS_GYRO_SENSITIVITY", sliderStruct, fontSize);
 
-        // 7. Gyro Smoothing
+        // 8. Gyro Smoothing
         sliderStruct[1] = (int)"IDS_HELP_GYRO_SMOOTHING";
         sliderStruct[17] = 0;
         sliderStruct[18] = 100;
         sliderStruct[20] = (int)&g_GyroSmoothingInt;
         CallAddSlider(thisPtr, "IDS_GYRO_SMOOTHING", sliderStruct, fontSize);
 
-        // 8. Touchpad
+        // 9. Touchpad
         toggleStruct[1] = (int)"IDS_HELP_TOUCHPAD";
         toggleStruct[15] = (int)&g_TouchpadEnabled;
         int* touchpadToggle = CallAddToggleByName(thisPtr, L"Touchpad", toggleStruct, fontSize);

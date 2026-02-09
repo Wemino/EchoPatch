@@ -1050,6 +1050,17 @@ static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, unsigned __in
 				IniHelper::Save();
 			}
 		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_GYRO_PERSISTENCE_ENABLED)
+		{
+			bool newValue = (index == 1);
+			if (newValue != GyroCalibrationPersistence)
+			{
+				GyroCalibrationPersistence = newValue;
+				SetGyroCalibrationPersistence(GyroCalibrationPersistence);
+				IniHelper::iniReader["Controller"]["GyroCalibrationPersistence"] = std::to_string(GyroCalibrationPersistence ? 1 : 0);
+				IniHelper::Save();
+			}
+		}
 		else if (nameHash == HashHelper::StringHashes::IDS_HELP_TOUCHPAD)
 		{
 			bool newValue = (index == 1);
@@ -1726,18 +1737,19 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 
 	switch (strHash)
 	{
-		case HashHelper::StringHashes::IDS_CONTROLLER_SENSITIVITY:      return L"Controller Sensitivity";
-		case HashHelper::StringHashes::IDS_EDGE_ACCELERATION:           return L"Edge Acceleration";
-		case HashHelper::StringHashes::IDS_GYRO_SENSITIVITY:            return L"Gyro Sensitivity";
-		case HashHelper::StringHashes::IDS_GYRO_SMOOTHING:              return L"Gyro Smoothing";
-		case HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY: return L"Adjust the sensitivity of the analog sticks.";
-		case HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION:      return L"Adjust the turn rate multiplier when the stick is pushed to the edge.";
-		case HashHelper::StringHashes::IDS_HELP_RUMBLE:                 return L"Enable or disable controller vibration feedback.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED:           return L"Enable or disable gyroscope aiming.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_TYPE:              return L"Choose when gyro aiming is active.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:       return L"Adjust the sensitivity of the gyroscope.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:         return L"Adjust smoothing applied to gyroscope input.";
-		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:               return L"Enable or disable touchpad functionality.";
+		case HashHelper::StringHashes::IDS_CONTROLLER_SENSITIVITY:			return L"Controller Sensitivity";
+		case HashHelper::StringHashes::IDS_EDGE_ACCELERATION:				return L"Edge Acceleration";
+		case HashHelper::StringHashes::IDS_GYRO_SENSITIVITY:				return L"Gyro Sensitivity";
+		case HashHelper::StringHashes::IDS_GYRO_SMOOTHING:					return L"Gyro Smoothing";
+		case HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY:		return L"Adjust the sensitivity of the analog sticks.";
+		case HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION:			return L"Adjust the turn rate multiplier when the stick is pushed to the edge.";
+		case HashHelper::StringHashes::IDS_HELP_RUMBLE:						return L"Enable or disable controller vibration feedback.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED:				return L"Enable or disable gyroscope aiming.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_TYPE:					return L"Choose when gyro aiming is active.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_PERSISTENCE_ENABLED:   return L"Automatically save and load gyro calibration data upon reconnection.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:			return L"Adjust the sensitivity of the gyroscope.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:				return L"Adjust smoothing applied to gyroscope input.";
+		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:					return L"Enable or disable touchpad functionality.";
 
 		case HashHelper::StringHashes::IDS_QUICKSAVE:
 			if (ShouldShowControllerPrompts())

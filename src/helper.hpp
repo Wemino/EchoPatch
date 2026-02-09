@@ -797,6 +797,7 @@ namespace HashHelper
 		static constexpr uint32_t IDS_HELP_RUMBLE = FNV1a("IDS_HELP_RUMBLE");
 		static constexpr uint32_t IDS_HELP_GYRO_ENABLED = FNV1a("IDS_HELP_GYRO_ENABLED");
 		static constexpr uint32_t IDS_HELP_GYRO_TYPE = FNV1a("IDS_HELP_GYRO_TYPE");
+		static constexpr uint32_t IDS_HELP_GYRO_PERSISTENCE_ENABLED = FNV1a("IDS_HELP_GYRO_PERSISTENCE_ENABLED");
 		static constexpr uint32_t IDS_HELP_GYRO_SENSITIVITY = FNV1a("IDS_HELP_GYRO_SENSITIVITY");
 		static constexpr uint32_t IDS_HELP_GYRO_SMOOTHING = FNV1a("IDS_HELP_GYRO_SMOOTHING");
 		static constexpr uint32_t IDS_HELP_TOUCHPAD = FNV1a("IDS_HELP_TOUCHPAD");
