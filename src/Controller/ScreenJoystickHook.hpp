@@ -328,7 +328,7 @@ namespace ScreenJoystickHook
         int screenRight = thisPtr[62];
         int screenBottom = thisPtr[63];
 
-        CallCreateTitleByName(thisPtr, L"Controller");
+        CallCreateTitleByName(thisPtr, L"CONTROLLER");
 
         int kGap = 200;
         int kWidth = 200;
@@ -429,7 +429,7 @@ namespace ScreenJoystickHook
         // 6. Gyro Calibration Persistence
         toggleStruct[1] = (int)"IDS_HELP_GYRO_PERSISTENCE_ENABLED";
         toggleStruct[15] = (int)&g_GyroCalibrationPersistence;
-        int* gyroCalibration = CallAddToggleByName(thisPtr, L"Gyro Calibration Persistence", toggleStruct, fontSize);
+        int* gyroCalibration = CallAddToggleByName(thisPtr, L"Gyro Cal Persistence", toggleStruct, fontSize);
         if (gyroCalibration)
         {
             CallAddControl(thisPtr, gyroCalibration);
