@@ -46,8 +46,8 @@ struct GlobalState
 	// ======================
 	// Game Identification
 	// ======================
-	FEARGAME CurrentFEARGame = FEAR;
 	uintptr_t BaseAddress = 0;
+	FEARGAME CurrentFEARGame = FEAR;
 	bool IsOriginalGame() const { return CurrentFEARGame == FEAR || CurrentFEARGame == FEARMP; }
 	bool IsExpansion() const { return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2; }
 
@@ -55,13 +55,13 @@ struct GlobalState
 	// Window/Display
 	// ======================
 	HWND hWnd = 0;
+	uint64_t cachedVRAM = 0;
 	int currentWidth = 0;
 	int currentHeight = 0;
 	int screenWidth = 0;
 	int screenHeight = 0;
 	bool useVsyncOverride = false;
 	bool isUsingNvidiaDevice = false;
-	uint64_t cachedVRAM = 0;
 
 	// ======================
 	// HUD Scaling
@@ -90,8 +90,8 @@ struct GlobalState
 	// ======================
 	// User Profile
 	// ======================
-	bool isLoadingDefault = false;
 	int currentKeyIndex = 0;
+	bool isLoadingDefault = false;
 
 	// ======================
 	// Input Settings
@@ -101,26 +101,26 @@ struct GlobalState
 	// ======================
 	// Module Handles
 	// ======================
-	bool isInit = false;
-	bool isClientLoaded = false;
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 	HMODULE GameClientFX = NULL;
+	bool isInit = false;
+	bool isClientLoaded = false;
 
 	// ======================
 	// FPS Limiter
 	// ======================
-	bool isUsingFpsLimiter = false;
 	FpsLimiter fpsLimiter{ 300.0f };
+	bool isUsingFpsLimiter = false;
 
 	// ======================
 	// HUD Update State
 	// ======================
-	bool updateLayoutReturnValue = false;
-	bool slowMoBarUpdated = false;
 	int healthAdditionalIntIndex = 0;
 	int int32ToUpdate = 0;
 	float floatToUpdate = 0.0f;
+	bool updateLayoutReturnValue = false;
+	bool slowMoBarUpdated = false;
 
 	// ======================
 	// Game State
@@ -133,21 +133,31 @@ struct GlobalState
 	// ======================
 	// Controller State
 	// ======================
-	bool canActivate = false;
-	bool canSwap = false;
-	bool isAllowedToUseCursor = false;
-	bool shouldLockCursorToCenter = false;
 	ULONGLONG lastCursorStateChangeTime = 0;
 	ULONGLONG cursorActivityStartTime = 0;
+	double zoomMag = 0;
+	uint64_t lastShakeRumbleTime = 0;
+	uint64_t lastRumbleTime = 0;
+	uint64_t rumbleLockoutEndTime = 0;
 	int cursorMovementAccum = 0;
 	int pUseCursor = 0;
-	double zoomMag = 0;
 	int pCurrentType = 0;
 	int currentType = 0;
 	int maxCurrentType = 0;
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
 	int detonatorListHead = 0;
+	int turretPrevDamageState = 0;
+	uint16_t healthBefore = 0;
+	uint16_t healthAfter = 0;
+	uint16_t armorBefore = 0;
+	uint16_t armorAfter = 0;
+	uint16_t lastRumbleIntensity = 0;
+	uint16_t lastShakeRumbleIntensity = 0;
+	bool canActivate = false;
+	bool canSwap = false;
+	bool isAllowedToUseCursor = false;
+	bool shouldLockCursorToCenter = false;
 	bool updateGyroCamera = false;
 	bool isAiming = false;
 	bool isDoingMeleeAttack = false;
@@ -156,16 +166,6 @@ struct GlobalState
 	bool isFallDamage = false;
 	bool isOperatingTurret = false;
 	bool isBuildingCScreenJoystick = false;
-	uint16_t healthBefore = 0;
-	uint16_t healthAfter = 0;
-	uint16_t armorBefore = 0;
-	uint16_t armorAfter = 0;
-	uint16_t lastRumbleIntensity = 0;
-	uint16_t lastShakeRumbleIntensity = 0;
-	uint64_t lastShakeRumbleTime = 0;
-	uint64_t lastRumbleTime = 0;
-	uint64_t rumbleLockoutEndTime = 0;
-	int turretPrevDamageState = 0;
 
 	// ======================
 	// Server State
@@ -179,32 +179,32 @@ struct GlobalState
 	BYTE* pAimMgr = 0;
 	int kAP_ACT_Fire_Id = 0;
 	int actionAnimationThreshold = 0;
-	bool fireAnimationInterceptionDisabled = false;
 	int pUpperAnimationContext = 0;
+	bool fireAnimationInterceptionDisabled = false;
 	bool requestNextWeapon = false;
 	bool requestPreviousWeapon = false;
 
 	// ======================
 	// Physics/Velocity
 	// ======================
-	bool inFriction = false;
-	bool previousJumpState = false;
 	double currentFrameTime = 0.0;
 	double totalGameTime = 0.0;
 	double jumpElapsedTime = -1.0;
-	float waveUpdateAccumulator = 0.0f;
-	bool useVelocitySmoothing = false;
 	double velocityAccumulator = 0.0;
 	double velocityTimeAccumulator = 0.0;
 	double lastReportedVelocity = 0.0;
 	double prevWindowSpeed = 0.0;
+	float waveUpdateAccumulator = 0.0f;
 	float windowStartX = 0.0f;
 	float windowStartY = 0.0f;
 	float windowStartZ = 0.0f;
+	float lastPositiveYVelocity = 0.0f;
 	int impededWindowCount = 0;
+	bool inFriction = false;
+	bool previousJumpState = false;
+	bool useVelocitySmoothing = false;
 	bool isProcessingRagdoll = false;
 	bool pendingVelocityFix = false;
-	float lastPositiveYVelocity = 0.0f;
 
 	// ======================
 	// SlowMo Fix
@@ -259,10 +259,10 @@ struct GlobalState
 	// ======================
 	// MipMapBias Override
 	// ======================
-	bool isLoadingWorld = false;
+	std::vector<void*> sharpTextures;
 	void* hookedSetTextureAddr = nullptr;
 	IDirect3DDevice9* hookedDevice = nullptr;
-	std::vector<void*> sharpTextures;
+	bool isLoadingWorld = false;
 	bool stageIsDirty[16] = { false };
 
 	// ======================
