@@ -78,7 +78,7 @@ double(__thiscall* GetZoomMag)(int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;
 int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t* (__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
-void(__thiscall* UseCursor)(int, bool) = nullptr;
+void(__thiscall* UseCursor)(int, bool, bool) = nullptr;
 bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
@@ -1230,22 +1230,57 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
 }
 
-static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor)
+static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor, bool bLockCursorToCenter)
 {
-	if (g_Controller.isConnected)
+	if (!g_State.pUseCursor)
+	{
+		g_State.pUseCursor = thisPtr;
+	}
+
+	g_State.isAllowedToUseCursor = bUseCursor;
+	g_State.shouldLockCursorToCenter = bLockCursorToCenter;
+	g_State.lastCursorStateChangeTime = GetTickCount64();
+
+	if (ShouldShowControllerPrompts() && !g_Controller.touchpadCursorActive)
 	{
 		bUseCursor = false;
 	}
 
-	UseCursor(thisPtr, bUseCursor);
+	UseCursor(thisPtr, bUseCursor, bLockCursorToCenter);
 }
 
 static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 {
-	if (g_Controller.isConnected)
+	if (ShouldShowControllerPrompts())
 	{
-		x = 0;
-		y = 0;
+		if (!IsTouchpadRecentlyUsed())
+		{
+			if (g_State.isAllowedToUseCursor && (x != 0 || y != 0))
+			{
+				ULONGLONG now = GetTickCount64();
+
+				if ((now - g_State.lastCursorStateChangeTime) > 500)
+				{
+					if (now - g_State.cursorActivityStartTime > 500)
+					{
+						g_State.cursorMovementAccum = 0;
+						g_State.cursorActivityStartTime = now;
+					}
+
+					g_State.cursorMovementAccum += abs(x) + abs(y);
+
+					if (g_State.cursorMovementAccum > 150)
+					{
+						g_State.cursorMovementAccum = 0;
+						g_State.cursorActivityStartTime = 0;
+						OnKeyboardMouseInput();
+					}
+				}
+			}
+
+			x = 0;
+			y = 0;
+		}
 	}
 
 	return OnMouseMove(thisPtr, x, y);
@@ -1965,8 +2000,11 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 			case WM_LBUTTONDOWN:
 			case WM_RBUTTONDOWN:
 			case WM_MBUTTONDOWN:
-				OnKeyboardMouseInput();
+			{
+				if (!IsTouchpadRecentlyUsed())
+					OnKeyboardMouseInput();
 				break;
+			}
 		}
 	}
 
@@ -2182,7 +2220,7 @@ static void ApplyControllerClientPatch()
         return;
     }
 
-    g_State.g_pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x1A));
+    g_State.pGameClientShell = MemoryHelper::ReadMemory<int>(MemoryHelper::ReadMemory<int>(addr_pGameClientShell + 0x1A));
 
     HookHelper::ApplyHook((void*)(addr_GetExtremalCommandValue), &GetExtremalCommandValue_Hook, (LPVOID*)&GetExtremalCommandValue);
     HookHelper::ApplyHook((void*)addr_IsCommandOn, &IsCommandOn_Hook, (LPVOID*)&IsCommandOn);

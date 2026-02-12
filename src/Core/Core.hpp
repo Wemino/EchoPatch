@@ -125,7 +125,7 @@ struct GlobalState
 	// ======================
 	// Game State
 	// ======================
-	int g_pGameClientShell = 0;
+	int pGameClientShell = 0;
 	bool isPlaying = false;
 	bool isMsgBoxVisible = false;
 	bool isEnteringWorld = false;
@@ -135,7 +135,12 @@ struct GlobalState
 	// ======================
 	bool canActivate = false;
 	bool canSwap = false;
-	bool isOperatingTurret = false;
+	bool isAllowedToUseCursor = false;
+	bool shouldLockCursorToCenter = false;
+	ULONGLONG lastCursorStateChangeTime = 0;
+	ULONGLONG cursorActivityStartTime = 0;
+	int cursorMovementAccum = 0;
+	int pUseCursor = 0;
 	double zoomMag = 0;
 	int pCurrentType = 0;
 	int currentType = 0;
@@ -149,6 +154,8 @@ struct GlobalState
 	bool isUsingRemoteDetonator = false;
 	bool isTakingDamage = false;
 	bool isFallDamage = false;
+	bool isOperatingTurret = false;
+	bool isBuildingCScreenJoystick = false;
 	uint16_t healthBefore = 0;
 	uint16_t healthAfter = 0;
 	uint16_t armorBefore = 0;
@@ -159,7 +166,6 @@ struct GlobalState
 	uint64_t lastRumbleTime = 0;
 	uint64_t rumbleLockoutEndTime = 0;
 	int turretPrevDamageState = 0;
-	bool isBuildingCScreenJoystick = false;
 
 	// ======================
 	// Server State

@@ -60,6 +60,8 @@ struct ControllerState
     bool commandActive[MAX_COMMAND_ID + 1] = { false };
     bool usingControllerInput = false;
     int simulatedKeyPressCount = 0;
+    ULONGLONG lastTouchpadInputTime = 0;
+    bool touchpadCursorActive = false;
 };
 
 struct ButtonPromptInfo
@@ -104,6 +106,7 @@ const GyroState& GetGyroState();
 // ==========================================================
 
 bool HasTouchpad();
+bool IsTouchpadRecentlyUsed();
 
 // ==========================================================
 // Accessors - Rumble

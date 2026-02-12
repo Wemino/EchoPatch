@@ -143,7 +143,6 @@ Configurable in the `[Controller]` section of `EchoPatch.ini`:
 
 Customizable alongside sensitivity settings within the `[Controller]` section of `EchoPatch.ini`.
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
-> **Note**: For a more console-like experience, you can automatically hide the mouse cursor when a controller is detected. This feature is disabled by default. To enable it, set `HideMouseCursor=1` in `EchoPatch.ini`.  
 
 Some controller settings from `EchoPatch.ini` can also be adjusted directly in-game via a custom menu accessible from Options → Controls → Configure joystick/gamepad.
 

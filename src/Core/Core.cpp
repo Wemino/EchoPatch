@@ -252,7 +252,7 @@ static void ReadConfig()
     GyroSmoothing = IniHelper::ReadFloat("Controller", "GyroSmoothing", 0.016f);
     GyroCalibrationPersistence = IniHelper::ReadInteger("Controller", "GyroCalibrationPersistence", 1) == 1;
     TouchpadEnabled = IniHelper::ReadInteger("Controller", "TouchpadEnabled", 1) == 1;
-    HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 0) == 1;
+    HideMouseCursor = IniHelper::ReadInteger("Controller", "HideMouseCursor", 1) == 1;
     GPadAimSensitivity = IniHelper::ReadFloat("Controller", "GPadAimSensitivity", 2.0f);
     GPadAimEdgeThreshold = IniHelper::ReadFloat("Controller", "GPadAimEdgeThreshold", 0.75f);
     GPadAimEdgeAccelTime = IniHelper::ReadFloat("Controller", "GPadAimEdgeAccelTime", 1.0f);

@@ -1145,7 +1145,7 @@ static void ReleaseAllGameButtons()
                 else
                 {
                     g_Controller.commandActive[holdCommandId] = false;
-                    OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
+                    OnCommandOff(g_State.pGameClientShell, holdCommandId);
                 }
             }
             // If hold wasn't triggered, tap action was never started, nothing to release
@@ -1161,7 +1161,7 @@ static void ReleaseAllGameButtons()
             else if (commandId != 0)
             {
                 g_Controller.commandActive[commandId] = false;
-                OnCommandOff(g_State.g_pGameClientShell, commandId);
+                OnCommandOff(g_State.pGameClientShell, commandId);
             }
         }
 
@@ -1208,7 +1208,18 @@ static void UpdateInputMode(bool usingController)
     if (g_Controller.usingControllerInput != usingController)
     {
         g_Controller.usingControllerInput = usingController;
+        g_Controller.touchpadCursorActive = false;
         NotifyHUDConnectionChange();
+
+        if (g_State.pUseCursor)
+        {
+            if (!g_State.isAllowedToUseCursor && !usingController)
+            {
+                return;
+            }
+
+            UseCursor(g_State.pUseCursor, !usingController, g_State.shouldLockCursorToCenter);
+        }
     }
 }
 
@@ -1256,7 +1267,14 @@ static void ProcessTouchpadMouse()
 
                         if (deltaX != 0.0f || deltaY != 0.0f)
                         {
-                            UpdateInputMode(true);
+                            g_Controller.lastTouchpadInputTime = GetTickCount64();
+
+                            // Show cursor in menus while using touchpad
+                            if (ShouldShowControllerPrompts() && g_State.isAllowedToUseCursor && !g_Controller.touchpadCursorActive && g_State.pUseCursor)
+                            {
+                                g_Controller.touchpadCursorActive = true;
+                                UseCursor(g_State.pUseCursor, true, g_State.shouldLockCursorToCenter);
+                            }
 
                             INPUT input = {};
                             input.type = INPUT_MOUSE;
@@ -1289,6 +1307,14 @@ static void ProcessTouchpadClick()
 
     if (isPressed && !s_wasTouchpadPressed[0])
     {
+        g_Controller.lastTouchpadInputTime = GetTickCount64();
+
+        if (ShouldShowControllerPrompts() && g_State.isAllowedToUseCursor && !g_Controller.touchpadCursorActive && g_State.pUseCursor)
+        {
+            g_Controller.touchpadCursorActive = true;
+            UseCursor(g_State.pUseCursor, true, g_State.shouldLockCursorToCenter);
+        }
+
         INPUT input = {};
         input.type = INPUT_MOUSE;
         input.mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
@@ -1296,6 +1322,8 @@ static void ProcessTouchpadClick()
     }
     else if (!isPressed && s_wasTouchpadPressed[0])
     {
+        g_Controller.lastTouchpadInputTime = GetTickCount64();
+
         INPUT input = {};
         input.type = INPUT_MOUSE;
         input.mi.dwFlags = MOUSEEVENTF_LEFTUP;
@@ -1318,6 +1346,11 @@ static void ReleaseTouchpadClick()
             s_wasTouchpadPressed[i] = false;
         }
     }
+}
+
+bool IsTouchpadRecentlyUsed()
+{
+    return (GetTickCount64() - g_Controller.lastTouchpadInputTime) <= 100;
 }
 
 // ==========================================================
@@ -1544,6 +1577,14 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
     if (isPressed && !btnState.isPressed)
     {
         UpdateInputMode(true);
+
+        if (g_Controller.touchpadCursorActive && g_State.pUseCursor)
+        {
+            g_Controller.touchpadCursorActive = false;
+            UseCursor(g_State.pUseCursor, false, g_State.shouldLockCursorToCenter);
+        }
+
+        UpdateInputMode(true);
         btnState.pressStartTime = GetTickCount64();
         holdTriggered = false;
         btnState.wasHandled = true;
@@ -1560,7 +1601,7 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
             else
             {
                 g_Controller.commandActive[commandId] = true;
-                OnCommandOn(g_State.g_pGameClientShell, commandId);
+                OnCommandOn(g_State.pGameClientShell, commandId);
             }
         }
     }
@@ -1587,7 +1628,7 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
                     else
                     {
                         g_Controller.commandActive[holdCommandId] = true;
-                        OnCommandOn(g_State.g_pGameClientShell, holdCommandId);
+                        OnCommandOn(g_State.pGameClientShell, holdCommandId);
                     }
                 }
             }
@@ -1617,7 +1658,7 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
                 if (holdSimulatedKey == 0)
                 {
                     g_Controller.commandActive[holdCommandId] = false;
-                    OnCommandOff(g_State.g_pGameClientShell, holdCommandId);
+                    OnCommandOff(g_State.pGameClientShell, holdCommandId);
                 }
             }
             else
@@ -1633,8 +1674,8 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
                 {
                     // Set active for this frame, memset next frame will clear it
                     g_Controller.commandActive[commandId] = true;
-                    OnCommandOn(g_State.g_pGameClientShell, commandId);
-                    OnCommandOff(g_State.g_pGameClientShell, commandId);
+                    OnCommandOn(g_State.pGameClientShell, commandId);
+                    OnCommandOff(g_State.pGameClientShell, commandId);
                 }
             }
         }
@@ -1648,7 +1689,7 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
             else if (commandId != 0)
             {
                 g_Controller.commandActive[commandId] = false;
-                OnCommandOff(g_State.g_pGameClientShell, commandId);
+                OnCommandOff(g_State.pGameClientShell, commandId);
             }
         }
         btnState.wasHandled = false;
@@ -1725,6 +1766,7 @@ static void ProcessMenuNavigation()
             bool stickPressed = IsStickDirectionPressed(i);
             pressed = dpadPressed || stickPressed;
 
+            // Repeat while held
             if (pressed && btnState.isPressed)
             {
                 ULONGLONG elapsed = currentTime - btnState.pressStartTime;
@@ -1743,10 +1785,19 @@ static void ProcessMenuNavigation()
             pressed = SDL_GetGamepadButton(s_pGamepad, menuNavigation[i].button);
         }
 
+        // State change (press/release)
         if (pressed != btnState.isPressed)
         {
             if (pressed)
+            {
                 g_Controller.simulatedKeyPressCount++;
+
+                if (g_Controller.touchpadCursorActive && g_State.pUseCursor)
+                {
+                    g_Controller.touchpadCursorActive = false;
+                    UseCursor(g_State.pUseCursor, false, g_State.shouldLockCursorToCenter);
+                }
+            }
 
             PostMessage(g_State.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, menuNavigation[i].vkey, 0);
             btnState.isPressed = pressed;

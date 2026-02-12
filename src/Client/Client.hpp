@@ -9,3 +9,4 @@ extern void (__cdecl* HUDSwapUpdateTriggerName)();
 extern bool (__thiscall* OnCommandOn)(int, int);
 extern bool (__thiscall* OnCommandOff)(int, int);
 extern void (__thiscall* SetCurrentType)(int, int);
+extern void(__thiscall* UseCursor)(int, bool, bool);
