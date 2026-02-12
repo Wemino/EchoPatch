@@ -1,26 +1,25 @@
+#include <Windows.h>
+
 class FpsLimiter
 {
 public:
-    explicit FpsLimiter(double targetFps = 300.0)
+    explicit FpsLimiter(double targetFps = 300.0) noexcept
     {
-        timeBeginPeriod(1);
-
         LARGE_INTEGER freq;
         QueryPerformanceFrequency(&freq);
         frequency = freq.QuadPart;
-
         ticksTo100ns = 10000000.0 / static_cast<double>(frequency);
 
         SetTargetFps(targetFps);
 
-        QueryPerformanceCounter(&freq);
-        lastTargetTick = freq.QuadPart;
+        LARGE_INTEGER now;
+        QueryPerformanceCounter(&now);
+        lastTargetTick = now.QuadPart;
 
-        // Default to legacy Sleep implementation (2ms threshold)
-        sleepThreshold = (frequency * 2) / 1000;
+        // Default to legacy Sleep implementation
         limitFunc = &FpsLimiter::LimitLegacy;
 
-        // Try to upgrade to waitable timer (Vista+)
+        // Try to upgrade to waitable timer
         HMODULE kernel32 = GetModuleHandleW(L"kernel32.dll");
         if (kernel32)
         {
@@ -33,49 +32,59 @@ public:
 
                 if (hTimer)
                 {
-                    // High-res timer is precise, 1ms threshold is safe
-                    sleepThreshold = frequency / 1000;
+                    sleepThreshold = frequency / 2000;
                     limitFunc = &FpsLimiter::LimitWaitableTimer;
                 }
                 else
                 {
-                    // Try standard waitable timer (Vista/7/8)
+                    // Try standard waitable timer (Vista+)
                     hTimer = pCreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
-
                     if (hTimer)
                     {
-                        // Standard timer has 1ms resolution, keep 2ms threshold
                         sleepThreshold = (frequency * 2) / 1000;
                         limitFunc = &FpsLimiter::LimitWaitableTimer;
                     }
                 }
             }
         }
+
+        // Only change global system timer resolution if we need legacy Sleep
+        if (limitFunc == &FpsLimiter::LimitLegacy)
+        {
+            timeBeginPeriod(1);
+            usedTimeBeginPeriod = true;
+            sleepThreshold = (frequency * 2) / 1000;
+        }
     }
 
-    ~FpsLimiter()
+    ~FpsLimiter() noexcept
     {
         if (hTimer)
-        {
             CloseHandle(hTimer);
-        }
 
-        timeEndPeriod(1);
+        if (usedTimeBeginPeriod)
+            timeEndPeriod(1);
     }
 
-    void SetTargetFps(double targetFps)
+    FpsLimiter(const FpsLimiter&) = delete;
+    FpsLimiter& operator=(const FpsLimiter&) = delete;
+
+    void SetTargetFps(double targetFps) noexcept
     {
+        if (targetFps <= 0.0)
+            targetFps = 1.0;
+
         targetFrameTicks = static_cast<LONGLONG>(static_cast<double>(frequency) / targetFps);
     }
 
-    void Limit()
+    void Limit() noexcept
     {
         (this->*limitFunc)();
     }
 
 private:
     // Waitable timer implementation (Vista+, best precision on Windows 10 1803+)
-    void LimitWaitableTimer()
+    void LimitWaitableTimer() noexcept
     {
         LARGE_INTEGER currentTime;
         QueryPerformanceCounter(&currentTime);
@@ -85,7 +94,7 @@ private:
 
         if (remaining > 0)
         {
-            // Use waitable timer for bulk of wait
+            // Use waitable timer for bulk of wait, spin for final precision
             if (remaining > sleepThreshold)
             {
                 LARGE_INTEGER dueTime;
@@ -97,7 +106,6 @@ private:
                 }
             }
 
-            // Spin for final precision
             do
             {
                 YieldProcessor();
@@ -117,7 +125,7 @@ private:
     }
 
     // Legacy Sleep implementation (Windows XP+)
-    void LimitLegacy()
+    void LimitLegacy() noexcept
     {
         LARGE_INTEGER currentTime;
         QueryPerformanceCounter(&currentTime);
@@ -127,7 +135,6 @@ private:
 
         if (remaining > 0)
         {
-            // Sleep the bulk of the wait
             if (remaining > sleepThreshold)
             {
                 DWORD sleepMs = static_cast<DWORD>((remaining - sleepThreshold) * 1000 / frequency);
@@ -137,7 +144,6 @@ private:
                 }
             }
 
-            // Spin for final precision
             do
             {
                 YieldProcessor();
@@ -146,22 +152,20 @@ private:
             while (currentTime.QuadPart < targetTick);
         }
 
-        // Advance by fixed amount to maintain average FPS
         lastTargetTick = targetTick;
 
-        // If more than 1 frame behind, reset to prevent catch-up spiral
         if (currentTime.QuadPart - targetTick > targetFrameTicks)
         {
             lastTargetTick = currentTime.QuadPart;
         }
     }
 
-private:
     HANDLE hTimer = nullptr;
-    LONGLONG frequency;
-    LONGLONG lastTargetTick;
-    LONGLONG targetFrameTicks;
-    LONGLONG sleepThreshold;
-    double ticksTo100ns;
-    void (FpsLimiter::* limitFunc)();
+    LONGLONG frequency = 0;
+    LONGLONG lastTargetTick = 0;
+    LONGLONG targetFrameTicks = 0;
+    LONGLONG sleepThreshold = 0;
+    double ticksTo100ns = 0.0;
+    bool usedTimeBeginPeriod = false;
+    void (FpsLimiter::* limitFunc)() noexcept = nullptr;
 };
