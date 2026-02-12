@@ -452,7 +452,7 @@ namespace LAAPatcher
 
 		if (!fs::exists(exePath))
 		{
-			sprintf_s(error, "Executable path does not exist: %s", exePath.u8string().c_str());
+			sprintf_s(error, "Executable path does not exist: %s", exePath.string().c_str());
 			ShowError(error);
 			return false;
 		}
@@ -460,14 +460,14 @@ namespace LAAPatcher
 		std::vector<uint8_t> buffer;
 		if (!ReadFile(exePath, buffer))
 		{
-			sprintf_s(error, "Could not read executable file.\nPath: %s\nError: %d", exePath.u8string().c_str(), GetLastError());
+			sprintf_s(error, "Could not read executable file.\nPath: %s\nError: %d", exePath.string().c_str(), GetLastError());
 			ShowError(error);
 			return false;
 		}
 
 		if (buffer.empty())
 		{
-			sprintf_s(error, "Executable file is empty.\nPath: %s", exePath.u8string().c_str());
+			sprintf_s(error, "Executable file is empty.\nPath: %s", exePath.string().c_str());
 			ShowError(error);
 			return false;
 		}
@@ -591,7 +591,7 @@ namespace LAAPatcher
 			fs::remove(newPath, ec);
 			if (ec)
 			{
-				sprintf_s(error, "Failed to remove existing .new file.\nPath: %s\nError: %s", newPath.u8string().c_str(), ec.message().c_str());
+				sprintf_s(error, "Failed to remove existing .new file.\nPath: %s\nError: %s", newPath.string().c_str(), ec.message().c_str());
 				ShowError(error);
 				return false;
 			}
@@ -603,9 +603,9 @@ namespace LAAPatcher
 			{
 				DWORD err = GetLastError();
 				if (err == ERROR_ACCESS_DENIED)
-					sprintf_s(error, "Unable to write patched file (Access Denied).\n\nYour Anti-Virus may be blocking modification.\nPlease add an exception for this folder.\nPath: %s", newPath.u8string().c_str());
+					sprintf_s(error, "Unable to write patched file (Access Denied).\n\nYour Anti-Virus may be blocking modification.\nPlease add an exception for this folder.\nPath: %s", newPath.string().c_str());
 				else
-					sprintf_s(error, "Failed to create patched file.\nPath: %s\nError: %d", newPath.u8string().c_str(), err);
+					sprintf_s(error, "Failed to create patched file.\nPath: %s\nError: %d", newPath.string().c_str(), err);
 
 				ShowError(error);
 				return false;
@@ -615,7 +615,7 @@ namespace LAAPatcher
 
 			if (!outFile.good())
 			{
-				sprintf_s(error, "Failed to write patched file data.\nPath: %s", newPath.u8string().c_str());
+				sprintf_s(error, "Failed to write patched file data.\nPath: %s", newPath.string().c_str());
 				ShowError(error);
 				fs::remove(newPath, ec);
 				return false;
@@ -627,7 +627,7 @@ namespace LAAPatcher
 		auto writtenSize = fs::file_size(newPath, ec);
 		if (ec || writtenSize != buffer.size())
 		{
-			sprintf_s(error, "Written file size mismatch (expected=%zu, actual=%zu).\nPath: %s", buffer.size(), static_cast<size_t>(writtenSize), newPath.u8string().c_str());
+			sprintf_s(error, "Written file size mismatch (expected=%zu, actual=%zu).\nPath: %s", buffer.size(), static_cast<size_t>(writtenSize), newPath.string().c_str());
 			ShowError(error);
 			fs::remove(newPath, ec);
 			return false;
