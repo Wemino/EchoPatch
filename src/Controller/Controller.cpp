@@ -354,6 +354,12 @@ static bool LoadGyroCalibration(const char* serial)
     if (!file)
         return false;
 
+    file.seekg(0, std::ios::end);
+    if (file.tellg() != 0xC)
+        return false;
+
+    file.seekg(0, std::ios::beg);
+
     float offsetX = 0.0, offsetY = 0.0, offsetZ = 0.0;
     file.read(reinterpret_cast<char*>(&offsetX), sizeof(float));
     file.read(reinterpret_cast<char*>(&offsetY), sizeof(float));
