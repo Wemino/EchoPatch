@@ -29,12 +29,12 @@
 #pragma once
 
 #if !(defined _M_IX86) && !(defined _M_X64) && !(defined __i386__) && !(defined __x86_64__)
-    #error MinHook supports only x86 and x64 systems.
+#error MinHook supports only x86 and x64 systems.
 #endif
 
 #include <windows.h>
 
-// MinHook Error Codes.
+ // MinHook Error Codes.
 typedef enum MH_STATUS
 {
     // Unknown error. Should not be returned.
@@ -108,7 +108,7 @@ extern "C" {
     //   ppOriginal  [out] A pointer to the trampoline function, which will be
     //                     used to call the original target function.
     //                     This parameter can be NULL.
-    MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID *ppOriginal);
+    MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID* ppOriginal);
 
     // Creates a hook for the specified API function, in disabled state.
     // Parameters:
@@ -122,7 +122,7 @@ extern "C" {
     //                     used to call the original target function.
     //                     This parameter can be NULL.
     MH_STATUS WINAPI MH_CreateHookApi(
-        LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID *ppOriginal);
+        LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID* ppOriginal);
 
     // Creates a hook for the specified API function, in disabled state.
     // Parameters:
@@ -139,7 +139,7 @@ extern "C" {
     //                     with other functions.
     //                     This parameter can be NULL.
     MH_STATUS WINAPI MH_CreateHookApiEx(
-        LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID *ppOriginal, LPVOID *ppTarget);
+        LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID* ppOriginal, LPVOID* ppTarget);
 
     // Removes an already created hook.
     // Parameters:
@@ -178,7 +178,7 @@ extern "C" {
     MH_STATUS WINAPI MH_ApplyQueued(VOID);
 
     // Translates the MH_STATUS to its name as a string.
-    const char * WINAPI MH_StatusToString(MH_STATUS status);
+    const char* WINAPI MH_StatusToString(MH_STATUS status);
 
 #ifdef __cplusplus
 }
