@@ -1,4 +1,4 @@
-#include <shlwapi.h>
+﻿#include <shlwapi.h>
 #include <ShlObj_core.h>
 #include <dxgi.h>
 #include "LAAPatcher.hpp"
@@ -32,6 +32,7 @@ HRESULT(WINAPI* D3D9_SetTexture)(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9
 // ======================
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
+bool(__thiscall* GetDeviceObjectName)(int, int, LPWSTR) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
 int(__stdcall* SetVelocity)(int, float*) = nullptr;
 int(__thiscall* ProcessBreakableConstraint)(int, float*, int) = nullptr;
@@ -535,6 +536,24 @@ static void SetVertexBufferPool(uint8_t pool)
     MemoryHelper::WriteMemory<uint8_t>(g_State.BaseAddress + offset, pool);
 }
 
+static bool FindDIKInTable(int thisPtr, uint8_t dikCode, unsigned int* ret)
+{
+    int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
+    int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
+    int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
+
+    while (tableStart < tableEnd)
+    {
+        if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
+        {
+            *ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
+            return true;
+        }
+        tableStart += 0x20;
+    }
+    return false;
+}
+
 float GetCameraOffset(float fov)
 {
     constexpr float data[][2] = 
@@ -730,6 +749,37 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 // FixKeyboardInputLanguage
 // ========================
 
+static bool __fastcall GetDeviceObjectName_Hook(int thisPtr, int, int keyIndex, LPWSTR lpWideCharStr)
+{
+    bool result = GetDeviceObjectName(thisPtr, keyIndex, lpWideCharStr);
+
+    if (!result || wcslen(lpWideCharStr) != 1)
+        return result;
+
+    int tableBase = MemoryHelper::ReadMemory<int>(thisPtr + 0x10);
+    uint8_t dikCode = MemoryHelper::ReadMemory<uint8_t>(tableBase + 32 * keyIndex + 0x1);
+
+    HKL layout = GetKeyboardLayout(0);
+    UINT vk = MapVirtualKeyEx(dikCode, MAPVK_VSC_TO_VK, layout);
+    if (vk == 0) return result;
+
+    BYTE keyState[256] = {};
+    wchar_t buf[4] = {};
+    int chars = ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0, layout);
+
+    if (chars == 1 && buf[0] != L'\0')
+    {
+        wchar_t corrected = towupper(buf[0]);
+        if (corrected != towupper(lpWideCharStr[0]))
+        {
+            lpWideCharStr[0] = corrected;
+            lpWideCharStr[1] = L'\0';
+        }
+    }
+
+    return result;
+}
+
 static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
     if (g_State.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
@@ -770,56 +820,63 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
         auto it = keyMap.find(g_State.currentKeyIndex);
         g_State.currentKeyIndex++;
 
-        if (it != keyMap.end())
-        {
-            // Get pointer to keyboard the DIK table
-            unsigned int dikCode = it->second;
-            int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
-            int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
-            int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
-
-            // Iterate through the table
-            while (tableStart < tableEnd)
-            {
-                // If the corresponding DirectInput Key Id is found
-                if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
-                {
-                    // Write and return the index for that DIK Id
-                    *ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
-                    return 0;
-                }
-                tableStart += 0x20;
-            }
+        if (it != keyMap.end() && FindDIKInTable(thisPtr, static_cast<uint8_t>(it->second), ret))
+        { 
+            return 0;
         }
     }
-    else if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1 && iswalpha(KeyName[0])) // Handle alphabet keys by converting to VK and then to scan code (DIK)
-    {
-        wchar_t keyChar = towupper(KeyName[0]);
-        HKL layout = GetKeyboardLayout(0);
-        SHORT vkScan = VkKeyScanExW(keyChar, layout);
 
-        if (vkScan != -1)
+    if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1)
+    {
+        wchar_t ch = KeyName[0];
+        if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z'))
         {
-            BYTE vk = LOBYTE(vkScan);
+            BYTE vk = static_cast<BYTE>(towupper(ch));
+
+            HKL layout = GetKeyboardLayout(0);
             UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
 
-            int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
-            int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
-            int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
-
-            while (tableStart < tableEnd)
+            if (scanCode == 0)
             {
-                if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == scanCode)
+                static const uint8_t qwertyDIK[26] = 
                 {
-                    *ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
-                    return 0;
-                }
-                tableStart += 0x20;
+                    0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24,
+                    0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, 0x1F, 0x14,
+                    0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C
+                };
+
+                scanCode = qwertyDIK[vk - 0x41];
+            }
+
+            if (FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
+            {
+                return 0;
             }
         }
     }
 
-    return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
+    int result = GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
+
+    // Fallback for non-ASCII single chars the original couldn't resolve
+    if (result != 61 || DeviceType != 0 || !KeyName || wcslen(KeyName) != 1)
+    {
+        return result;
+    }
+
+    wchar_t ch = KeyName[0];
+    HKL layout = GetKeyboardLayout(0);
+    SHORT vkScan = VkKeyScanExW(ch, layout);
+
+    if (vkScan != -1)
+    {
+        UINT scanCode = MapVirtualKeyEx(LOBYTE(vkScan), MAPVK_VK_TO_VSC, layout);
+        if (scanCode != 0 && FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
+        {
+            return 0;
+        }
+    }
+
+    return result;
 }
 
 // ========================
@@ -1734,10 +1791,22 @@ static void ApplyFixKeyboardInputLanguage()
 
     switch (g_State.CurrentFEARGame)
     {
-        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true); break;
-        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81F30), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
-        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB5DE0), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
-        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB6E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc); break;
+        case FEAR:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x815A0), &GetDeviceObjectName_Hook, (LPVOID*)&GetDeviceObjectName, true);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc, true);
+            break;
+        case FEARMP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x816C0), &GetDeviceObjectName_Hook, (LPVOID*)&GetDeviceObjectName);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81F30), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+            break;
+        case FEARXP:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB52D0), &GetDeviceObjectName_Hook, (LPVOID*)&GetDeviceObjectName);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB5DE0), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+            break;
+        case FEARXP2:
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB6350), &GetDeviceObjectName_Hook, (LPVOID*)&GetDeviceObjectName);
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB6E10), &GetDeviceObjectDesc_Hook, (LPVOID*)&GetDeviceObjectDesc);
+            break;
     }
 }
 

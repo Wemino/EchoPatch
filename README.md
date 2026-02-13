@@ -158,7 +158,7 @@ Some controller settings from `EchoPatch.ini` can also be adjusted directly in-g
 </div>
 
 ## Keyboard Input Fix
-Corrects default control assignments on non-English layouts by mapping hardware scan codes instead of English key names. Prevents "[unassigned]" entries on first launch or after resetting controls.
+Corrects key mapping on non-English layouts by using hardware scan codes and fixing misreported DirectInput key names. Prevents "[unassigned]" entries on first launch, after resetting controls, or when reassigning keys.
 
 ## Widescreen Resolution Support for Extraction Point
 Removes 4:3 restriction so all widescreen resolutions are available.
