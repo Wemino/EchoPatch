@@ -42,6 +42,13 @@ struct ButtonState
     ULONGLONG lastRepeatTime = 0;
 };
 
+struct RumbleState
+{
+    int activePriority = 0;
+    uint16_t activeIntensity = 0;
+    ULONGLONG endTime = 0;
+};
+
 struct TouchpadConfig
 {
     int currentWidth = 0;
@@ -62,6 +69,7 @@ struct ControllerState
     int simulatedKeyPressCount = 0;
     ULONGLONG lastTouchpadInputTime = 0;
     bool touchpadCursorActive = false;
+    RumbleState rumble;
 };
 
 struct ButtonPromptInfo
@@ -157,6 +165,6 @@ void ConfigureTrigger(int triggerIndex, int commandId, int holdCommandId = -1, i
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
 ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName);
 const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName);
-void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs);
+void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs, int priority = 0);
 void OnKeyboardMouseInput();
 bool ShouldShowControllerPrompts();

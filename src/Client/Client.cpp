@@ -1188,7 +1188,6 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 	if (!pTurret)
 	{
 		g_State.turretPrevDamageState = 0;
-		g_State.rumbleLockoutEndTime = 0;
 	}
 
 	return SetOperatingTurret(thisPtr, pTurret);
@@ -1395,58 +1394,55 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 				case HashHelper::WeaponHashes::Proximity:
 				case HashHelper::WeaponHashes::RemoteCharge:
 				case HashHelper::WeaponHashes::DeployableTurretGrenade:
-					SetGamepadRumble(15000, 5000, 100);
+					SetGamepadRumble(15000, 5000, 100, 2);
 					break;
 
 				case HashHelper::WeaponHashes::SMG:
-					SetGamepadRumble(18000, 25000, 70);
+					SetGamepadRumble(18000, 25000, 70, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Laser:
-					SetGamepadRumble(10000, 30000, 80);
+					SetGamepadRumble(10000, 30000, 80, 3);
 					break;
 
 				case HashHelper::WeaponHashes::AssaultRifle:
-					SetGamepadRumble(30000, 20000, 80);
+					SetGamepadRumble(30000, 20000, 80, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Rifle:
 				case HashHelper::WeaponHashes::AdvancedRifle:
-					SetGamepadRumble(45000, 25000, 100);
+					SetGamepadRumble(45000, 25000, 100, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Pistol:
-					SetGamepadRumble(35000, 35000, 110);
+					SetGamepadRumble(35000, 35000, 110, 3);
 					break;
 
 				case HashHelper::WeaponHashes::NailGun:
-					SetGamepadRumble(40000, 50000, 110);
+					SetGamepadRumble(40000, 50000, 110, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Minigun:
 				case HashHelper::WeaponHashes::Turret_Ceiling:
-					if (GetTickCount64() > g_State.rumbleLockoutEndTime)
-					{
-						SetGamepadRumble(40000, 45000, 110);
-					}
+					SetGamepadRumble(40000, 45000, 110, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Plasma:
 				case HashHelper::WeaponHashes::ChainLightningGun:
-					SetGamepadRumble(55000, 55000, 220);
+					SetGamepadRumble(55000, 55000, 220, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Shotgun:
-					SetGamepadRumble(45000, 45000, 250);
+					SetGamepadRumble(45000, 45000, 250, 3);
 					break;
 
 				case HashHelper::WeaponHashes::Missile:
-					SetGamepadRumble(50000, 50000, 250);
+					SetGamepadRumble(50000, 50000, 250, 3);
 					break;
 
 				case HashHelper::WeaponHashes::GrenadeLauncher:
 				case HashHelper::WeaponHashes::Cannon:
-					SetGamepadRumble(60000, 60000, 250);
+					SetGamepadRumble(60000, 60000, 250, 3);
 					break;
 			}
 		}
@@ -1638,15 +1634,7 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 		highFreq = baseIntensity;
 	}
 
-	uint16_t currentIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
-	uint64_t currentTime = GetTickCount64();
-
-	if (playerDied || currentIntensity > g_State.lastRumbleIntensity || currentTime > g_State.lastRumbleTime + 100)
-	{
-		SetGamepadRumble(lowFreq, highFreq, duration);
-		g_State.lastRumbleTime = currentTime;
-		g_State.lastRumbleIntensity = currentIntensity;
-	}
+	SetGamepadRumble(lowFreq, highFreq, duration, playerDied ? 6 : 5);
 }
 
 static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDuration)
@@ -1664,14 +1652,14 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 		durationMs = static_cast<uint32_t>(fDuration * 1000.0f);
 	}
 
-	SetGamepadRumble(0, 8000, durationMs);
+	SetGamepadRumble(0, 8000, durationMs, 1);
 }
 
 static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData, int a2)
 {
 	if (g_State.isDoingMeleeAttack && *rImpactData)
 	{
-		SetGamepadRumble(52000, 42000, 120);
+		SetGamepadRumble(52000, 42000, 120, 3);
 		g_State.isDoingMeleeAttack = false;
 	}
 
@@ -1691,6 +1679,7 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 
 	uint16_t lowFreq, highFreq;
 	uint32_t duration;
+	int priority;
 
 	if (fDistFell < 500.0f)
 	{
@@ -1698,6 +1687,7 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 		lowFreq = static_cast<uint16_t>(2000 + t * 3000);
 		highFreq = 0;
 		duration = static_cast<uint32_t>(60 + t * 40);
+		priority = 4;
 	}
 	else
 	{
@@ -1710,10 +1700,11 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 		lowFreq = static_cast<uint16_t>(25000 + scaled * 40535);
 		highFreq = static_cast<uint16_t>(15000 + scaled * 50535);
 		duration = static_cast<uint32_t>(250 + scaled * 350);
+		priority = 5;
 		g_State.isFallDamage = true;
 	}
 
-	SetGamepadRumble(lowFreq, highFreq, duration);
+	SetGamepadRumble(lowFreq, highFreq, duration, priority);
 }
 
 void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
@@ -1755,12 +1746,11 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 				break;
 		}
 
-		SetGamepadRumble(lowFreq, highFreq, duration);
-		g_State.rumbleLockoutEndTime = GetTickCount64() + duration;
+		SetGamepadRumble(lowFreq, highFreq, duration, 6);
 	}
-	else if (GetTickCount64() > g_State.rumbleLockoutEndTime)
+	else
 	{
-		SetGamepadRumble(12000, 8000, 120);
+		SetGamepadRumble(12000, 8000, 120, 3);
 	}
 
 	g_State.turretPrevDamageState = newDamageState;

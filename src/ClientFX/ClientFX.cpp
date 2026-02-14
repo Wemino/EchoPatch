@@ -17,10 +17,6 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
     if (!result || !RumbleEnabled)
         return result;
 
-    uint64_t currentTime = GetTickCount64();
-    if (currentTime < g_State.rumbleLockoutEndTime)
-        return result;
-
     float intensity = *pIntensity;
     if (intensity < 0.005f)
         return result;
@@ -70,10 +66,11 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
     }
 
     uint16_t maxIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
+    uint64_t currentTime = GetTickCount64();
 
     if (currentTime > g_State.lastShakeRumbleTime + 50 || maxIntensity > g_State.lastShakeRumbleIntensity + 500)
     {
-        SetGamepadRumble(lowFreq, highFreq, duration);
+        SetGamepadRumble(lowFreq, highFreq, duration, 4);
         g_State.lastShakeRumbleTime = currentTime;
         g_State.lastShakeRumbleIntensity = maxIntensity;
     }

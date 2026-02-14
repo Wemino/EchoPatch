@@ -66,16 +66,16 @@ static bool __fastcall CPlayerInventory_UseGear_Hook(int* thisPtr, int, int hGea
             {
                 case HashHelper::GearHashes::ArmorLightSP:
                 case HashHelper::GearHashes::Medkit:
-                    SetGamepadRumble(20000, 22000, 150);
+                    SetGamepadRumble(20000, 22000, 150, 2);
                     break;
 
                 case HashHelper::GearHashes::HealthMax:
                 case HashHelper::GearHashes::SlowMoMax:
-                    SetGamepadRumble(55000, 45000, 300);
+                    SetGamepadRumble(55000, 45000, 300, 2);
                     break;
 
                 default:
-                    SetGamepadRumble(15000, 22000, 150);
+                    SetGamepadRumble(15000, 22000, 150, 2);
                     break;
             }
         }
@@ -107,8 +107,7 @@ static void __fastcall DetonateRemoteCharges_Hook(DWORD* thisPtr, int)
             Uint32 duration = std::min(250 + (count * 100), 2000);
             Uint16 low = std::min(40000 + count * 5000, 65535);
             Uint16 high = std::min(30000 + count * 7000, 65535);
-            SetGamepadRumble(low, high, duration);
-            g_State.rumbleLockoutEndTime = GetTickCount64() + duration;
+            SetGamepadRumble(low, high, duration, 6);
         }
     }
 

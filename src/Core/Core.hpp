@@ -136,9 +136,6 @@ struct GlobalState
 	ULONGLONG lastCursorStateChangeTime = 0;
 	ULONGLONG cursorActivityStartTime = 0;
 	double zoomMag = 0;
-	uint64_t lastShakeRumbleTime = 0;
-	uint64_t lastRumbleTime = 0;
-	uint64_t rumbleLockoutEndTime = 0;
 	int cursorMovementAccum = 0;
 	int pUseCursor = 0;
 	int pCurrentType = 0;
@@ -152,7 +149,7 @@ struct GlobalState
 	uint16_t healthAfter = 0;
 	uint16_t armorBefore = 0;
 	uint16_t armorAfter = 0;
-	uint16_t lastRumbleIntensity = 0;
+	uint64_t lastShakeRumbleTime = 0;
 	uint16_t lastShakeRumbleIntensity = 0;
 	bool canActivate = false;
 	bool canSwap = false;

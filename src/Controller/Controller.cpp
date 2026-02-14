@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <iomanip>
 
 #include "../Core/Core.hpp"
 #include "Controller.hpp"
@@ -1916,10 +1915,21 @@ void PollController()
 // Utilities
 // ==========================================================
 
-void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs)
+void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs, int priority)
 {
-    if (s_pGamepad && s_rumbleEnabled)
-    {
-        SDL_RumbleGamepad(s_pGamepad, lowFreq, highFreq, durationMs);
-    }
+    if (!s_pGamepad || !s_rumbleEnabled)
+        return;
+
+    ULONGLONG now = GetTickCount64();
+    auto& rumble = g_Controller.rumble;
+
+    if (now < rumble.endTime && priority < rumble.activePriority)
+        return;
+
+    SDL_RumbleGamepad(s_pGamepad, lowFreq, highFreq, durationMs);
+
+    uint16_t newIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
+    rumble.activePriority = priority;
+    rumble.activeIntensity = newIntensity;
+    rumble.endTime = now + durationMs;
 }
