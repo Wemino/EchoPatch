@@ -493,16 +493,16 @@ namespace HookHelper
 		return VirtualProtect(mbi.BaseAddress, mbi.RegionSize, PAGE_EXECUTE_READWRITE, &oldProtect);
 	}
 
-	static void ApplyHook(void* addr, LPVOID hookFunc, LPVOID* originalFunc, bool checkRegion = false)
+	static bool ApplyHook(void* addr, LPVOID hookFunc, LPVOID* originalFunc, bool checkRegion = false)
 	{
-		if (!InitializeMinHook()) return;
+		if (!InitializeMinHook()) return false;
 
 		if (checkRegion && !EnsureExecutable(addr))
 		{
 			char msg[0x100];
 			sprintf_s(msg, "Could not make address %p executable.", addr);
 			MessageBoxA(NULL, msg, "Error", MB_ICONERROR);
-			return;
+			return false;
 		}
 
 		MH_STATUS status = MH_CreateHook(addr, hookFunc, originalFunc);
@@ -511,7 +511,7 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to create hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
-			return;
+			return false;
 		}
 
 		status = MH_EnableHook(addr);
@@ -520,15 +520,17 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to enable hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+			return false;
 		}
+
+		return true;
 	}
 
-	static void ApplyHookReplaceable(void* addr, LPVOID hookFunc, LPVOID* originalFunc)
+	static bool ApplyHookReplaceable(void* addr, LPVOID hookFunc, LPVOID* originalFunc)
 	{
-		if (!InitializeMinHook()) return;
+		if (!InitializeMinHook()) return false;
 
 		MH_STATUS status = MH_CreateHook(addr, hookFunc, originalFunc);
-
 		if (status == MH_ERROR_ALREADY_CREATED)
 		{
 			MH_RemoveHook(addr);
@@ -540,7 +542,7 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to create hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
-			return;
+			return false;
 		}
 
 		status = MH_EnableHook(addr);
@@ -549,12 +551,15 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to enable hook at address: %p\nError: %s", addr, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+			return false;
 		}
+
+		return true;
 	}
 
-	static void ApplyHookAPI(LPCWSTR moduleName, LPCSTR apiName, LPVOID hookFunc, LPVOID* originalFunc)
+	static bool ApplyHookAPI(LPCWSTR moduleName, LPCSTR apiName, LPVOID hookFunc, LPVOID* originalFunc)
 	{
-		if (!InitializeMinHook()) return;
+		if (!InitializeMinHook()) return false;
 
 		MH_STATUS status = MH_CreateHookApi(moduleName, apiName, hookFunc, originalFunc);
 		if (status != MH_OK)
@@ -562,7 +567,7 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to create hook for API: %s\nError: %s", apiName, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
-			return;
+			return false;
 		}
 
 		status = MH_EnableHook(MH_ALL_HOOKS);
@@ -571,7 +576,10 @@ namespace HookHelper
 			char errorMsg[0x100];
 			sprintf_s(errorMsg, "Failed to enable hook for API: %s\nError: %s", apiName, MH_StatusToString(status));
 			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+			return false;
 		}
+
+		return true;
 	}
 };
 
@@ -583,6 +591,19 @@ namespace DirectSoundHelper
 	inline HRESULT(WINAPI* ori_CoCreateInstance)(REFCLSID, LPUNKNOWN, DWORD, REFIID, LPVOID*) = nullptr;
 
 	inline HMODULE hLocalDSound = nullptr;
+	inline decltype(ori_DirectSoundCreate8) cachedDSCreate8 = nullptr;
+
+	inline HMODULE SafeLoadLibrary(const char* path)
+	{
+		__try 
+		{
+			return LoadLibraryA(path);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER) 
+		{
+			return nullptr;
+		}
+	}
 
 	class DirectSound8Proxy : public IDirectSound8
 	{
@@ -602,9 +623,12 @@ namespace DirectSoundHelper
 		// IUnknown
 		STDMETHOD(QueryInterface)(REFIID riid, LPVOID* ppv)
 		{
+			if (!ppv) return E_POINTER;
+			*ppv = nullptr;
+
 			if (riid == IID_IUnknown || riid == IID_IDirectSound || riid == IID_IDirectSound8)
 			{
-				*ppv = this;
+				*ppv = static_cast<IDirectSound8*>(this);
 				AddRef();
 				return S_OK;
 			}
@@ -670,22 +694,44 @@ namespace DirectSoundHelper
 		}
 	};
 
+	inline HRESULT SafeCallDSCreate(LPUNKNOWN pUnkOuter, IDirectSound8** ppRealDS)
+	{
+		__try
+		{
+			return cachedDSCreate8(nullptr, ppRealDS, pUnkOuter);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{
+			return E_FAIL;
+		}
+	}
+
 	inline HRESULT WINAPI CoCreateInstance_Hook(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID* ppv)
 	{
+		if (!ppv) return E_POINTER;
+		*ppv = nullptr;
+
 		// Only intercept DirectSound8 requests
-		if (IsEqualGUID(rclsid, CLSID_DirectSound8))
+		if (IsEqualGUID(rclsid, CLSID_DirectSound8) && cachedDSCreate8 && pUnkOuter == nullptr && (riid == IID_IDirectSound8 || riid == IID_IDirectSound || riid == IID_IUnknown))
 		{
-			auto pDSCreate = reinterpret_cast<decltype(ori_DirectSoundCreate8)>(GetProcAddress(hLocalDSound, "DirectSoundCreate8"));
+			IDirectSound8* pRealDS = nullptr;
+			HRESULT hr = SafeCallDSCreate(nullptr, &pRealDS);
 
-			if (pDSCreate)
+			if (SUCCEEDED(hr) && pRealDS)
 			{
-				IDirectSound8* pRealDS = nullptr;
-				HRESULT hr = pDSCreate(nullptr, &pRealDS, pUnkOuter);
-
-				if (SUCCEEDED(hr) && pRealDS)
+				auto proxy = new (std::nothrow) DirectSound8Proxy(pRealDS);
+				if (proxy)
 				{
-					*ppv = new DirectSound8Proxy(pRealDS);
-					return S_OK;
+					hr = proxy->QueryInterface(riid, ppv);
+					proxy->Release();
+					if (SUCCEEDED(hr))
+					{
+						return S_OK;
+					}
+				}
+				else
+				{
+					pRealDS->Release();
 				}
 			}
 		}
@@ -713,19 +759,28 @@ namespace DirectSoundHelper
 			return false;
 
 		// Load the local DSOAL dsound.dll
-		hLocalDSound = LoadLibraryA(dsoundPath.c_str());
+		hLocalDSound = SafeLoadLibrary(dsoundPath.c_str());
 		if (!hLocalDSound)
 			return false;
 
 		// Verify it exports DirectSoundCreate8
-		if (!GetProcAddress(hLocalDSound, "DirectSoundCreate8"))
+		cachedDSCreate8 = reinterpret_cast<decltype(ori_DirectSoundCreate8)>(GetProcAddress(hLocalDSound, "DirectSoundCreate8"));
+
+		if (!cachedDSCreate8)
 		{
 			FreeLibrary(hLocalDSound);
 			hLocalDSound = nullptr;
 			return false;
 		}
 
-		HookHelper::ApplyHookAPI(L"ole32.dll", "CoCreateInstance", &CoCreateInstance_Hook, (LPVOID*)&ori_CoCreateInstance);
+		if (!HookHelper::ApplyHookAPI(L"ole32.dll", "CoCreateInstance", &CoCreateInstance_Hook, (LPVOID*)&ori_CoCreateInstance))
+		{
+			FreeLibrary(hLocalDSound);
+			hLocalDSound = nullptr;
+			cachedDSCreate8 = nullptr;
+			return false;
+		}
+
 		return true;
 	}
 };
