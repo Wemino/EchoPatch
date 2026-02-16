@@ -80,6 +80,7 @@ int(__thiscall* SetOperatingTurret)(int, int) = nullptr;
 const wchar_t* (__thiscall* GetTriggerNameFromCommandID)(int, int) = nullptr;
 void(__thiscall* UseCursor)(int, bool, bool) = nullptr;
 bool(__thiscall* OnMouseMove)(int, int, int) = nullptr;
+void(__thiscall* ForceMouseUpdate)(DWORD*);
 void(__thiscall* HUDSwapUpdate)(int) = nullptr;
 void(__thiscall* SwitchToScreen)(int, int) = nullptr;
 void(__thiscall* SetCurrentType)(int, int) = nullptr;
@@ -1285,6 +1286,16 @@ static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 	return OnMouseMove(thisPtr, x, y);
 }
 
+static void __fastcall ForceMouseUpdate_Hook(DWORD* thisPtr, int)
+{
+	if (ShouldShowControllerPrompts() && !g_Controller.touchpadCursorActive)
+	{
+		return;
+	}
+
+	return ForceMouseUpdate(thisPtr);
+}
+
 static void __fastcall HUDSwapUpdate_Hook(int thisPtr, int)
 {
 	HUDSwapUpdate(thisPtr);
@@ -2270,11 +2281,13 @@ static void ApplyControllerClientPatch()
 	{
 		DWORD addr_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");
 		DWORD addr_OnMouseMove = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 86 ?? ?? 00 00 84 C0 0F 84 B3", "OnMouseMove");
+		DWORD addr_ForceMouseUpdate = ScanModuleSignature(g_State.GameClient, "8B 90 ?? 37 00 00 8B 80 ?? 37 00 00 56", "ForceMouseUpdate", 3);
 
-		if (addr_UseCursor != 0 && addr_OnMouseMove != 0)
+		if (addr_UseCursor != 0 && addr_OnMouseMove != 0 && addr_ForceMouseUpdate != 0)
 		{
 			HookHelper::ApplyHook((void*)addr_OnMouseMove, &OnMouseMove_Hook, (LPVOID*)&OnMouseMove);
 			HookHelper::ApplyHook((void*)addr_UseCursor, &UseCursor_Hook, (LPVOID*)&UseCursor);
+			HookHelper::ApplyHook((void*)addr_ForceMouseUpdate, &ForceMouseUpdate_Hook, (LPVOID*)&ForceMouseUpdate);
 		}
 	}
 
@@ -2530,6 +2543,7 @@ static void ApplyClientPatchSet3()
 	HookHelper::ApplyHook((void*)addr_MsgBoxShow, &MsgBoxShow_Hook, (LPVOID*)&MsgBoxShow);
 	HookHelper::ApplyHook((void*)addr_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
 }
+
 
 void ApplyClientPatch()
 {
