@@ -85,7 +85,7 @@ inline char g_inputBuffer[512] = {};
 inline std::deque<std::string> g_outputLines;
 inline bool g_scrollToBottom = false;
 
-inline std::vector<std::string> g_commandHistory;
+inline std::deque<std::string> g_commandHistory;
 inline int g_historyPos = -1;
 
 inline std::vector<ConsoleCommand> g_browserCommands;
@@ -97,12 +97,13 @@ inline char g_browserFilter[128] = {};
 inline int g_browserTab = 0;
 inline bool g_browserNeedsReset = false;
 inline float g_browserScrollY[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-inline bool g_browserRestoreScroll = false;
+inline int g_browserRestoreScrollFrames = 0;
 
 inline bool g_showEditModal = false;
 inline EditTargetType g_editTargetType = EditTargetType::None;
 inline std::string g_editVarName;
 inline char g_editValueBuffer[256] = {};
+inline bool g_editModalFocusInput = false;
 
 inline int g_lastWidth = 0;
 inline int g_lastHeight = 0;
@@ -122,13 +123,14 @@ inline bool ContainsCaseInsensitive(const std::string& haystack, const char* nee
     if (!needle || !needle[0])
         return true;
 
-    std::string lowerHaystack = haystack;
-    std::string lowerNeedle = needle;
+    auto it =
+    std::search(haystack.begin(), haystack.end(), needle, needle + strlen(needle),
+    [](char a, char b)
+    {
+        return tolower((unsigned char)a) == tolower((unsigned char)b);
+    });
 
-    for (auto& c : lowerHaystack) c = tolower(c);
-    for (auto& c : lowerNeedle) c = tolower(c);
-
-    return lowerHaystack.find(lowerNeedle) != std::string::npos;
+    return it != haystack.end();
 }
 
 inline auto FindCvarCaseInsensitive(const std::string& name) -> decltype(g_dynamicCvars.end())
@@ -247,6 +249,17 @@ inline IDirect3DDevice9* GetDevice()
     return *(IDirect3DDevice9**)g_devicePtrAddr;
 }
 
+inline void PushOutputLine(const std::string& line)
+{
+    g_outputLines.push_back(line);
+    if (g_outputLines.size() > 500)
+    {
+        g_outputLines.pop_front();
+    }
+
+    g_scrollToBottom = true;
+}
+
 // Cursor Management
 inline bool ShouldShowCursorWhenClosed()
 {
@@ -255,19 +268,18 @@ inline bool ShouldShowCursorWhenClosed()
 
 inline void ShowConsoleCursor()
 {
-    int count = ShowCursor(TRUE);
-    while (count > 1) count = ShowCursor(FALSE);
-    while (count < 0) count = ShowCursor(TRUE);
-    g_cursorShownByUs = true;
+    if (!g_cursorShownByUs)
+    {
+        ShowCursor(TRUE);
+        g_cursorShownByUs = true;
+    }
 }
 
 inline void HideConsoleCursor()
 {
     if (g_cursorShownByUs)
     {
-        int count = ShowCursor(FALSE);
-        while (count >= 0) count = ShowCursor(FALSE);
-        while (count < -1) count = ShowCursor(TRUE);
+        ShowCursor(FALSE);
         g_cursorShownByUs = false;
     }
 }
@@ -519,6 +531,7 @@ inline void OpenEditModal(EditTargetType type, const std::string& name, const st
     strncpy_s(g_editValueBuffer, sizeof(g_editValueBuffer), cleanValue.c_str(), _TRUNCATE);
 
     g_showEditModal = true;
+    g_editModalFocusInput = true;
 }
 
 inline void ExecuteCommandInternal(const char* command);
@@ -554,16 +567,10 @@ inline void RenderEditModal()
         ImGui::Text("New Value:");
         ImGui::PushItemWidth(-1);
 
-        static bool focusInput = false;
-        if (ImGui::IsWindowAppearing())
-        {
-            focusInput = true;
-        }
-
-        if (focusInput)
+        if (g_editModalFocusInput)
         {
             ImGui::SetKeyboardFocusHere();
-            focusInput = false;
+            g_editModalFocusInput = false;
         }
 
         bool enterPressed = ImGui::InputText("##EditValue", g_editValueBuffer, sizeof(g_editValueBuffer), ImGuiInputTextFlags_EnterReturnsTrue);
@@ -630,16 +637,14 @@ inline void HandleConsoleCommand(const char* command)
 
         if (varName.empty() || varValue.empty())
         {
-            g_outputLines.push_back("[ERROR] Usage: seta <variable> <value>");
-            g_scrollToBottom = true;
+            PushOutputLine("[ERROR] Usage: seta <variable> <value>");
             return;
         }
 
         auto it = FindCvarCaseInsensitive(varName);
         if (it == g_dynamicCvars.end())
         {
-            g_outputLines.push_back("[ERROR] Unknown config variable: " + varName);
-            g_scrollToBottom = true;
+            PushOutputLine("[ERROR] Unknown config variable: " + varName);
             return;
         }
 
@@ -650,8 +655,7 @@ inline void HandleConsoleCommand(const char* command)
         {
             if (SetCvarFloat == nullptr)
             {
-                g_outputLines.push_back("[ERROR] CVar system not initialized");
-                g_scrollToBottom = true;
+                PushOutputLine("[ERROR] CVar system not initialized");
                 return;
             }
 
@@ -666,8 +670,7 @@ inline void HandleConsoleCommand(const char* command)
         {
             if (SetCvarString == nullptr)
             {
-                g_outputLines.push_back("[ERROR] CVar system not initialized");
-                g_scrollToBottom = true;
+                PushOutputLine("[ERROR] CVar system not initialized");
                 return;
             }
 
@@ -675,8 +678,7 @@ inline void HandleConsoleCommand(const char* command)
             g_dynamicCvars[actualName] = { varValue, managerInstance, CvarType::String };
         }
 
-        g_outputLines.push_back(actualName + " = " + varValue);
-        g_scrollToBottom = true;
+        PushOutputLine(actualName + " = " + varValue);
         return;
     }
 
@@ -704,6 +706,9 @@ inline void ApplyConsoleStyle()
 
     style.WindowBorderSize = 1.0f;
     style.FrameBorderSize = 1.0f;
+
+    style.ColorMarkerSize = 0.0f;
+    style.ImageRounding = 0.0f;
 
     ImVec4* colors = style.Colors;
 
@@ -803,7 +808,7 @@ inline void InitImGui(IDirect3DDevice9* pDevice, HWND hWnd)
     float fontSize = 13.0f * g_uiScale;
     ImFontConfig fontConfig;
     fontConfig.SizePixels = fontSize;
-    io.Fonts->AddFontDefault(&fontConfig);
+    io.Fonts->AddFontDefaultBitmap(&fontConfig);
 
     ApplyConsoleStyle();
     ImGui::GetStyle().ScaleAllSizes(g_uiScale);
@@ -831,7 +836,7 @@ inline void RebuildImGuiForScale()
     float fontSize = 13.0f * g_uiScale;
     ImFontConfig fontConfig;
     fontConfig.SizePixels = fontSize;
-    io.Fonts->AddFontDefault(&fontConfig);
+    io.Fonts->AddFontDefaultBitmap(&fontConfig);
 
     ImGui_ImplDX9_InvalidateDeviceObjects();
     ImGui_ImplDX9_CreateDeviceObjects();
@@ -934,13 +939,12 @@ inline int InputCallbackStub(ImGuiInputTextCallbackData* data)
 
 inline void ExecuteCommandInternal(const char* command)
 {
-    g_outputLines.push_back(std::string("> ") + command);
-    g_scrollToBottom = true;
+    PushOutputLine(std::string("> ") + command);
 
     g_commandHistory.push_back(command);
     if (g_commandHistory.size() > 50)
     {
-        g_commandHistory.erase(g_commandHistory.begin());
+        g_commandHistory.pop_front();
     }
 
     g_historyPos = -1;
@@ -1006,16 +1010,16 @@ inline void RenderBrowserWindow()
 
         if (prevTab != g_browserTab)
         {
-            g_browserRestoreScroll = true;
+            g_browserRestoreScrollFrames = 2;
         }
 
         ImGui::Separator();
         ImGui::BeginChild("BrowserList", ImVec2(0, 0), true);
 
-        if (g_browserRestoreScroll)
+        if (g_browserRestoreScrollFrames > 0)
         {
             ImGui::SetScrollY(g_browserScrollY[g_browserTab]);
-            g_browserRestoreScroll = false;
+            g_browserRestoreScrollFrames--;
         }
 
         float contentWidth = ImGui::GetWindowContentRegionMax().x;
@@ -1139,7 +1143,10 @@ inline void RenderBrowserWindow()
             }
         }
 
-        g_browserScrollY[g_browserTab] = ImGui::GetScrollY();
+        if (g_browserRestoreScrollFrames == 0)
+        {
+            g_browserScrollY[g_browserTab] = ImGui::GetScrollY();
+        }
 
         ImGui::EndChild();
         RenderEditModal();
@@ -1203,7 +1210,9 @@ inline void RenderConsoleWindow()
 
         ImGui::SameLine();
         if (ImGui::Button("Clear"))
+        {
             g_outputLines.clear();
+        }
 
         ImGui::Separator();
 
@@ -1282,7 +1291,6 @@ inline void Render(IDirect3DDevice9* pDevice)
         RebuildImGuiForScale();
     }
 
-    ShowConsoleCursor();
     UpdateMouseInput();
 
     if (g_addresses.cursorLockAddr)
@@ -1399,8 +1407,8 @@ namespace Console
     {
         if (g_visible)
         {
-            ShowCursor(TRUE);
-            g_cursorShownByUs = true;
+            g_cursorShownByUs = false;
+            ShowConsoleCursor();
         }
     }
 
