@@ -36,13 +36,25 @@ void __fastcall ServerUpdateSlowMo_Hook(int* thisPtr, int)
 {
     int hSlowMoRecord = *(int*)((char*)thisPtr + g_State.phSlowMoRecord);
 
-    // Force server exit when client charge depleted
-    if (hSlowMoRecord != 0 && g_State.clientSlowMoCharge <= 0.01)
+    // New activation, reset observation
+    if (hSlowMoRecord != g_State.lastHSlowMoRecord)
+    {
+        g_State.slowMoChargeObserved = false;
+        g_State.lastHSlowMoRecord = hSlowMoRecord;
+    }
+
+    // Latch: once we've seen a real charge, we trust future zero readings
+    if (g_State.clientSlowMoCharge > 0.01)
+    {
+        g_State.slowMoChargeObserved = true;
+    }
+
+    // Only force-exit if we've confirmed charge was real and it's now depleted
+    if (hSlowMoRecord != 0 && g_State.slowMoChargeObserved && g_State.clientSlowMoCharge <= 0.01)
     {
         ServerExitSlowMo(thisPtr, true, 0.0f);
         return;
     }
-
     ServerUpdateSlowMo(thisPtr);
 }
 

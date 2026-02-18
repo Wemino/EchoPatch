@@ -208,6 +208,8 @@ struct GlobalState
 	// ======================
 	double clientSlowMoCharge = 0.0;
 	int phSlowMoRecord = 0;
+	int lastHSlowMoRecord = 0;
+	bool slowMoChargeObserved = false;
 
 	// ======================
 	// Console
