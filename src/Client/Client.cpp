@@ -203,7 +203,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		return GetMaxRecentVelocityMag(thisPtr);
 
 	double dt = g_State.currentFrameTime;
-
 	if (dt <= 0.0 || dt > 0.2)
 	{
 		return g_State.lastReportedVelocity > 0.0 ? g_State.lastReportedVelocity : GetMaxRecentVelocityMag(thisPtr);
@@ -225,7 +224,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	g_State.velocityTimeAccumulator += dt;
 
 	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
-
 	double runningAvg = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
 	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && runningAvg > 10.0;
 
@@ -234,7 +232,6 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		float dx = currentPos[0] - g_State.windowStartX;
 		float dy = currentPos[1] - g_State.windowStartY;
 		float dz = currentPos[2] - g_State.windowStartZ;
-
 		double netDisplacement = sqrt(dx * dx + dy * dy + dz * dz);
 		double displacementVelocity = netDisplacement / g_State.velocityTimeAccumulator;
 		double avgRawVelocity = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
@@ -273,8 +270,8 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		// Player starting to move takes priority over block state, otherwise direction changes while wall-blocked stay stuck at zero
 		if (isStartingToMove)
 		{
-			g_State.lastReportedVelocity = effectiveVelocity;
-			g_State.prevWindowSpeed = effectiveVelocity;
+			g_State.lastReportedVelocity = avgRawVelocity;
+			g_State.prevWindowSpeed = avgRawVelocity;
 			g_State.impededWindowCount = 0;
 		}
 		else if (g_State.impededWindowCount >= 2)
@@ -292,7 +289,8 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 			}
 			else
 			{
-				g_State.prevWindowSpeed = g_State.prevWindowSpeed * 0.5 + effectiveVelocity * 0.5;
+				double decayFactor = std::min(g_State.velocityTimeAccumulator / 0.05, 1.0);
+				g_State.prevWindowSpeed = g_State.prevWindowSpeed * (1.0 - decayFactor * 0.5) + effectiveVelocity * (decayFactor * 0.5);
 				g_State.lastReportedVelocity = g_State.prevWindowSpeed;
 			}
 
