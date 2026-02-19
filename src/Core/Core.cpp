@@ -767,6 +767,12 @@ static bool __fastcall GetDeviceObjectName_Hook(int thisPtr, int, int keyIndex, 
     wchar_t buf[4] = {};
     int chars = ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0, layout);
 
+    if (chars < 0)
+    {
+        ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0, layout);
+        return result;
+    }
+
     if (chars == 1 && buf[0] != L'\0')
     {
         wchar_t corrected = towupper(buf[0]);
@@ -821,7 +827,7 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
         g_State.currentKeyIndex++;
 
         if (it != keyMap.end() && FindDIKInTable(thisPtr, static_cast<uint8_t>(it->second), ret))
-        { 
+        {
             return 0;
         }
     }
@@ -836,19 +842,7 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
             HKL layout = GetKeyboardLayout(0);
             UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
 
-            if (scanCode == 0)
-            {
-                static const uint8_t qwertyDIK[26] = 
-                {
-                    0x1E, 0x30, 0x2E, 0x20, 0x12, 0x21, 0x22, 0x23, 0x17, 0x24,
-                    0x25, 0x26, 0x32, 0x31, 0x18, 0x19, 0x10, 0x13, 0x1F, 0x14,
-                    0x16, 0x2F, 0x11, 0x2D, 0x15, 0x2C
-                };
-
-                scanCode = qwertyDIK[vk - 0x41];
-            }
-
-            if (FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
+            if (scanCode != 0 && FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
             {
                 return 0;
             }
