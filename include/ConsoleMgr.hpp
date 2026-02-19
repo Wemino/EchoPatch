@@ -268,18 +268,19 @@ inline bool ShouldShowCursorWhenClosed()
 
 inline void ShowConsoleCursor()
 {
-    if (!g_cursorShownByUs)
-    {
-        ShowCursor(TRUE);
-        g_cursorShownByUs = true;
-    }
+    int count = ShowCursor(TRUE);
+    while (count > 1) count = ShowCursor(FALSE);
+    while (count < 0) count = ShowCursor(TRUE);
+    g_cursorShownByUs = true;
 }
 
 inline void HideConsoleCursor()
 {
     if (g_cursorShownByUs)
     {
-        ShowCursor(FALSE);
+        int count = ShowCursor(FALSE);
+        while (count >= 0) count = ShowCursor(FALSE);
+        while (count < -1) count = ShowCursor(TRUE);
         g_cursorShownByUs = false;
     }
 }
@@ -1291,6 +1292,7 @@ inline void Render(IDirect3DDevice9* pDevice)
         RebuildImGuiForScale();
     }
 
+    ShowConsoleCursor();
     UpdateMouseInput();
 
     if (g_addresses.cursorLockAddr)
@@ -1443,7 +1445,7 @@ namespace Console
         g_inReset = false;
     }
 
-    void AddOutput(const char* text)
+    inline void AddOutput(const char* text)
     {
         size_t len = strlen(text);
 
