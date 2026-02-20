@@ -1235,9 +1235,14 @@ static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor, bool bL
 		g_State.pUseCursor = thisPtr;
 	}
 
+	bool prevAllowed = g_State.isAllowedToUseCursor;
 	g_State.isAllowedToUseCursor = bUseCursor;
 	g_State.shouldLockCursorToCenter = bLockCursorToCenter;
-	g_State.lastCursorStateChangeTime = GetTickCount64();
+
+	if (bUseCursor != prevAllowed)
+	{
+		g_State.lastCursorStateChangeTime = GetTickCount64();
+	}
 
 	if (ShouldShowControllerPrompts() && !g_Controller.touchpadCursorActive)
 	{

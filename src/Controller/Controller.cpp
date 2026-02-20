@@ -1589,7 +1589,6 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
             UseCursor(g_State.pUseCursor, false, g_State.shouldLockCursorToCenter);
         }
 
-        UpdateInputMode(true);
         btnState.pressStartTime = GetTickCount64();
         holdTriggered = false;
         btnState.wasHandled = true;
