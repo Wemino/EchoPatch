@@ -122,7 +122,7 @@ Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.
 | **Share / Capture**              | Holster Weapon                      |
 | **Right Paddle 1**               | Center View                         |
 
-> **Note**: Buttons support hold actions for secondary commands. Configure hold bindings and duration via `EchoPatch.ini`. See [COMMANDS.md](https://github.com/Wemino/EchoPatch/blob/master/COMMANDS.md) for the full list of command IDs.
+> **Note**: Buttons support hold actions for secondary commands. Configure hold bindings and duration via `EchoPatch.ini`. See [COMMANDS.md](https://github.com/Wemino/EchoPatch/blob/main/COMMANDS.md) for the full list of command IDs.
 
 ### Rumble
 Supports controller vibration feedback.  
@@ -306,4 +306,5 @@ All features can be customized via the `EchoPatch.ini` file. Each setting includ
 - [ImGui](https://github.com/ocornut/imgui) for the console interface.
 - [Methanhydrat](https://community.pcgamingwiki.com/files/file/789-directinput-fps-fix/) for identifying the FPS drop root cause.  
 - [Vityacv](https://github.com/Vityacv) for identifying the extra latency caused by SetWindowsHookEx.
+
 - [CRASHARKI](https://github.com/CRASHARKI) for the logo.
