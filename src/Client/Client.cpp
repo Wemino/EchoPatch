@@ -1671,7 +1671,7 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 
 static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData, int a2)
 {
-	if (g_State.isDoingMeleeAttack && *rImpactData)
+	if (RumbleEnabled && g_State.isDoingMeleeAttack && *rImpactData)
 	{
 		SetGamepadRumble(52000, 42000, 120, 3);
 		g_State.isDoingMeleeAttack = false;
@@ -1684,7 +1684,7 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 {
 	HandleFallLand(thisPtr, fDistFell, surfaceType);
 
-	if (fDistFell < 275.0f)
+	if (!RumbleEnabled || fDistFell < 275.0f)
 		return;
 
 	int liquidState = *(int*)((char*)thisPtr + 192);
@@ -1727,7 +1727,7 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 
 	CTurretFX_SetDamageState(thisPtr);
 
-	if (!g_State.isOperatingTurret)
+	if (!RumbleEnabled || !g_State.isOperatingTurret)
 		return;
 
 	if (newDamageState > g_State.turretPrevDamageState)
