@@ -1573,6 +1573,12 @@ static int __fastcall UpdateArmor_Hook(DWORD* thisPtr, int, unsigned int newArmo
 
 static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 {
+	if (!RumbleEnabled)
+	{
+		HandleMsgPlayerDamage(thisPtr, a2);
+		return;
+	}
+
 	g_State.isTakingDamage = true;
 	g_State.healthBefore = 0;
 	g_State.healthAfter = 0;
@@ -1584,8 +1590,6 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 	memcpy(damageBefore, damageArray, sizeof(damageBefore));
 
 	HandleMsgPlayerDamage(thisPtr, a2);
-
-	if (!RumbleEnabled) return;
 
 	g_State.isTakingDamage = false;
 
@@ -1743,7 +1747,7 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 
 static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData, int a2)
 {
-	if (RumbleEnabled && g_State.isDoingMeleeAttack && *rImpactData)
+	if (g_State.isDoingMeleeAttack && *rImpactData)
 	{
 		SetGamepadRumble(52000, 42000, 120, 3);
 		g_State.isDoingMeleeAttack = false;
