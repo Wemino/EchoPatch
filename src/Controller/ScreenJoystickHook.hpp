@@ -27,11 +27,13 @@ namespace ScreenJoystickHook
     static uintptr_t FrameConstructor_Addr = 0;
     static uintptr_t FrameCreate_Addr = 0;
     static uintptr_t TextureMgr_Addr = 0;
+    static uintptr_t Default_Addr = 0;
 
     static bool(__thiscall* CScreenJoystick_Build)(int*) = nullptr;
 
     using AddString_t = void(__thiscall*)(int*, const wchar_t*);
     using CreateTexRef_t = void(__thiscall*)(int, int*, const char*);
+    using ReleaseTexRef_t = void(__thiscall*)(int, int);
 
     // =========================================================================
     // Wrapper Functions
@@ -231,13 +233,28 @@ namespace ScreenJoystickHook
         }
     }
 
-    static int* CreateFrame(int* screen, int left, int top, int right, int bottom)
+    static void ReleaseTextureRef(int textureRef)
+    {
+        if (!textureRef)
+            return;
+
+        int* pTexMgr = (int*)TextureMgr_Addr;
+        if (!pTexMgr || !*pTexMgr)
+            return;
+
+        int texMgr = *pTexMgr;
+        int texMgrVtable = *(int*)texMgr;
+        ReleaseTexRef_t releaseTexRef = (ReleaseTexRef_t)(*(int*)(texMgrVtable + 0x10));
+        releaseTexRef(texMgr, textureRef);
+    }
+
+    static int CreateFrame(int* screen, int left, int top, int right, int bottom)
     {
         const char* texturePath = "Interface\\menu\\frame_n.dds";
 
         int* pTexMgr = (int*)TextureMgr_Addr;
         if (!pTexMgr || !*pTexMgr)
-            return nullptr;
+            return 0;
 
         int texMgr = *pTexMgr;
         int texMgrVtable = *(int*)texMgr;
@@ -247,11 +264,14 @@ namespace ScreenJoystickHook
         createTexRef(texMgr, &textureRef, texturePath);
 
         if (!textureRef)
-            return nullptr;
+            return 0;
 
         void* frame = operator new(0x4C8);
         if (!frame)
-            return nullptr;
+        {
+            ReleaseTextureRef(textureRef);
+            return 0;
+        }
 
         void* constructed = nullptr;
         __asm
@@ -262,7 +282,11 @@ namespace ScreenJoystickHook
         }
 
         int frameStruct[13];
-        memset(frameStruct, 0, sizeof(frameStruct));
+        frameStruct[0] = 0;
+        frameStruct[1] = (int)Default_Addr;
+        frameStruct[2] = 0;
+        frameStruct[3] = 0;
+        frameStruct[4] = 0;
         frameStruct[5] = left;
         frameStruct[6] = top;
         frameStruct[7] = right;
@@ -283,7 +307,7 @@ namespace ScreenJoystickHook
         }
 
         CallAddControl(screen, (int*)constructed);
-        return (int*)constructed;
+        return textureRef;
     }
 
     // =========================================================================
@@ -325,8 +349,6 @@ namespace ScreenJoystickHook
 
         int screenLeft = thisPtr[60];
         int screenTop = thisPtr[61];
-        int screenRight = thisPtr[62];
-        int screenBottom = thisPtr[63];
 
         CallCreateTitleByName(thisPtr, L"CONTROLLER");
 
@@ -340,7 +362,7 @@ namespace ScreenJoystickHook
         int frameRight = screenLeft + kGap + kWidth + 10;
         int frameBottom = screenTop + (fontSize + 8) * numControls + 13;
 
-        CreateFrame(thisPtr, frameLeft, frameTop, frameRight, frameBottom);
+        int frameTextureRef = CreateFrame(thisPtr, frameLeft, frameTop, frameRight, frameBottom);
 
         thisPtr[69] = thisPtr[60];
         thisPtr[70] = thisPtr[61];
@@ -467,9 +489,13 @@ namespace ScreenJoystickHook
         g_State.isBuildingCScreenJoystick = false;
 
         if (!buildResult)
+        {
+            ReleaseTextureRef(frameTextureRef);
             return false;
+        }
 
         CallUseBack(thisPtr, 1, 1, 0);
+        ReleaseTextureRef(frameTextureRef);
         return true;
     }
 
@@ -490,6 +516,7 @@ namespace ScreenJoystickHook
         DWORD addr_UseBack = ScanModuleSignature(g_State.GameClient, "53 8A 5C 24 08 84 DB 56 8B F1 74 56 8B 44 24 14", "UseBack");
         DWORD addr_FrameConstructor = ScanModuleSignature(g_State.GameClient, "53 56 57 8B F9 E8 ?? ?? ?? ?? C7 07 ?? ?? ?? ?? 8D 77 54", "FrameConstructor");
         DWORD addr_FrameCreate = ScanModuleSignature(g_State.GameClient, "56 57 8B 7C 24 0C 85 FF 8B F1 75 07 5F 32 C0 5E C2 0C 00 8B 86 B4 03 00 00", "FrameCreate");
+        DWORD addr_DefaultAddr = ScanModuleSignature(g_State.GameClient, "C7 84 24 8C 00 00 00 ?? ?? ?? ?? 89 9C 24 90 00 00 00", "DefaultAddr");
 
         if (addr_CreateTitleByName == 0 ||
             addr_AddControl == 0 ||
@@ -501,7 +528,8 @@ namespace ScreenJoystickHook
             addr_BaseScreenBuild == 0 ||
             addr_UseBack == 0 ||
             addr_FrameConstructor == 0 ||
-            addr_FrameCreate == 0)
+            addr_FrameCreate == 0 ||
+            addr_DefaultAddr == 0)
         {
             return false;
         }
@@ -518,8 +546,8 @@ namespace ScreenJoystickHook
         FrameConstructor_Addr = addr_FrameConstructor;
         FrameCreate_Addr = addr_FrameCreate;
 
+        Default_Addr = MemoryHelper::ReadMemory<int>(addr_DefaultAddr + 0x7);
         TextureMgr_Addr = MemoryHelper::ReadMemory<int>(addr_AddSlider + 0x49);
-        if (TextureMgr_Addr == 0) return false;
 
         return true;
     }
