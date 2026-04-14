@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\src\dllmain.cpp" />
     <ClCompile Include="..\src\Client\Client.cpp">
       <Filter>Client</Filter>
     </ClCompile>
@@ -11,9 +10,6 @@
     <ClCompile Include="..\src\Controller\Controller.cpp">
       <Filter>Controller</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\Core\Core.cpp">
-      <Filter>Core</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\Core\DInputProxy.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -21,26 +17,29 @@
       <Filter>Server</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui_draw.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui_impl_dx9.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui_impl_win32.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui_tables.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
     <ClCompile Include="..\include\imgui\imgui_widgets.cpp">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\Engine\Engine.cpp">
+      <Filter>Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\src\helper.hpp" />
     <ClInclude Include="..\src\Client\Client.hpp">
       <Filter>Client</Filter>
     </ClInclude>
@@ -49,9 +48,6 @@
     </ClInclude>
     <ClInclude Include="..\src\Controller\Controller.hpp">
       <Filter>Controller</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Core\Core.hpp">
-      <Filter>Core</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Core\DInputProxy.hpp">
       <Filter>Core</Filter>
@@ -75,31 +71,37 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imconfig.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imgui.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imgui_impl_dx9.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imgui_impl_win32.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imgui_internal.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imstb_rectpack.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imstb_textedit.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\include\imgui\imstb_truetype.h">
-      <Filter>imgui</Filter>
+      <Filter>include\imgui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp">
       <Filter>Controller</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Engine\Engine.hpp">
+      <Filter>Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\helper.hpp">
+      <Filter>include</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -124,7 +126,10 @@
     <Filter Include="include">
       <UniqueIdentifier>{1bf6db24-eac6-4f63-baa0-e50d2c75f4ea}</UniqueIdentifier>
     </Filter>
-    <Filter Include="imgui">
+    <Filter Include="Engine">
+      <UniqueIdentifier>{29bab7b9-5360-41c2-8a2f-80025db4434b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\imgui">
       <UniqueIdentifier>{ed403466-fe95-4ed9-9a05-bba46fc5373e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>

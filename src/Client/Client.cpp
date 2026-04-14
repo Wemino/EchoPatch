@@ -1,6 +1,6 @@
 ﻿#define NOMINMAX
 
-#include "../Core/Core.hpp"
+#include "../Engine/Engine.hpp"
 #include "../Controller/Controller.hpp"
 #include "../Controller/ScreenJoystickHook.hpp"
 #include "../ClientFX/ClientFX.hpp"
