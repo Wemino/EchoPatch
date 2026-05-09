@@ -28,6 +28,7 @@ namespace ScreenJoystickHook
     static uintptr_t FrameCreate_Addr = 0;
     static uintptr_t TextureMgr_Addr = 0;
     static uintptr_t Default_Addr = 0;
+    static uintptr_t OperatorNew_Addr = 0;
 
     static bool(__thiscall* CScreenJoystick_Build)(int*) = nullptr;
 
@@ -266,7 +267,17 @@ namespace ScreenJoystickHook
         if (!textureRef)
             return 0;
 
-        void* frame = operator new(0x4C8);
+        void* frame = nullptr;
+        size_t allocSz = 0x4C8;
+        __asm
+        {
+            push allocSz
+            mov eax, OperatorNew_Addr
+            call eax
+            add esp, 4
+            mov frame, eax
+        }
+
         if (!frame)
         {
             ReleaseTextureRef(textureRef);
@@ -517,6 +528,7 @@ namespace ScreenJoystickHook
         DWORD addr_FrameConstructor = ScanModuleSignature(g_State.GameClient, "53 56 57 8B F9 E8 ?? ?? ?? ?? C7 07 ?? ?? ?? ?? 8D 77 54", "FrameConstructor");
         DWORD addr_FrameCreate = ScanModuleSignature(g_State.GameClient, "56 57 8B 7C 24 0C 85 FF 8B F1 75 07 5F 32 C0 5E C2 0C 00 8B 86 B4 03 00 00", "FrameCreate");
         DWORD addr_DefaultAddr = ScanModuleSignature(g_State.GameClient, "C7 84 24 8C 00 00 00 ?? ?? ?? ?? 89 9C 24 90 00 00 00", "DefaultAddr");
+        DWORD addr_OperatorNew = ScanModuleSignature(g_State.GameClient, "56 8B 74 24 08 EB 11", "OperatorNew", -1, false);
 
         if (addr_CreateTitleByName == 0 ||
             addr_AddControl == 0 ||
@@ -529,7 +541,8 @@ namespace ScreenJoystickHook
             addr_UseBack == 0 ||
             addr_FrameConstructor == 0 ||
             addr_FrameCreate == 0 ||
-            addr_DefaultAddr == 0)
+            addr_DefaultAddr == 0 ||
+            addr_OperatorNew == 0)
         {
             return false;
         }
@@ -545,6 +558,7 @@ namespace ScreenJoystickHook
         UseBack_Addr = addr_UseBack;
         FrameConstructor_Addr = addr_FrameConstructor;
         FrameCreate_Addr = addr_FrameCreate;
+        OperatorNew_Addr = addr_OperatorNew;
 
         Default_Addr = MemoryHelper::ReadMemory<int>(addr_DefaultAddr + 0x7);
         TextureMgr_Addr = MemoryHelper::ReadMemory<int>(addr_AddSlider + 0x49);
