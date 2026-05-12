@@ -24,8 +24,6 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 
 ### Steam Deck/Linux Specific Instructions (Windows users can skip this)
 > [!WARNING]
-> To launch the game on Steam Deck or Linux, open the game's properties in Steam and include `WINEDLLOVERRIDES="dinput8=n,b" %command%` in the launch options.
-> 
 > On Steam Deck, change the controller configuration to `Gamepad With Joystick Trackpad` for controller support.
 
 # Features
