@@ -403,30 +403,6 @@ namespace IniHelper
 		}
 	}
 
-	inline char* ReadString(const char* sectionName, const char* valueName, const char* defaultValue)
-	{
-		char* result = new char[255];
-		try
-		{
-			if (iniReader.has(sectionName) && iniReader.get(sectionName).has(valueName))
-			{
-				std::string value = iniReader.get(sectionName).get(valueName);
-
-				if (!value.empty() && (value.front() == '\"' || value.front() == '\''))
-					value.erase(0, 1);
-				if (!value.empty() && (value.back() == '\"' || value.back() == '\''))
-					value.erase(value.size() - 1);
-
-					strncpy_s(result, 255, value.c_str(), _TRUNCATE);
-					return result;
-			}
-		}
-		catch (...) {}
-
-			strncpy_s(result, 255, defaultValue, _TRUNCATE);
-			return result;
-	}
-
 	inline float ReadFloat(const char* sectionName, const char* valueName, float defaultValue)
 	{
 		try
@@ -561,7 +537,8 @@ namespace HookHelper
 	{
 		if (!InitializeMinHook()) return false;
 
-		MH_STATUS status = MH_CreateHookApi(moduleName, apiName, hookFunc, originalFunc);
+		LPVOID target = nullptr;
+		MH_STATUS status = MH_CreateHookApiEx(moduleName, apiName, hookFunc, originalFunc, &target);
 		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
@@ -570,7 +547,7 @@ namespace HookHelper
 			return false;
 		}
 
-		status = MH_EnableHook(MH_ALL_HOOKS);
+		status = MH_EnableHook(target);
 		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
