@@ -184,7 +184,7 @@ struct GlobalState
 	// ======================
 	// Physics/Velocity
 	// ======================
-	double currentFrameTime = 0.0;
+	double simulationFrameTime = 0.0;
 	double totalGameTime = 0.0;
 	double jumpElapsedTime = -1.0;
 	double velocityAccumulator = 0.0;
@@ -195,13 +195,18 @@ struct GlobalState
 	float windowStartX = 0.0f;
 	float windowStartY = 0.0f;
 	float windowStartZ = 0.0f;
-	float lastPositiveYVelocity = 0.0f;
 	int impededWindowCount = 0;
+	float prevPosX = 0.0f;
+	float prevPosY = 0.0f;
+	float prevPosZ = 0.0f;
+	bool prevPosValid;
+	bool moveGraceUsed;
 	bool inFriction = false;
 	bool previousJumpState = false;
 	bool useVelocitySmoothing = false;
 	bool isProcessingRagdoll = false;
 	bool pendingVelocityFix = false;
+	float lastPositiveYVelocity = 0.0f;
 
 	// ======================
 	// SlowMo Fix

@@ -887,9 +887,9 @@ static int __stdcall SetVelocity_Hook(int obj, float* vel)
         {
             g_State.pendingVelocityFix = false;
 
-            if (g_State.currentFrameTime > 0.0f && g_State.currentFrameTime < TARGET_FRAME_TIME && currentY > 0.0f && currentY < g_State.lastPositiveYVelocity)
+            if (g_State.simulationFrameTime > 0.0f && g_State.simulationFrameTime < TARGET_FRAME_TIME && currentY > 0.0f && currentY < g_State.lastPositiveYVelocity)
             {
-                float frameRatio = static_cast<float>(g_State.currentFrameTime) / TARGET_FRAME_TIME;
+                float frameRatio = static_cast<float>(g_State.simulationFrameTime) / TARGET_FRAME_TIME;
                 float preserveRatio = (1.0f - frameRatio) * 0.125f;
 
                 float difference = g_State.lastPositiveYVelocity - currentY;
@@ -1511,8 +1511,8 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
     {
         if (auto* pTimingStruct = *reinterpret_cast<void**>(thisPtr + 0x5D0))
         {
-            g_State.currentFrameTime = *reinterpret_cast<float*>(static_cast<char*>(pTimingStruct) + 0x2C);
-            g_State.totalGameTime += g_State.currentFrameTime;
+            g_State.simulationFrameTime = *reinterpret_cast<float*>(static_cast<char*>(pTimingStruct) + 0x2C);
+            g_State.totalGameTime += g_State.simulationFrameTime;
         }
     }
 

@@ -170,7 +170,7 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 		if (g_State.jumpElapsedTime < TARGET_FRAME_TIME)
 		{
 			*pJumped = true;
-			g_State.jumpElapsedTime += g_State.currentFrameTime;
+			g_State.jumpElapsedTime += g_State.simulationFrameTime;
 		}
 		else
 		{
@@ -200,23 +200,85 @@ static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 {
 	if (!g_State.useVelocitySmoothing)
-		return GetMaxRecentVelocityMag(thisPtr);
-
-	double dt = g_State.currentFrameTime;
-	if (dt <= 0.0 || dt > 0.2)
 	{
-		return g_State.lastReportedVelocity > 0.0 ? g_State.lastReportedVelocity : GetMaxRecentVelocityMag(thisPtr);
+		return GetMaxRecentVelocityMag(thisPtr);
 	}
 
-	double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
+	double dt = g_State.simulationFrameTime;
+	bool dtUsable = (dt > 0.0 && dt <= 0.2);
+
 	float* currentPos = (float*)((char*)thisPtr - 12); // m_vLastPos is 12 bytes before m_vLastVel
 
-	// Game's actual idle cutoff, used for hysteresis and block detection, never for clamping output
+	// Game's actual idle cutoff. Used for block detection and the walk/idle hysteresis,
+	// and as a floor on the reported value: the game animates idle below it, so a slow
+	// but real slide must report at least this to animate walk.
 	float forceIdleVel = *(float*)((char*)thisPtr - 900);
 	if (!(forceIdleVel > 0.0f && forceIdleVel < 10000.0f))
 	{
 		forceIdleVel = 45.0f;
 	}
+
+	bool reportingIdle = (g_State.lastReportedVelocity < 0.1);
+
+	// INSTANT: a confirmed walk-speed position delta in a single frame commits to walk
+	// immediately, before a window can resolve (covers the start of a move and breaking
+	// free of a wall). Gate on real ground covered this frame, not just speed: in slowmo
+	// a tiny dt turns wall jitter into a huge frameSpeed at near-zero displacement, so
+	// INSTANT_MIN_DISP keeps jitter/slides out and defers them to the window.
+	const double INSTANT_MIN_DISP = 3.0;
+
+	if (reportingIdle && dtUsable && g_State.prevPosValid)
+	{
+		float fdx = currentPos[0] - g_State.prevPosX;
+		float fdy = currentPos[1] - g_State.prevPosY;
+		float fdz = currentPos[2] - g_State.prevPosZ;
+		double frameDisp = sqrt(fdx * fdx + fdy * fdy + fdz * fdz);
+		double frameSpeed = frameDisp / dt;
+
+		if (frameSpeed >= forceIdleVel && frameDisp >= INSTANT_MIN_DISP && frameDisp < 250.0) // 250: teleport guard
+		{
+			double startSpeed = std::max(std::min(frameSpeed, 400.0), (double)forceIdleVel);
+			g_State.lastReportedVelocity = startSpeed;
+			g_State.prevWindowSpeed = startSpeed;
+			g_State.impededWindowCount = 0;
+			g_State.velocityAccumulator = 0.0;
+			g_State.velocityTimeAccumulator = 0.0;
+			g_State.moveGraceUsed = false;
+			g_State.prevPosX = currentPos[0];
+			g_State.prevPosY = currentPos[1];
+			g_State.prevPosZ = currentPos[2];
+			g_State.prevPosValid = true;
+			return startSpeed;
+		}
+	}
+
+	// GRACE: one optimistic walk frame to bridge the gap until a sim step can confirm the
+	// move. Re-armed only by INSTANT or by smoothing turning off, and suppressed once a
+	// block is confirmed so it can't bounce a wall stop back to walk.
+	if (reportingIdle && !g_State.moveGraceUsed && g_State.impededWindowCount < 2)
+	{
+		g_State.moveGraceUsed = true;
+		g_State.lastReportedVelocity = (double)forceIdleVel + 1.0;
+		g_State.prevWindowSpeed = (double)forceIdleVel + 1.0;
+		g_State.velocityAccumulator = 0.0;
+		g_State.velocityTimeAccumulator = 0.0;
+		return g_State.lastReportedVelocity;
+	}
+
+	// No usable sim step this frame (dt==0 render frame or a hitch): hold the last
+	// decision rather than fall back to raw, which is frozen/jittery here.
+	if (!dtUsable)
+	{
+		return g_State.lastReportedVelocity;
+	}
+
+	double rawVelocity = GetMaxRecentVelocityMag(thisPtr);
+
+	// Remember this position for next frame's INSTANT delta.
+	g_State.prevPosX = currentPos[0];
+	g_State.prevPosY = currentPos[1];
+	g_State.prevPosZ = currentPos[2];
+	g_State.prevPosValid = true;
 
 	if (g_State.velocityTimeAccumulator == 0.0)
 	{
@@ -236,9 +298,13 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 
 	bool timeIsUp = g_State.velocityTimeAccumulator >= 0.05;
 	double runningAvg = g_State.velocityAccumulator / g_State.velocityTimeAccumulator;
+
+	// Confirmed-block recovery trigger: idle, but the running average says we're moving again.
 	bool isStartingToMove = g_State.lastReportedVelocity < 0.1 && runningAvg > std::max(10.0, (double)forceIdleVel * 0.5);
 
-	if (timeIsUp || isStartingToMove)
+	// Resolve only on a full window. Net displacement is measured from windowStart, so
+	// resolving early (mid-window) would see ~zero displacement and misjudge movement.
+	if (timeIsUp)
 	{
 		float dx = currentPos[0] - g_State.windowStartX;
 		float dy = currentPos[1] - g_State.windowStartY;
@@ -252,8 +318,10 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		// Normal ≈ 0.9-1.0, angled wall ≈ 0.05-0.08, straight wall ≈ 0.0
 		double velocityEfficiency = (avgRawVelocity > 5.0) ? (displacementVelocity / avgRawVelocity) : 1.0;
 
-		// Block detection scaled off the game's idle threshold
-		bool isBlocked = (avgRawVelocity < forceIdleVel * 1.1 && displacementVelocity < forceIdleVel) || (velocityEfficiency < 0.15 && avgRawVelocity > forceIdleVel * 0.6);
+		// Block detection scaled off the game's idle threshold. The efficiency term on
+		// the low-speed clause exempts a slow but directed slide (high efficiency) so it
+		// isn't treated as grinding a wall.
+		bool isBlocked = (avgRawVelocity < forceIdleVel * 1.1 && displacementVelocity < forceIdleVel && velocityEfficiency < 0.5) || (velocityEfficiency < 0.15 && avgRawVelocity > forceIdleVel * 0.6);
 
 		// Protect against slowmo timing (raw ≈ 0 but displacement spikes)
 		if (avgRawVelocity < 5.0 && displacementVelocity > 200.0)
@@ -282,44 +350,25 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 		// sees the previous window's confirmed block status
 		bool wasConfirmedBlocked = (g_State.impededWindowCount >= 2);
 
-		// Player starting to move takes priority over block state,
-		// otherwise direction changes while wall-blocked stay stuck at zero
-		if (isStartingToMove)
+		if (isStartingToMove && wasConfirmedBlocked)
 		{
-			if (wasConfirmedBlocked)
+			// Recovering from wall block: require both raw intent and real
+			// displacement to prevent brush-oscillation restarts
+			double reentryRawThreshold = forceIdleVel * 2.0;
+			double reentryDispThreshold = forceIdleVel * 0.75;
+
+			if (avgRawVelocity >= reentryRawThreshold && displacementVelocity >= reentryDispThreshold)
 			{
-				// Displacement needs a full window to be meaningful for wall recovery.
-				// At high FPS, isStartingToMove fires after ~3ms where displacement
-				// is near-zero, creating an infinite reject-and-retry loop.
-				if (!timeIsUp)
-				{
-					return g_State.lastReportedVelocity;
-				}
-
-				// Recovering from wall block: require both raw intent and real
-				// displacement to prevent brush-oscillation restarts
-				double reentryRawThreshold = forceIdleVel * 2.0;
-				double reentryDispThreshold = forceIdleVel * 0.75;
-
-				if (avgRawVelocity >= reentryRawThreshold && displacementVelocity >= reentryDispThreshold)
-				{
-					g_State.lastReportedVelocity = effectiveVelocity;
-					g_State.prevWindowSpeed = effectiveVelocity;
-					g_State.impededWindowCount = 0;
-				}
-				else
-				{
-					g_State.lastReportedVelocity = 0.0;
-					g_State.prevWindowSpeed = 0.0;
-					g_State.impededWindowCount = 2;
-				}
+				g_State.lastReportedVelocity = std::max(effectiveVelocity, (double)forceIdleVel);
+				g_State.prevWindowSpeed = g_State.lastReportedVelocity;
+				g_State.impededWindowCount = 0;
 			}
 			else
 			{
-				// Normal start from idle, no wall history, let it through
-				g_State.lastReportedVelocity = effectiveVelocity;
-				g_State.prevWindowSpeed = effectiveVelocity;
-				g_State.impededWindowCount = 0;
+				g_State.lastReportedVelocity = 0.0;
+				g_State.prevWindowSpeed = 0.0;
+				g_State.impededWindowCount = 2;
+				g_State.moveGraceUsed = true;
 			}
 		}
 		else
@@ -333,41 +382,53 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 				g_State.impededWindowCount = 0;
 			}
 
+			// One displacement-driven walk/idle decision for both steady movement and
+			// normal (non-blocked) starts, so a per-frame raw spike can't force walk
+			// against the window's displacement verdict. Hysteresis (enter above leave)
+			// stops a slide whose speed straddles the cutoff from flip-flopping, a
+			// directed slide uses a lower bar so it animates walk like vanilla.
+			bool directed = (velocityEfficiency >= 0.5);
+			double slideEnter = directed ? (forceIdleVel * 0.45) : forceIdleVel;
+			double slideLeave = directed ? (forceIdleVel * 0.30) : (forceIdleVel * 0.9);
+			bool wasMoving = (g_State.lastReportedVelocity >= forceIdleVel);
+			bool moving = wasMoving ? (displacementVelocity >= slideLeave) : (displacementVelocity >= slideEnter);
+
 			// Require 2 consecutive blocked windows (100ms) to confirm wall collision
-			if (g_State.impededWindowCount >= 2)
+			if (g_State.impededWindowCount >= 2 || !moving)
 			{
 				g_State.lastReportedVelocity = 0.0;
 				g_State.prevWindowSpeed = 0.0;
+				g_State.moveGraceUsed = true;
 			}
 			else
 			{
+				// Floor the output at the idle cutoff: the game idles below it, so a slow
+				// directed slide we judged "moving" must report >= it to animate walk.
+				double out = std::max(effectiveVelocity, (double)forceIdleVel);
+
 				// Instant response when accelerating, smoothed decay when decelerating
-				if (effectiveVelocity > g_State.prevWindowSpeed)
+				if (out > g_State.prevWindowSpeed)
 				{
-					g_State.lastReportedVelocity = effectiveVelocity;
-					g_State.prevWindowSpeed = effectiveVelocity;
+					g_State.lastReportedVelocity = out;
+					g_State.prevWindowSpeed = out;
 				}
 				else
 				{
 					// Sharp velocity collapse (wall hit while moving), snap down
 					// instead of smoothing through the idle threshold over multiple windows
-					double ratio = (g_State.prevWindowSpeed > 1.0) ? (effectiveVelocity / g_State.prevWindowSpeed) : 1.0;
+					double ratio = (g_State.prevWindowSpeed > 1.0) ? (out / g_State.prevWindowSpeed) : 1.0;
 
 					if (ratio < 0.25)
 					{
-						g_State.prevWindowSpeed = effectiveVelocity;
+						g_State.prevWindowSpeed = out;
 					}
 					else
 					{
 						double decayFactor = std::min(g_State.velocityTimeAccumulator / 0.05, 1.0);
-						g_State.prevWindowSpeed = g_State.prevWindowSpeed * (1.0 - decayFactor * 0.5) + effectiveVelocity * (decayFactor * 0.5);
+						g_State.prevWindowSpeed = g_State.prevWindowSpeed * (1.0 - decayFactor * 0.5) + out * (decayFactor * 0.5);
 					}
-					g_State.lastReportedVelocity = g_State.prevWindowSpeed;
-				}
 
-				if (g_State.lastReportedVelocity < 1.0)
-				{
-					g_State.lastReportedVelocity = 0.0;
+					g_State.lastReportedVelocity = std::max(g_State.prevWindowSpeed, (double)forceIdleVel);
 				}
 			}
 		}
