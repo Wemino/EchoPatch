@@ -1,13 +1,18 @@
 ﻿#include <shlwapi.h>
 #include <ShlObj_core.h>
 #include <dxgi.h>
+
 #include "LAAPatcher.hpp"
 #include "Engine.hpp"
+#include "ConsoleMgr.hpp"
+
 #include "../Client/Client.hpp"
 #include "../Server/Server.hpp"
 #include "../Controller/Controller.hpp"
-#include "ConsoleMgr.hpp"
 #include "../helper.hpp"
+
+#include "../Shaders/ShadowBlur_BlurBuffer_fxo.hpp"
+#include "../Shaders/blur_fxo.hpp"
 
 // ======================
 // Constants
@@ -34,6 +39,7 @@ intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
 int(__stdcall* SetConsoleVariableFloat)(const char*, float) = nullptr;
 bool(__thiscall* GetDeviceObjectName)(int, int, LPWSTR) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
+bool(__thiscall* GetShaderFile)(int, char*, DWORD*, size_t*) = nullptr;
 int(__stdcall* SetVelocity)(int, float*) = nullptr;
 int(__thiscall* ProcessBreakableConstraint)(int, float*, int) = nullptr;
 void(__cdecl* ProcessTwistLimitConstraint)(int, float*, float*) = nullptr;
@@ -75,6 +81,7 @@ bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
 bool OptimizeSaveSpeed = false;
 bool FixNvidiaShadowCorruption = false;
+bool FixAspectRatioBlur = false;
 bool FastVRAMDetection = false;
 bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
@@ -217,6 +224,7 @@ static void ReadConfig()
     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
     OptimizeSaveSpeed = IniHelper::ReadInteger("Fixes", "OptimizeSaveSpeed", 1) == 1;
     FixNvidiaShadowCorruption = IniHelper::ReadInteger("Fixes", "FixNvidiaShadowCorruption", 1) == 1;
+    FixAspectRatioBlur = IniHelper::ReadInteger("Fixes", "FixAspectRatioBlur", 1) == 1;
     FastVRAMDetection = IniHelper::ReadInteger("Fixes", "FastVRAMDetection", 1) == 1;
     DisableXPWidescreenFiltering = IniHelper::ReadInteger("Fixes", "DisableXPWidescreenFiltering", 1) == 1;
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
@@ -1280,6 +1288,31 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
 }
 
 // =======================
+// FixAspectRatioBlur
+// =======================
+
+static bool __fastcall GetShaderFile_Hook(int thisptr, int, char* String1, DWORD* a3, size_t* a4)
+{
+    if (String1)
+    {
+        if (StrStrIA(String1, "ShadowBlur_BlurBuffer.fxo"))
+        {
+            *a3 = (DWORD)(uintptr_t)ShadowBlur_fxo;
+            *a4 = ShadowBlur_fxo_len;
+            return true;
+        }
+        else if (StrStrIA(String1, "rigid\\Translucent\\Effect\\blur.fxo"))
+        {
+            *a3 = (DWORD)(uintptr_t)Blur_fxo;
+            *a4 = Blur_fxo_len;
+            return true;
+        }
+    }
+
+    return GetShaderFile(thisptr, String1, a3, a4);
+}
+
+// =======================
 // FastVRAMDetection
 // =======================
 
@@ -1745,6 +1778,19 @@ static void ApplyFixNvidiaShadowCorruption()
     }
 }
 
+static void ApplyFixAspectRatioBlur()
+{
+    if (!FixAspectRatioBlur) return;
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:    HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x111700), &GetShaderFile_Hook, (LPVOID*)&GetShaderFile, true); break;
+        case FEARMP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x111820), &GetShaderFile_Hook, (LPVOID*)&GetShaderFile); break;
+        case FEARXP:  HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B4770), &GetShaderFile_Hook, (LPVOID*)&GetShaderFile); break;
+        case FEARXP2: HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1B5DF0), &GetShaderFile_Hook, (LPVOID*)&GetShaderFile); break;
+    }
+}
+
 static void ApplyFastVRAMDetection()
 {
     if (!FastVRAMDetection) return;
@@ -2153,6 +2199,7 @@ static void Init()
     ApplyFixHighFPSPhysics();
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();
+    ApplyFixAspectRatioBlur();
     ApplyFastVRAMDetection();
     ApplyFixKeyboardInputLanguage();
     ApplyFixScriptedAnimationCrash();

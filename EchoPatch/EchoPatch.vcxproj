@@ -143,6 +143,8 @@
     <ClInclude Include="..\src\Server\Server.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
     <ClInclude Include="..\src\Controller\Controller.hpp" />
+    <ClInclude Include="..\src\Shaders\blur_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

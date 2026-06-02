@@ -103,6 +103,12 @@
     <ClInclude Include="..\src\helper.hpp">
       <Filter>include</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Shaders\blur_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini" />
@@ -131,6 +137,9 @@
     </Filter>
     <Filter Include="include\imgui">
       <UniqueIdentifier>{ed403466-fe95-4ed9-9a05-bba46fc5373e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{bad4a820-7419-477c-897a-3cc9982d5d7c}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

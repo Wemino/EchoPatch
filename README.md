@@ -184,6 +184,40 @@ Improves resolution quality of reflective surfaces and displays.
   </table>
 </div>
 
+## Aspect Ratio Blur Fixes
+Corrects post-process blur effects that were hardcoded for a 4:3 aspect ratio.  
+On the original shaders the blur kernel size does not scale with the display resolution, so the effect stretches horizontally as the aspect ratio widens, becoming increasingly smeared at 16:9 and severe at ultrawide resolutions. The fixed shaders derive the kernel from the actual resolution, keeping the blur consistent at any aspect ratio.
+
+This applies to:
+- **Soft shadow blur**: the blur pass used to soften dynamic shadows.
+- **Screen blur**: the blur material applied to objects seen through blurred surfaces.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/ShadowBlur_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/ShadowBlur_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla 32:9</td>
+      <td align="center">Fixed Soft Shadow Blur</td>
+    </tr>
+  </table>
+</div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/ScreenBlur_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/ScreenBlur_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla 32:9</td>
+      <td align="center">Fixed Screen Blur</td>
+    </tr>
+  </table>
+</div>
+
 ## No Model LOD Bias
 Disable LOD bias to render models at full quality at any distance.
 
