@@ -2058,110 +2058,68 @@ static void InitConsole(LPCSTR title)
 {
     if (!ConsoleEnabled || !title) return;
 
-    if (g_State.CurrentFEARGame == FEAR)
+    const int game = g_State.CurrentFEARGame;
+    if (game != FEAR && game != FEARXP && game != FEARXP2) return;
+
+    auto pick = [&](uintptr_t fear, uintptr_t fearxp, uintptr_t fearxp2) -> uintptr_t 
     {
-        Console::Init(g_State.BaseAddress + 0x176FF0, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
+        return g_State.BaseAddress + (game == FEAR ? fear : game == FEARXP ? fearxp : fearxp2);
+    };
 
-        ConsoleAddresses addresses = {};
-        addresses.cursorLockAddr = g_State.BaseAddress + 0x16ABB4;
-        addresses.cvarListHead = g_State.BaseAddress + 0x1773D4;
-        addresses.cvarArrayStart = g_State.BaseAddress + 0x16D0F8;
-        addresses.cvarArrayEnd = g_State.BaseAddress + 0x16DAB8;
-        addresses.cmdArrayStart = g_State.BaseAddress + 0x16AC50;
-        addresses.cmdArrayEnd = g_State.BaseAddress + 0x16B4D8;
-        addresses.cvarVtableFloat = g_State.BaseAddress + 0x15E698;
-        addresses.cvarVtableInt = g_State.BaseAddress + 0x15E6A0;
-        Console::InitAddresses(addresses);
+    const uintptr_t
+    oInit = pick(0x176FF0, 0x21BFD0, 0x21E010),
+    oCursorLock = pick(0x16ABB4, 0x20EBEC, 0x210BEC),
+    oCvarListHead = pick(0x1773D4, 0x21C3B4, 0x21E414),
+    oCvarArrayStart = pick(0x16D0F8, 0x2126C8, 0x2146D8),
+    oCvarArrayEnd = pick(0x16DAB8, 0x213088, 0x215098),
+    oCmdArrayStart = pick(0x16AC50, 0x20EC88, 0x210C88),
+    oCmdArrayEnd = pick(0x16B4D8, 0x20F510, 0x211510),
+    oVtableFloat = pick(0x15E698, 0x1FEBF8, 0x200C48),
+    oVtableInt = pick(0x15E6A0, 0x1FEC00, 0x200C50),
+    oEndScene = pick(0xF8670, 0x18EC30, 0x190230),
+    oResetDevice = pick(0xF9350, 0x18FAA0, 0x1910D0),
+    oWindowProc = pick(0x7D9C0, 0xAF650, 0xB06B0),
+    oConsoleOutput = pick(0x16880, 0x21510, 0x216C0),
+    oSetCvarString = pick(0x15D10, 0x20640, 0x207F0),
+    oSetCvarFloat = pick(0x15D40, 0x20670, 0x20820),
+    oRegClient = pick(0xA220, 0x11020, 0x112C0),
+    oRegServer = pick(0x5C780, 0x80390, 0x810D0),
+    oUnregClient = pick(0xA290, 0x11090, 0x11330),
+    oUnregServer = pick(0x5C800, 0x80410, 0x81150),
+    oRunCmd = pick(0x9320, 0x100E0, 0x10320),
+    oDebugLevel = pick(0x16F6C4, 0x21370C, 0x21572C);
 
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF8670), &EndScene_Hook, (LPVOID*)&EndScene);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF9350), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x7D9C0), &WindowProc_Hook, (LPVOID*)&WindowProc);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x16880), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
+    Console::Init(oInit, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
 
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x15D10), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x15D40), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
+    ConsoleAddresses addresses = {};
+    addresses.cursorLockAddr = oCursorLock;
+    addresses.cvarListHead = oCvarListHead;
+    addresses.cvarArrayStart = oCvarArrayStart;
+    addresses.cvarArrayEnd = oCvarArrayEnd;
+    addresses.cmdArrayStart = oCmdArrayStart;
+    addresses.cmdArrayEnd = oCmdArrayEnd;
+    addresses.cvarVtableFloat = oVtableFloat;
+    addresses.cvarVtableInt = oVtableInt;
+    Console::InitAddresses(addresses);
 
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA220), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C780), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xA290), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x5C800), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
+    HookHelper::ApplyHook((void*)oEndScene, &EndScene_Hook, (LPVOID*)&EndScene);
+    HookHelper::ApplyHook((void*)oResetDevice, &ResetDevice_Hook, (LPVOID*)&ResetDevice);
+    HookHelper::ApplyHook((void*)oWindowProc, &WindowProc_Hook, (LPVOID*)&WindowProc);
+    HookHelper::ApplyHook((void*)oConsoleOutput, &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
 
-        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x9320);
+    HookHelper::ApplyHook((void*)oSetCvarString, &SetCvarString_Hook, (LPVOID*)&SetCvarString);
+    HookHelper::ApplyHook((void*)oSetCvarFloat, &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
 
-        if (DebugLevel != 0)
-        {
-            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x16F6C4, DebugLevel, false);
-        }
-    }
-    else if (g_State.CurrentFEARGame == FEARXP)
+    HookHelper::ApplyHook((void*)oRegClient, &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
+    HookHelper::ApplyHook((void*)oRegServer, &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
+    HookHelper::ApplyHook((void*)oUnregClient, &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
+    HookHelper::ApplyHook((void*)oUnregServer, &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
+
+    RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(oRunCmd);
+
+    if (DebugLevel != 0)
     {
-        Console::Init(g_State.BaseAddress + 0x21BFD0, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
-
-        ConsoleAddresses addresses = {};
-        addresses.cursorLockAddr = g_State.BaseAddress + 0x20EBEC;
-        addresses.cvarListHead = g_State.BaseAddress + 0x21C3B4;
-        addresses.cvarArrayStart = g_State.BaseAddress + 0x2126C8;
-        addresses.cvarArrayEnd = g_State.BaseAddress + 0x213088;
-        addresses.cmdArrayStart = g_State.BaseAddress + 0x20EC88;
-        addresses.cmdArrayEnd = g_State.BaseAddress + 0x20F510;
-        addresses.cvarVtableFloat = g_State.BaseAddress + 0x1FEBF8;
-        addresses.cvarVtableInt = g_State.BaseAddress + 0x1FEC00;
-        Console::InitAddresses(addresses);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18EC30), &EndScene_Hook, (LPVOID*)&EndScene);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18FAA0), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xAF650), &WindowProc_Hook, (LPVOID*)&WindowProc);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x21510), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20640), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20670), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11020), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80390), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11090), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x80410), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
-
-        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x100E0);
-
-        if (DebugLevel != 0)
-        {
-            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x21370C, DebugLevel, false);
-        }
-    }
-    else if (g_State.CurrentFEARGame == FEARXP2)
-    {
-        Console::Init(g_State.BaseAddress + 0x21E010, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
-
-        ConsoleAddresses addresses = {};
-        addresses.cursorLockAddr = g_State.BaseAddress + 0x210BEC;
-        addresses.cvarListHead = g_State.BaseAddress + 0x21E414;
-        addresses.cvarArrayStart = g_State.BaseAddress + 0x2146D8;
-        addresses.cvarArrayEnd = g_State.BaseAddress + 0x215098;
-        addresses.cmdArrayStart = g_State.BaseAddress + 0x210C88;
-        addresses.cmdArrayEnd = g_State.BaseAddress + 0x211510;
-        addresses.cvarVtableFloat = g_State.BaseAddress + 0x200C48;
-        addresses.cvarVtableInt = g_State.BaseAddress + 0x200C50;
-        Console::InitAddresses(addresses);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x190230), &EndScene_Hook, (LPVOID*)&EndScene);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x1910D0), &ResetDevice_Hook, (LPVOID*)&ResetDevice);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xB06B0), &WindowProc_Hook, (LPVOID*)&WindowProc);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x216C0), &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x207F0), &SetCvarString_Hook, (LPVOID*)&SetCvarString);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x20820), &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
-
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x112C0), &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x810D0), &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x11330), &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
-        HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x81150), &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
-
-        RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(g_State.BaseAddress + 0x10320);
-
-        if (DebugLevel != 0)
-        {
-            MemoryHelper::WriteMemory<int>(g_State.BaseAddress + 0x21572C, DebugLevel, false);
-        }
+        MemoryHelper::WriteMemory<int>(oDebugLevel, DebugLevel, false);
     }
 }
 
