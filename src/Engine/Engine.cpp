@@ -5,6 +5,7 @@
 #include "LAAPatcher.hpp"
 #include "Engine.hpp"
 #include "ConsoleMgr.hpp"
+#include "CrashHandler.hpp"
 
 #include "../Client/Client.hpp"
 #include "../Server/Server.hpp"
@@ -215,6 +216,7 @@ bool DisablePunkBuster = false;
 bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
+bool EnableCrashHandler = false;
 bool ShowErrors = false;
 
 static void ReadConfig()
@@ -359,6 +361,7 @@ static void ReadConfig()
     EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
+    EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;
     ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
     // Get screen resolution
@@ -2204,6 +2207,12 @@ static void Init()
     if (FixSoundWrapperLoading)
     {
         DirectSoundHelper::Init();
+    }
+
+    // Install the crash handler
+    if (EnableCrashHandler)
+    {
+        CrashHandler::Install();
     }
 
     // Get the handle of the client as soon as it is loaded

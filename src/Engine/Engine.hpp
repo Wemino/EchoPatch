@@ -391,6 +391,7 @@ extern bool DisablePunkBuster;
 extern bool EnableCustomMaxWeaponCapacity;
 extern int MaxWeaponCapacity;
 extern bool DisableHipFireAccuracyPenalty;
+extern bool EnableCrashHandler;
 extern bool ShowErrors;
 
 // Accessor for signature scanning
