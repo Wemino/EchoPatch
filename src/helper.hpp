@@ -843,6 +843,7 @@ namespace HashHelper
 		static constexpr uint32_t Windowed = FNV1a("Windowed");
 		static constexpr uint32_t ModelLODDistanceScale = FNV1a("ModelLODDistanceScale");
 		static constexpr uint32_t CameraFirstPersonLODBias = FNV1a("CameraFirstPersonLODBias");
+		static constexpr uint32_t AntiAliasFSOverSample = FNV1a("AntiAliasFSOverSample");
 
 		// Gamepad
 		static constexpr uint32_t GPadAimSensitivity = FNV1a("GPadAimSensitivity");

@@ -168,6 +168,27 @@ The behavior of this option can be edited by setting `CheckLAAPatch` in the `[Fi
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
 
+## Supersampling (SSAA)
+Renders the 3D scene at a higher internal resolution and downscales it to the display resolution, providing high-quality anti-aliasing.  
+Unlike the in-game FSAA option, which cannot be combined with soft shadows, SSAA is fully compatible with them, allowing both to be enabled at the same time.
+
+- **SSAAScale** (`SSAAScale` in `EchoPatch.ini`): Internal resolution scale factor. The default value of `1.0` renders at native resolution (equivalent to disabled), any other value enables supersampling.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/SSAA_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/SSAA_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">SSAA 2.0</td>
+    </tr>
+  </table>
+</div>
+
+> **Note**: FSAA is automatically turned off when supersampling is enabled, as the two are incompatible. Supersampling has a significant performance cost, a value of `2.0` renders 4x as many pixels.
+
 ## HD Reflections & Displays
 Improves resolution quality of reflective surfaces and displays.
 

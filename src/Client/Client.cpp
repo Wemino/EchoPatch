@@ -43,6 +43,9 @@ unsigned __int8(__thiscall* GetWeaponSlot)(int, int) = nullptr;
 // HighResolutionReflections
 bool(__thiscall* RenderTargetGroupFXInit)(int, DWORD*) = nullptr;
 
+// SSAAScale
+void(__thiscall* Camera_UpdateRenderTarget)(int) = nullptr;
+
 // EnablePersistentWorldState
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__stdcall* CreateFX)(char*, int, int) = nullptr;
@@ -1223,6 +1226,17 @@ static void __fastcall HUDPausedInit_Hook(int thisPtr, int)
 {
 	g_State.CHUDPaused = thisPtr;
 	HUDPausedInit(thisPtr);
+}
+
+// =====================
+// SSAAScale
+// =====================
+
+static void __fastcall Camera_UpdateRenderTarget_Hook(int thisPtr, int)
+{
+	g_State.isInCameraUpdateRenderTarget = true;
+	Camera_UpdateRenderTarget(thisPtr);
+	g_State.isInCameraUpdateRenderTarget = false;
 }
 
 // ======================
@@ -2468,6 +2482,18 @@ static void ApplyHUDScalingClientPatch()
 	HUDWeaponListReset = reinterpret_cast<decltype(HUDWeaponListReset)>(addr_HUDWeaponListReset);
 }
 
+static void ApplySSAAScaleClientPatch()
+{
+	if (SSAAScale == 1.0f) return;
+
+	DWORD addr_Camera_UpdateRenderTarget = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 0D ?? ?? ?? ?? 85 C9 0F 84 E7", "Camera_UpdateRenderTarget");
+
+	if (addr_Camera_UpdateRenderTarget == 0) return;
+
+	HookHelper::ApplyHook((void*)addr_Camera_UpdateRenderTarget, &Camera_UpdateRenderTarget_Hook, (LPVOID*)&Camera_UpdateRenderTarget);
+	MemoryHelper::MakeNOP(addr_Camera_UpdateRenderTarget + 0x32, 0x6);
+}
+
 static void ApplySetWeaponCapacityClientPatch()
 {
     if (!EnableCustomMaxWeaponCapacity) return;
@@ -2624,7 +2650,7 @@ static void ApplyGameDatabaseHook()
 
 static void ApplyClientPatchSet1()
 {
-	if (!HUDScaling && !SDLGamepadSupport) return;
+	if (!HUDScaling && !SDLGamepadSupport && SSAAScale == 1.0f) return;
 
 	DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
 	DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
@@ -2696,6 +2722,7 @@ void ApplyClientPatch()
 	ApplyInfiniteFlashlightClientPatch();
 	ApplyControllerClientPatch();
 	ApplyHUDScalingClientPatch();
+	ApplySSAAScaleClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientPatch();

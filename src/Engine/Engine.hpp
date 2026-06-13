@@ -129,6 +129,7 @@ struct GlobalState
 	bool isPlaying = false;
 	bool isMsgBoxVisible = false;
 	bool isEnteringWorld = false;
+	bool isInCameraUpdateRenderTarget = false;
 
 	// ======================
 	// Controller State
@@ -299,6 +300,7 @@ extern bool DisableRedundantHIDInit;
 extern bool HighFPSFixes;
 extern bool OptimizeSaveSpeed;
 extern bool FixNvidiaShadowCorruption;
+extern bool FixAspectRatioBlur;
 extern bool FastVRAMDetection;
 extern bool DisableXPWidescreenFiltering;
 extern bool FixKeyboardInputLanguage;
@@ -312,6 +314,7 @@ extern float MaxFPS;
 extern bool DynamicVsync;
 extern bool HighResolutionReflections;
 extern bool NoLODBias;
+extern float SSAAScale;
 extern bool ReducedMipMapBias;
 extern bool EnablePersistentWorldState;
 

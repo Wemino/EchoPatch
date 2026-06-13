@@ -59,6 +59,7 @@ bool(__thiscall* FileTell)(DWORD*, DWORD*) = nullptr;
 bool(__thiscall* FileClose)(DWORD*) = nullptr;
 int(__stdcall* CreateTextureWrapper)(DWORD*, int, int) = nullptr;
 int(__thiscall* DestroyTextureWrapper)(int*, int*) = nullptr;
+int(__stdcall* CreateRenderTarget)(int, int, int, DWORD*) = nullptr;
 int(__thiscall* LoadWorld)(BYTE*, int, int) = nullptr;
 bool(__cdecl* LoadWorldShadows)(int*) = nullptr;
 bool(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
@@ -95,6 +96,7 @@ float MaxFPS = 0;
 bool DynamicVsync = false;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
+float SSAAScale = 0;
 bool ReducedMipMapBias = false;
 bool EnablePersistentWorldState = false;
 
@@ -238,6 +240,7 @@ static void ReadConfig()
     DynamicVsync = IniHelper::ReadInteger("Graphics", "DynamicVsync", 1) == 1;
     HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
     NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
+    SSAAScale = IniHelper::ReadFloat("Graphics", "SSAAScale", 1.0f);
     ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
     EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
 
@@ -624,6 +627,17 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 {
     switch (pszVarName[0])
     {
+        case 'A':  // AntiAliasFSOverSample
+        {
+            if (SSAAScale == 1.0f) break;
+
+            const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
+            if (varHash == HashHelper::CVarHashes::AntiAliasFSOverSample)
+            {
+                fValue = 0.0f;
+            }
+        }
+
         case 'G':  // GPad*
         {
             if (!SDLGamepadSupport) break;
@@ -1112,6 +1126,22 @@ static bool __fastcall FileClose_Hook(DWORD* thisp, int)
     }
 
     return FileClose(thisp);
+}
+
+// =====================
+// SSAAScale
+// =====================
+
+static int __stdcall CreateRenderTarget_Hook(int width, int height, int flags, DWORD* target)
+{
+    if (g_State.isInCameraUpdateRenderTarget)
+    {
+        width = (int)(g_State.currentWidth * SSAAScale + 0.5f);
+        height = (int)(g_State.currentHeight * SSAAScale + 0.5f);
+        flags |= 0x300; // eRTO_DepthBufferTexture | eRTO_ShadowBuffer
+    }
+
+    return CreateRenderTarget(width, height, flags, target);
 }
 
 // ===========================
@@ -1866,6 +1896,33 @@ static void ApplyFixWindow()
     }
 }
 
+static void ApplySSAAScale()
+{
+    if (SSAAScale == 1.0f) return;
+
+    static const uint8_t SSAA_LinearFilter[10] = { 0x6A, 0x02, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 };
+
+    switch (g_State.CurrentFEARGame)
+    {
+        case FEAR:
+            MemoryHelper::WriteMemoryRaw(g_State.BaseAddress + 0xF4C28, SSAA_LinearFilter, sizeof(SSAA_LinearFilter));
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF3F10), &CreateRenderTarget_Hook, (LPVOID*)&CreateRenderTarget);
+            break;
+        case FEARMP:
+            MemoryHelper::WriteMemoryRaw(g_State.BaseAddress + 0xF4D48, SSAA_LinearFilter, sizeof(SSAA_LinearFilter));
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0xF4030), &CreateRenderTarget_Hook, (LPVOID*)&CreateRenderTarget);
+            break;
+        case FEARXP:
+            MemoryHelper::WriteMemoryRaw(g_State.BaseAddress + 0x18A108, SSAA_LinearFilter, sizeof(SSAA_LinearFilter));
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x189350), &CreateRenderTarget_Hook, (LPVOID*)&CreateRenderTarget);
+            break;
+        case FEARXP2:
+            MemoryHelper::WriteMemoryRaw(g_State.BaseAddress + 0x18B638, SSAA_LinearFilter, sizeof(SSAA_LinearFilter));
+            HookHelper::ApplyHook((void*)(g_State.BaseAddress + 0x18A880), &CreateRenderTarget_Hook, (LPVOID*)&CreateRenderTarget);
+            break;
+    }
+}
+
 static void ApplyReducedMipMapBias()
 {
     if (!ReducedMipMapBias) return;
@@ -2167,6 +2224,7 @@ static void Init()
     ApplyAutoResolution();
 
     // Graphics
+    ApplySSAAScale();
     ApplyReducedMipMapBias();
 
     // Misc
