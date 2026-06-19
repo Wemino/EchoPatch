@@ -10,7 +10,7 @@
 #include <deque>
 #include <cmath>
 #include <algorithm>
-#include "../helper.hpp"
+#include "../src/helper.cpp"
 
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_dx9.h"

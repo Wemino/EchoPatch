@@ -1,5 +1,6 @@
-#include "../Engine/Engine.hpp"
-#include "../helper.hpp"
+#pragma once
+
+#include "../Globals.cpp"
 
 namespace ScreenJoystickHook
 {

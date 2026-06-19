@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "../Engine/Engine.hpp"
+#include "../Globals.cpp"
 #include "Controller.hpp"
 #include "../Client/Client.hpp"
 

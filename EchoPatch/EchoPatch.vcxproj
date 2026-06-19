@@ -64,7 +64,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;ECHOPATCH_EXPORTS_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard>stdcpp23</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -107,13 +107,8 @@
     <ClCompile Include="..\include\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="..\include\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\include\imgui\imgui_widgets.cpp" />
-    <ClCompile Include="..\src\dllmain.cpp" />
     <ClCompile Include="..\src\Core\DInputProxy.cpp" />
-    <ClCompile Include="..\src\Client\Client.cpp" />
-    <ClCompile Include="..\src\Engine\Engine.cpp" />
-    <ClCompile Include="..\src\Server\Server.cpp" />
-    <ClCompile Include="..\src\ClientFX\ClientFX.cpp" />
-    <ClCompile Include="..\src\Controller\Controller.cpp" />
+    <ClCompile Include="..\src\dllmain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini">
@@ -135,14 +130,61 @@
     <ClInclude Include="..\include\ini.hpp" />
     <ClInclude Include="..\include\LAAPatcher.hpp" />
     <ClInclude Include="..\include\MinHook.hpp" />
-    <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp" />
-    <ClInclude Include="..\src\Engine\Engine.hpp" />
-    <ClInclude Include="..\src\helper.hpp" />
-    <ClInclude Include="..\src\Core\DInputProxy.hpp" />
+    <ClInclude Include="..\src\Addresses.cpp" />
+    <ClInclude Include="..\src\Client\AutoResolution\AutoResolution.cpp" />
+    <ClInclude Include="..\src\Client\Client.cpp" />
     <ClInclude Include="..\src\Client\Client.hpp" />
-    <ClInclude Include="..\src\Server\Server.hpp" />
+    <ClInclude Include="..\src\Client\ClientPatch.cpp" />
+    <ClInclude Include="..\src\Client\ConsoleEnabled\ConsoleEnabled.cpp" />
+    <ClInclude Include="..\src\Client\DisableHipFireAccuracyPenalty\DisableHipFireAccuracyPenalty.cpp" />
+    <ClInclude Include="..\src\Client\EnableCustomMaxWeaponCapacity\EnableCustomMaxWeaponCapacity.cpp" />
+    <ClInclude Include="..\src\Client\EnablePersistentWorldState\EnablePersistentWorldState.cpp" />
+    <ClInclude Include="..\src\Client\FixKeyboardInputLanguage\FixKeyboardInputLanguage.cpp" />
+    <ClInclude Include="..\src\Client\HighFPSFixes\HighFPSFixes.cpp" />
+    <ClInclude Include="..\src\Client\HighResolutionReflections\HighResolutionReflections.cpp" />
+    <ClInclude Include="..\src\Client\HUDScaling\HUDScaling.cpp" />
+    <ClInclude Include="..\src\Client\SDLGamepadSupport\SDLGamepadSupport.cpp" />
+    <ClInclude Include="..\src\Client\SSAAScale\SSAAScale.cpp" />
+    <ClInclude Include="..\src\Client\WeaponFixes\WeaponFixes.cpp" />
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
+    <ClInclude Include="..\src\ClientFX\ClientFXPatch.cpp" />
+    <ClInclude Include="..\src\ClientFX\Controller\Controller.cpp" />
+    <ClInclude Include="..\src\ClientFX\HighFPSFixes\HighFPSFixes.cpp" />
+    <ClInclude Include="..\src\Controller\Controller.cpp" />
     <ClInclude Include="..\src\Controller\Controller.hpp" />
+    <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp" />
+    <ClInclude Include="..\src\Core\DInputProxy.hpp" />
+    <ClInclude Include="..\src\Engine\AutoResolution\AutoResolution.cpp" />
+    <ClInclude Include="..\src\Engine\ClientHook\ClientHook.cpp" />
+    <ClInclude Include="..\src\Engine\ConsoleEnabled\ConsoleEnabled.cpp" />
+    <ClInclude Include="..\src\Engine\ConsoleVariableHook\ConsoleVariableHook.cpp" />
+    <ClInclude Include="..\src\Engine\DeviceCreationHook\DeviceCreationHook.cpp" />
+    <ClInclude Include="..\src\Engine\DisableJoystick\DisableJoystick.cpp" />
+    <ClInclude Include="..\src\Engine\DisablePunkBuster\DisablePunkBuster.cpp" />
+    <ClInclude Include="..\src\Engine\DynamicVsync\DynamicVsync.cpp" />
+    <ClInclude Include="..\src\Engine\FastVRAMDetection\FastVRAMDetection.cpp" />
+    <ClInclude Include="..\src\Engine\FixAspectRatioBlur\FixAspectRatioBlur.cpp" />
+    <ClInclude Include="..\src\Engine\FixDirectInputFps\FixDirectInputFps.cpp" />
+    <ClInclude Include="..\src\Engine\FixKeyboardInputLanguage\FixKeyboardInputLanguage.cpp" />
+    <ClInclude Include="..\src\Engine\FixNvidiaShadowCorruption\FixNvidiaShadowCorruption.cpp" />
+    <ClInclude Include="..\src\Engine\FixScriptedAnimationCrash\FixScriptedAnimationCrash.cpp" />
+    <ClInclude Include="..\src\Engine\FixWindow\FixWindow.cpp" />
+    <ClInclude Include="..\src\Engine\HighFPSFixes\HighFPSFixes.cpp" />
+    <ClInclude Include="..\src\Engine\MainLoop\MainLoop.cpp" />
+    <ClInclude Include="..\src\Engine\OptimizeSaveSpeed\OptimizeSaveSpeed.cpp" />
+    <ClInclude Include="..\src\Engine\ReducedMipMapBias\ReducedMipMapBias.cpp" />
+    <ClInclude Include="..\src\Engine\SaveFolderRedirect\SaveFolderRedirect.cpp" />
+    <ClInclude Include="..\src\Engine\SkipIntro\SkipIntro.cpp" />
+    <ClInclude Include="..\src\Engine\SSAAScale\SSAAScale.cpp" />
+    <ClInclude Include="..\src\Globals.cpp" />
+    <ClInclude Include="..\src\helper.cpp" />
+    <ClInclude Include="..\src\Initialization.cpp" />
+    <ClInclude Include="..\src\Server\Controller\Controller.cpp" />
+    <ClInclude Include="..\src\Server\EnableCustomMaxWeaponCapacity\EnableCustomMaxWeaponCapacity.cpp" />
+    <ClInclude Include="..\src\Server\EnablePersistentWorldState\EnablePersistentWorldState.cpp" />
+    <ClInclude Include="..\src\Server\HighFPSFixes\HighFPSFixes.cpp" />
+    <ClInclude Include="..\src\Server\Server.hpp" />
+    <ClInclude Include="..\src\Server\ServerPatch.cpp" />
     <ClInclude Include="..\src\Shaders\blur_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp" />
   </ItemGroup>
