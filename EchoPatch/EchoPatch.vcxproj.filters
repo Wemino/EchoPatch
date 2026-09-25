@@ -65,9 +65,6 @@
       <Filter>include</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Addresses.cpp" />
-    <ClInclude Include="..\src\Client\AutoResolution\AutoResolution.cpp">
-      <Filter>Client\AutoResolution</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\Client\Client.cpp">
       <Filter>Client</Filter>
     </ClInclude>
@@ -77,38 +74,41 @@
     <ClInclude Include="..\src\Client\ClientPatch.cpp">
       <Filter>Client</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\ConsoleEnabled\ConsoleEnabled.cpp">
-      <Filter>Client\ConsoleEnabled</Filter>
+    <ClInclude Include="..\src\Client\Console\ConsoleEnabled.cpp">
+      <Filter>Client\Console</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\DisableHipFireAccuracyPenalty\DisableHipFireAccuracyPenalty.cpp">
-      <Filter>Client\DisableHipFireAccuracyPenalty</Filter>
+    <ClInclude Include="..\src\Client\Controller\SDLGamepadSupport.cpp">
+      <Filter>Client\Controller</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\EnableCustomMaxWeaponCapacity\EnableCustomMaxWeaponCapacity.cpp">
-      <Filter>Client\EnableCustomMaxWeaponCapacity</Filter>
+    <ClInclude Include="..\src\Client\Display\AutoResolution.cpp">
+      <Filter>Client\Display</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\EnablePersistentWorldState\EnablePersistentWorldState.cpp">
-      <Filter>Client\EnablePersistentWorldState</Filter>
+    <ClInclude Include="..\src\Client\Display\HUDScaling.cpp">
+      <Filter>Client\Display</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\FixKeyboardInputLanguage\FixKeyboardInputLanguage.cpp">
-      <Filter>Client\FixKeyboardInputLanguage</Filter>
+    <ClInclude Include="..\src\Client\Extra\DisableHipFireAccuracyPenalty.cpp">
+      <Filter>Client\Extra</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\HighFPSFixes\HighFPSFixes.cpp">
-      <Filter>Client\HighFPSFixes</Filter>
+    <ClInclude Include="..\src\Client\Extra\EnableCustomMaxWeaponCapacity.cpp">
+      <Filter>Client\Extra</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\HighResolutionReflections\HighResolutionReflections.cpp">
-      <Filter>Client\HighResolutionReflections</Filter>
+    <ClInclude Include="..\src\Client\Fixes\FixKeyboardInputLanguage.cpp">
+      <Filter>Client\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\HUDScaling\HUDScaling.cpp">
-      <Filter>Client\HUDScaling</Filter>
+    <ClInclude Include="..\src\Client\Fixes\HighFPSFixes.cpp">
+      <Filter>Client\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\SDLGamepadSupport\SDLGamepadSupport.cpp">
-      <Filter>Client\SDLGamepadSupport</Filter>
+    <ClInclude Include="..\src\Client\Fixes\WeaponFixes.cpp">
+      <Filter>Client\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\SSAAScale\SSAAScale.cpp">
-      <Filter>Client\SSAAScale</Filter>
+    <ClInclude Include="..\src\Client\Graphics\EnablePersistentWorldState.cpp">
+      <Filter>Client\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Client\WeaponFixes\WeaponFixes.cpp">
-      <Filter>Client\WeaponFixes</Filter>
+    <ClInclude Include="..\src\Client\Graphics\HighResolutionReflections.cpp">
+      <Filter>Client\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Client\Graphics\SSAAScale.cpp">
+      <Filter>Client\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp">
       <Filter>ClientFX</Filter>
@@ -119,8 +119,8 @@
     <ClInclude Include="..\src\ClientFX\Controller\Controller.cpp">
       <Filter>ClientFX\Controller</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\ClientFX\HighFPSFixes\HighFPSFixes.cpp">
-      <Filter>ClientFX\HighFPSFixes</Filter>
+    <ClInclude Include="..\src\ClientFX\Fixes\HighFPSFixes.cpp">
+      <Filter>ClientFX\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Controller\Controller.cpp">
       <Filter>Controller</Filter>
@@ -134,71 +134,71 @@
     <ClInclude Include="..\src\Core\DInputProxy.hpp">
       <Filter>Core</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\AutoResolution\AutoResolution.cpp">
-      <Filter>Engine\AutoResolution</Filter>
+    <ClInclude Include="..\src\Engine\Console\ConsoleEnabled.cpp">
+      <Filter>Engine\Console</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\ClientHook\ClientHook.cpp">
-      <Filter>Engine\ClientHook</Filter>
+    <ClInclude Include="..\src\Engine\Display\AutoResolution.cpp">
+      <Filter>Engine\Display</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\ConsoleEnabled\ConsoleEnabled.cpp">
-      <Filter>Engine\ConsoleEnabled</Filter>
+    <ClInclude Include="..\src\Engine\Display\FixWindow.cpp">
+      <Filter>Engine\Display</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\ConsoleVariableHook\ConsoleVariableHook.cpp">
-      <Filter>Engine\ConsoleVariableHook</Filter>
+    <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp">
+      <Filter>Engine\Extra</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\DeviceCreationHook\DeviceCreationHook.cpp">
-      <Filter>Engine\DeviceCreationHook</Filter>
+    <ClInclude Include="..\src\Engine\Extra\SaveFolderRedirect.cpp">
+      <Filter>Engine\Extra</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\DisableJoystick\DisableJoystick.cpp">
-      <Filter>Engine\DisableJoystick</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\DisableJoystick.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\DisablePunkBuster\DisablePunkBuster.cpp">
-      <Filter>Engine\DisablePunkBuster</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FastVRAMDetection.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\DynamicVsync\DynamicVsync.cpp">
-      <Filter>Engine\DynamicVsync</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FixAspectRatioBlur.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FastVRAMDetection\FastVRAMDetection.cpp">
-      <Filter>Engine\FastVRAMDetection</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FixDirectInputFps.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixAspectRatioBlur\FixAspectRatioBlur.cpp">
-      <Filter>Engine\FixAspectRatioBlur</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FixKeyboardInputLanguage.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixDirectInputFps\FixDirectInputFps.cpp">
-      <Filter>Engine\FixDirectInputFps</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FixNvidiaShadowCorruption.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixKeyboardInputLanguage\FixKeyboardInputLanguage.cpp">
-      <Filter>Engine\FixKeyboardInputLanguage</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\FixScriptedAnimationCrash.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixNvidiaShadowCorruption\FixNvidiaShadowCorruption.cpp">
-      <Filter>Engine\FixNvidiaShadowCorruption</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\HighFPSFixes.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixScriptedAnimationCrash\FixScriptedAnimationCrash.cpp">
-      <Filter>Engine\FixScriptedAnimationCrash</Filter>
+    <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp">
+      <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\FixWindow\FixWindow.cpp">
-      <Filter>Engine\FixWindow</Filter>
+    <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp">
+      <Filter>Engine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\HighFPSFixes\HighFPSFixes.cpp">
-      <Filter>Engine\HighFPSFixes</Filter>
+    <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp">
+      <Filter>Engine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\MainLoop\MainLoop.cpp">
-      <Filter>Engine\MainLoop</Filter>
+    <ClInclude Include="..\src\Engine\Graphics\SSAAScale.cpp">
+      <Filter>Engine\Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\OptimizeSaveSpeed\OptimizeSaveSpeed.cpp">
-      <Filter>Engine\OptimizeSaveSpeed</Filter>
+    <ClInclude Include="..\src\Engine\Misc\ClientHook.cpp">
+      <Filter>Engine\Misc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\ReducedMipMapBias\ReducedMipMapBias.cpp">
-      <Filter>Engine\ReducedMipMapBias</Filter>
+    <ClInclude Include="..\src\Engine\Misc\ConsoleVariableHook.cpp">
+      <Filter>Engine\Misc</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\SaveFolderRedirect\SaveFolderRedirect.cpp">
-      <Filter>Engine\SaveFolderRedirect</Filter>
+    <ClInclude Include="..\src\Engine\Misc\DeviceCreationHook.cpp">
+      <Filter>Engine\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Engine\Misc\MainLoop.cpp">
+      <Filter>Engine\Misc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\SkipIntro\SkipIntro.cpp">
       <Filter>Engine\SkipIntro</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\Engine\SSAAScale\SSAAScale.cpp">
-      <Filter>Engine\SSAAScale</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Globals.cpp" />
     <ClInclude Include="..\src\helper.cpp" />
@@ -206,14 +206,14 @@
     <ClInclude Include="..\src\Server\Controller\Controller.cpp">
       <Filter>Server\Controller</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Server\EnableCustomMaxWeaponCapacity\EnableCustomMaxWeaponCapacity.cpp">
-      <Filter>Server\EnableCustomMaxWeaponCapacity</Filter>
+    <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp">
+      <Filter>Server\Extra</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Server\EnablePersistentWorldState\EnablePersistentWorldState.cpp">
-      <Filter>Server\EnablePersistentWorldState</Filter>
+    <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp">
+      <Filter>Server\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Server\HighFPSFixes\HighFPSFixes.cpp">
-      <Filter>Server\HighFPSFixes</Filter>
+    <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp">
+      <Filter>Server\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Server\Server.hpp">
       <Filter>Server</Filter>
@@ -256,113 +256,50 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{bad4a820-7419-477c-897a-3cc9982d5d7c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\AutoResolution">
-      <UniqueIdentifier>{7c69ecc3-03be-5b8a-80e5-6f8f8bf99c6d}</UniqueIdentifier>
+    <Filter Include="Client\Console">
+      <UniqueIdentifier>{7a2cccb9-e3a7-4d03-8703-fac9b0c80991}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\ConsoleEnabled">
-      <UniqueIdentifier>{64b64b4c-d059-5076-b946-cbaccaf29d85}</UniqueIdentifier>
+    <Filter Include="Client\Controller">
+      <UniqueIdentifier>{11774ad3-c8d0-43ab-bcbf-4f42b38d3b34}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\DisableHipFireAccuracyPenalty">
-      <UniqueIdentifier>{79cd4ee9-bb52-581c-b984-c4f1db1e0297}</UniqueIdentifier>
+    <Filter Include="Client\Display">
+      <UniqueIdentifier>{bd604021-115a-4afb-9290-7ab56d01ae0b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\EnableCustomMaxWeaponCapacity">
-      <UniqueIdentifier>{53387beb-8646-50bb-8fc2-1114c173b7ce}</UniqueIdentifier>
+    <Filter Include="Client\Extra">
+      <UniqueIdentifier>{6b09b765-8edd-4702-9377-e01195753292}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\EnablePersistentWorldState">
-      <UniqueIdentifier>{30778ca1-6c4f-527f-9a60-e79f4709a40b}</UniqueIdentifier>
+    <Filter Include="Client\Fixes">
+      <UniqueIdentifier>{70a04715-6f8b-4264-bd70-62cb6ae42a07}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Client\FixKeyboardInputLanguage">
-      <UniqueIdentifier>{d4680c92-d8f5-5751-905b-d69b2a68d125}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\HighFPSFixes">
-      <UniqueIdentifier>{ba4e3d32-f339-5e12-b0aa-16af338ca4a9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\HighResolutionReflections">
-      <UniqueIdentifier>{00629200-7191-567d-9767-e5cbf43c81a0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\HUDScaling">
-      <UniqueIdentifier>{e6a81e8f-8a75-596f-9130-5b975233293d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\SDLGamepadSupport">
-      <UniqueIdentifier>{fc79071e-e528-52f3-9f55-2808c22c3af2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\SSAAScale">
-      <UniqueIdentifier>{2abc5ee9-2b31-523c-bfdd-704540678675}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Client\WeaponFixes">
-      <UniqueIdentifier>{54589556-a5fd-5b20-b482-85afdd8e2b61}</UniqueIdentifier>
+    <Filter Include="Client\Graphics">
+      <UniqueIdentifier>{4d3ddf4b-826b-4980-94e8-dcff6ece179a}</UniqueIdentifier>
     </Filter>
     <Filter Include="ClientFX\Controller">
       <UniqueIdentifier>{70820c1b-0ffb-50eb-a4e2-4835dbbb72bb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ClientFX\HighFPSFixes">
-      <UniqueIdentifier>{a8a3512f-f759-5031-9a42-87a9cdb3734a}</UniqueIdentifier>
+    <Filter Include="ClientFX\Fixes">
+      <UniqueIdentifier>{738ae228-4f51-4f75-89cc-2eaa5522afeb}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\AutoResolution">
-      <UniqueIdentifier>{0cc4d36e-d95e-5a68-9afe-a6cea6240698}</UniqueIdentifier>
+    <Filter Include="Engine\Console">
+      <UniqueIdentifier>{fa92c1d1-ad83-424d-9b14-589ac5cf80e0}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\ClientHook">
-      <UniqueIdentifier>{77977feb-0bcb-5ff4-939c-bf38f822edba}</UniqueIdentifier>
+    <Filter Include="Engine\Display">
+      <UniqueIdentifier>{f3daf543-4bc5-4c81-a9f3-3a6fa189ae49}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\ConsoleEnabled">
-      <UniqueIdentifier>{f4f859cc-6b94-5ea5-af6e-97c80bcd744f}</UniqueIdentifier>
+    <Filter Include="Engine\Extra">
+      <UniqueIdentifier>{30cbe4d0-57ea-4aa2-ac96-3dab76efcd18}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\ConsoleVariableHook">
-      <UniqueIdentifier>{eb248351-ee4b-5df5-abc5-40c947eb596f}</UniqueIdentifier>
+    <Filter Include="Engine\Fixes">
+      <UniqueIdentifier>{4efa341f-bf23-46de-9903-2ba98aaafcbe}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\DeviceCreationHook">
-      <UniqueIdentifier>{4a24d624-33a0-5451-9d85-ed1c81b38902}</UniqueIdentifier>
+    <Filter Include="Engine\Graphics">
+      <UniqueIdentifier>{b94236f2-1b12-4173-9ff2-a8df4c55c904}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Engine\DisableJoystick">
-      <UniqueIdentifier>{3fa015f3-8e3e-5d7d-8923-8dd180d3b59b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\DisablePunkBuster">
-      <UniqueIdentifier>{6a077cff-00ef-5053-aec0-b113c8d39386}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\DynamicVsync">
-      <UniqueIdentifier>{a8e1bd6e-c1b4-5fed-8733-c4dadf1d4d17}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FastVRAMDetection">
-      <UniqueIdentifier>{dbad7f26-2332-5a7a-a764-e5cb556cd7b8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixAspectRatioBlur">
-      <UniqueIdentifier>{e1f50aee-c7bd-5ba9-91e3-f6164cb758e3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixDirectInputFps">
-      <UniqueIdentifier>{7442b497-4f0c-5abc-a0f6-f675b6db1b2d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixKeyboardInputLanguage">
-      <UniqueIdentifier>{4b5530d7-ad19-5a73-87a0-b0b82ac8d49e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixNvidiaShadowCorruption">
-      <UniqueIdentifier>{076e4b65-aef3-5f43-9794-9474d3512783}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixScriptedAnimationCrash">
-      <UniqueIdentifier>{87d35d5f-ce31-526c-96c9-e5a6a6fecd54}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\FixWindow">
-      <UniqueIdentifier>{9487d76d-4349-585d-aa80-c9aca696eed6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\HighFPSFixes">
-      <UniqueIdentifier>{fd8c97f7-b122-5ff2-9715-0e9308ccf5ad}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\MainLoop">
-      <UniqueIdentifier>{c6476134-de00-5785-b2eb-9d50384165e9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\OptimizeSaveSpeed">
-      <UniqueIdentifier>{f22459a3-7e0c-5a20-a573-163ba084429f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\ReducedMipMapBias">
-      <UniqueIdentifier>{2fa030ab-ea03-5782-b648-f792d0dddb33}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\SaveFolderRedirect">
-      <UniqueIdentifier>{2fb9d988-c7d9-50c1-8601-aadb0454ba48}</UniqueIdentifier>
+    <Filter Include="Engine\Misc">
+      <UniqueIdentifier>{26837668-c4a9-4529-9967-81e3f08daf9d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Engine\SkipIntro">
       <UniqueIdentifier>{a118108b-94f7-5472-b4cb-cf95c5f79f16}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Engine\SSAAScale">
-      <UniqueIdentifier>{3e044fb1-d087-5434-b33b-3d0018b0e7d4}</UniqueIdentifier>
     </Filter>
     <Filter Include="include\imgui">
       <UniqueIdentifier>{ed403466-fe95-4ed9-9a05-bba46fc5373e}</UniqueIdentifier>
@@ -370,14 +307,14 @@
     <Filter Include="Server\Controller">
       <UniqueIdentifier>{e5ca543c-be68-5cbc-8b8c-2ec70f36db96}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Server\EnableCustomMaxWeaponCapacity">
-      <UniqueIdentifier>{c0ff64ff-8bcb-5f26-bc49-c8baf1d11b55}</UniqueIdentifier>
+    <Filter Include="Server\Extra">
+      <UniqueIdentifier>{90c9439a-09e1-479a-a532-e677bb7cb884}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Server\EnablePersistentWorldState">
-      <UniqueIdentifier>{61c8a52b-6b4b-5677-bc08-91ea479ae362}</UniqueIdentifier>
+    <Filter Include="Server\Fixes">
+      <UniqueIdentifier>{c6f12dc0-5b8f-4ac1-b591-2c01913d2434}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Server\HighFPSFixes">
-      <UniqueIdentifier>{acb2d05e-0738-5364-a685-0ae5297dec2b}</UniqueIdentifier>
+    <Filter Include="Server\Graphics">
+      <UniqueIdentifier>{0787dd71-0880-45f5-a229-79554ff1db64}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
