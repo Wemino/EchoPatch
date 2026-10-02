@@ -4,6 +4,7 @@
 #include "../../Addresses.cpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <memory>
 #include <emmintrin.h>
@@ -68,6 +69,14 @@ static constexpr float LIMB_RADIUS = 0.25f;
 static constexpr int SUBSTEP_BODY_BUDGET = 256;
 static constexpr int MAX_SUBSTEPPED_TICKS_PER_FRAME = 2;
 
+static constexpr float MIN_TICK_TIME = 0.004f;
+static constexpr double TIME_SCALE_WINDOW = 0.15;
+static constexpr int TIME_SCALE_SAMPLES = 256;
+static constexpr double MAX_TIME_SCALE_SAMPLE = 0.1;
+static constexpr float TIME_SCALE_SNAP = 0.03f;
+
+static constexpr double TICK_EARLINESS = 0.0015;
+
 // =========================
 // Static State
 // =========================
@@ -91,6 +100,12 @@ struct BodyPose
     HkVector4 transform[4];
 };
 
+struct TimeScaleSample
+{
+    float scaledTime;
+    float realTime;
+};
+
 struct PhysicsWorld
 {
     uintptr_t sim = 0;
@@ -98,6 +113,13 @@ struct PhysicsWorld
     double accumulator = 0.0;
     float alpha = 0.0f;
     float frameTime = 0.0f;
+    float tickTime = TARGET_FRAME_TIME;
+    int64_t lastCounter = 0;
+    TimeScaleSample timeScaleSamples[TIME_SCALE_SAMPLES] = {};
+    int firstTimeScaleSample = 0;
+    int timeScaleSampleCount = 0;
+    double scaledTimeSum = 0.0;
+    double realTimeSum = 0.0;
     uint32_t tick = 0;
     uint32_t frame = 0;
     int ticksThisFrame = 0;
@@ -309,6 +331,7 @@ private:
 };
 
 static PhysicsWorld s_physicsWorlds[4];
+static double s_counterFrequency = 0.0;
 static EntityMap<SimulatedBody> s_simulatedBodies;
 static EntityMap<KeyframeRequest> s_keyframeRequests;
 static std::vector<uintptr_t> s_keyframedEntities;
@@ -999,7 +1022,7 @@ static int ChooseSubsteps(const PhysicsWorld& physicsWorld)
     });
 
     int substeps = 1;
-    while (substeps < MAX_SUBSTEPS && fastest * TARGET_FRAME_TIME > SUBSTEP_TRAVEL * substeps) substeps *= 2;
+    while (substeps < MAX_SUBSTEPS && fastest * physicsWorld.tickTime > SUBSTEP_TRAVEL * substeps) substeps *= 2;
 
     // Too costly with many bodies awake, as after loading a level, and a frame catching up on ticks would only get slower
     while (substeps > 1 && (bodies * substeps > SUBSTEP_BODY_BUDGET || physicsWorld.ticksThisFrame > MAX_SUBSTEPPED_TICKS_PER_FRAME)) substeps /= 2;
@@ -1018,7 +1041,7 @@ static int StepWorld(const PhysicsWorld& physicsWorld)
 
     if (substeps == 1)
     {
-        return hkWorldStepDeltaTime(world, TARGET_FRAME_TIME);
+        return hkWorldStepDeltaTime(world, physicsWorld.tickTime);
     }
 
     int& solverSteps = *reinterpret_cast<int*>(world + OFF_WORLD_SOLVER_STEPS);
@@ -1037,7 +1060,7 @@ static int StepWorld(const PhysicsWorld& physicsWorld)
 
     for (int i = 0; i < substeps; i++)
     {
-        result = hkWorldStepDeltaTime(world, TARGET_FRAME_TIME / substeps);
+        result = hkWorldStepDeltaTime(world, physicsWorld.tickTime / substeps);
     }
 
     solverSteps = savedSolverSteps;
@@ -1045,6 +1068,59 @@ static int StepWorld(const PhysicsWorld& physicsWorld)
     queryInvSolverSteps = savedQueryInvSolverSteps;
 
     return result;
+}
+
+// =========================
+// Time Scale
+// =========================
+
+static void UpdateTickTime(PhysicsWorld& physicsWorld, float frameTime)
+{
+    if (s_counterFrequency <= 0.0) return;
+
+    LARGE_INTEGER counter;
+    QueryPerformanceCounter(&counter);
+
+    if (physicsWorld.lastCounter == 0)
+    {
+        physicsWorld.lastCounter = counter.QuadPart;
+        return;
+    }
+
+    if (!(frameTime > 0.0f)) return;
+
+    double realTime = static_cast<double>(counter.QuadPart - physicsWorld.lastCounter) / s_counterFrequency;
+    physicsWorld.lastCounter = counter.QuadPart;
+
+    if (!(realTime > 0.0) || realTime > MAX_TIME_SCALE_SAMPLE) return;
+
+    auto dropOldest = [&physicsWorld]()
+    {
+        const TimeScaleSample& oldest = physicsWorld.timeScaleSamples[physicsWorld.firstTimeScaleSample];
+        physicsWorld.scaledTimeSum -= oldest.scaledTime;
+        physicsWorld.realTimeSum -= oldest.realTime;
+        physicsWorld.firstTimeScaleSample = (physicsWorld.firstTimeScaleSample + 1) % TIME_SCALE_SAMPLES;
+        physicsWorld.timeScaleSampleCount--;
+    };
+
+    if (physicsWorld.timeScaleSampleCount == TIME_SCALE_SAMPLES) dropOldest();
+
+    int last = (physicsWorld.firstTimeScaleSample + physicsWorld.timeScaleSampleCount) % TIME_SCALE_SAMPLES;
+    physicsWorld.timeScaleSamples[last] = { frameTime, static_cast<float>(realTime) };
+    physicsWorld.timeScaleSampleCount++;
+    physicsWorld.scaledTimeSum += frameTime;
+    physicsWorld.realTimeSum += static_cast<float>(realTime);
+
+    while (physicsWorld.timeScaleSampleCount > 1 && physicsWorld.realTimeSum - physicsWorld.timeScaleSamples[physicsWorld.firstTimeScaleSample].realTime >= TIME_SCALE_WINDOW)
+    {
+        dropOldest();
+    }
+
+    float timeScale = static_cast<float>(physicsWorld.scaledTimeSum / physicsWorld.realTimeSum);
+
+    if (fabsf(timeScale - 1.0f) < TIME_SCALE_SNAP) timeScale = 1.0f;
+
+    physicsWorld.tickTime = std::clamp(TARGET_FRAME_TIME * timeScale, MIN_TICK_TIME, TARGET_FRAME_TIME);
 }
 
 // =========================
@@ -1063,6 +1139,7 @@ static void __fastcall PhysicsSimUpdate_Hook(uintptr_t sim, int, float frameTime
     }
 
     RestoreBodies(*physicsWorld);
+    UpdateTickTime(*physicsWorld, frameTime);
 
     if (frameTime > 0.0f)
     {
@@ -1070,17 +1147,18 @@ static void __fastcall PhysicsSimUpdate_Hook(uintptr_t sim, int, float frameTime
         physicsWorld->accumulator += frameTime;
     }
 
-    int ticks = static_cast<int>(physicsWorld->accumulator / TARGET_FRAME_TIME);
+    double tickTime = physicsWorld->tickTime;
+    int ticks = static_cast<int>((physicsWorld->accumulator + TICK_EARLINESS) / tickTime);
 
     // Too far behind, the time that can't be caught up on is dropped
     if (ticks > MAX_TICKS_PER_FRAME)
     {
-        physicsWorld->accumulator -= (ticks - MAX_TICKS_PER_FRAME) * static_cast<double>(TARGET_FRAME_TIME);
+        physicsWorld->accumulator -= (ticks - MAX_TICKS_PER_FRAME) * tickTime;
         ticks = MAX_TICKS_PER_FRAME;
     }
 
-    physicsWorld->accumulator -= ticks * static_cast<double>(TARGET_FRAME_TIME);
-    physicsWorld->alpha = std::clamp(static_cast<float>(physicsWorld->accumulator / TARGET_FRAME_TIME), 0.0f, 1.0f);
+    physicsWorld->accumulator -= ticks * tickTime;
+    physicsWorld->alpha = std::clamp(static_cast<float>(physicsWorld->accumulator / tickTime), 0.0f, 1.0f);
 
     if (ticks == 0)
     {
@@ -1092,7 +1170,7 @@ static void __fastcall PhysicsSimUpdate_Hook(uintptr_t sim, int, float frameTime
         physicsWorld->ticksThisFrame = ticks;
         physicsWorld->tickIndex = 0;
         physicsWorld->isUpdating = true;
-        PhysicsSimUpdate(sim, TARGET_FRAME_TIME * ticks, TARGET_FRAME_TIME, ticks);
+        PhysicsSimUpdate(sim, physicsWorld->tickTime * ticks, physicsWorld->tickTime, ticks);
         physicsWorld->isUpdating = false;
 
         // It stepped differently than asked, show what was simulated
@@ -1136,7 +1214,7 @@ static int __fastcall hkWorldStepDeltaTime_Hook(uintptr_t world, int, float delt
     bool isLastTick = remainingTicks == 1;
 
     // The game keyframed once for the whole frame, its ticks share the way to the target
-    ApplyKeyframeRequests(*physicsWorld, 1.0f / (TARGET_FRAME_TIME * remainingTicks));
+    ApplyKeyframeRequests(*physicsWorld, 1.0f / (physicsWorld->tickTime * remainingTicks));
 
     physicsWorld->tick++;
     if (isLastTick) CapturePreviousPoses(*physicsWorld);
@@ -1254,12 +1332,13 @@ static void __fastcall RigidBodySetKeyframed_Hook(uintptr_t rigidBody, int, bool
     }
 }
 
+// A force applies until the next tick, which can be several frames away
 static float GetForceScale(uintptr_t rigidBody)
 {
     PhysicsWorld* physicsWorld = FindEntityPhysicsWorld(GetEntity(rigidBody));
     if (!physicsWorld || physicsWorld->isStepping || !(physicsWorld->frameTime > 0.0f)) return 1.0f;
 
-    return std::min(physicsWorld->frameTime / TARGET_FRAME_TIME, static_cast<float>(MAX_TICKS_PER_FRAME));
+    return std::min(physicsWorld->frameTime / physicsWorld->tickTime, static_cast<float>(MAX_TICKS_PER_FRAME));
 }
 
 static int __fastcall RigidBodyApplyForce_Hook(uintptr_t rigidBody, int, const float* force, const float* point)
@@ -1281,6 +1360,9 @@ static int __fastcall RigidBodyApplyTorque_Hook(uintptr_t rigidBody, int, const 
 static void ApplyHavokPhysicsFix()
 {
     if (!HavokPhysicsFix) return;
+
+    LARGE_INTEGER frequency;
+    if (QueryPerformanceFrequency(&frequency)) s_counterFrequency = static_cast<double>(frequency.QuadPart);
 
     RigidBodyMarkTransformDirty = reinterpret_cast<decltype(RigidBodyMarkTransformDirty)>(GetAddress(Addr::RigidBodyMarkTransformDirty));
     ObjectMarkAttachmentsDirty = reinterpret_cast<decltype(ObjectMarkAttachmentsDirty)>(GetAddress(Addr::ObjectMarkAttachmentsDirty));
