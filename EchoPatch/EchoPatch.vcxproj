@@ -189,6 +189,18 @@
     <ClInclude Include="..\src\Server\Server.hpp" />
     <ClInclude Include="..\src\Server\ServerPatch.cpp" />
     <ClInclude Include="..\src\Shaders\blur_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\depthoffield_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\feedback_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\feedbackblur_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\mirror_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\neon_outside_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\refract_additive_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\refract_blur_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\refract_dx9_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\refract_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\refract_thick_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\screeneffect_bleach_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\screeneffect_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -227,6 +227,42 @@
     <ClInclude Include="..\src\Shaders\blur_fxo.hpp">
       <Filter>Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Shaders\depthoffield_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\feedback_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\feedbackblur_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\mirror_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\neon_outside_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\refract_additive_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\refract_blur_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\refract_dx9_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\refract_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\refract_thick_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\screeneffect_bleach_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\screeneffect_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp">
       <Filter>Shaders</Filter>
     </ClInclude>
