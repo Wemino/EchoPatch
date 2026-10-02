@@ -76,7 +76,7 @@ Replaces the slow legacy DxDiag VRAM scan with instant DXGI detection, speeding 
 
 ## Nvidia Rendering Fix
 Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs.  
-This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers, with a small performance trade-off for correct shadow rendering.
+This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers. The engine draws its world geometry with vertex indices too large for these drivers, the fix moves that offset to where they handle it.
 
 > **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
 

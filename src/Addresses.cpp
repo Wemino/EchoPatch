@@ -33,8 +33,9 @@ enum class Addr
 	FileClose,
 
 	// FixNvidiaShadowCorruption
-	LoadWorldShadows,
-	VertexBufferPool,
+	DrawMeshBatch,
+	RendererDevice,
+	DisablePrimitiveRendering,
 
 	// FixAspectRatioBlur
 	GetShaderFile,
@@ -154,8 +155,9 @@ namespace
 		/* FileClose                        */ {  0x1C7A0,  0x1C8C0,  0x29850,  0x29A30 },
 
 		// FixNvidiaShadowCorruption
-		/* LoadWorldShadows                 */ {  0xF7AC0,  0xF7BE0, 0x18D930, 0x18EF30 },
-		/* VertexBufferPool                 */ { 0x112234, 0x112354, 0x1B5A24, 0x1B6F94 },
+		/* DrawMeshBatch                    */ { 0x1123C0, 0x1124E0, 0x1B5BB0, 0x1B7120 },
+		/* RendererDevice                   */ { 0x176FF0, 0x176FF0, 0x21BFD0, 0x21E010 },
+		/* DisablePrimitiveRendering        */ { 0x16D964, 0x16D964, 0x212F34, 0x214F44 },
 
 		// FixAspectRatioBlur
 		/* GetShaderFile                    */ { 0x111700, 0x111820, 0x1B4770, 0x1B5DF0 },

@@ -36,14 +36,6 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
         }
     }
 
-    if (FixNvidiaShadowCorruption)
-    {
-        DWORD VendorId = a2[267];
-
-        // NVIDIA device?
-        g_State.isUsingNvidiaDevice = (VendorId == 0x10DE);
-    }
-
     bool result = CreateAndInitializeDevice(thisp, a2, a3, a4, a5);
 
     if (result)
@@ -81,7 +73,7 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
 
 static void ApplyDeviceCreationHook()
 {
-    if (!FixNvidiaShadowCorruption && !ReducedMipMapBias && !FastVRAMDetection) return;
+    if (!ReducedMipMapBias && !FastVRAMDetection) return;
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateAndInitializeDevice), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, g_State.CurrentFEARGame == FEAR);
 }
