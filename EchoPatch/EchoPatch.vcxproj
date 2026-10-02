@@ -168,6 +168,7 @@
     <ClInclude Include="..\src\Engine\Fixes\FixKeyboardInputLanguage.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixNvidiaShadowCorruption.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixScriptedAnimationCrash.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp" />

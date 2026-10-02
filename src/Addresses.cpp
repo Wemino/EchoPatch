@@ -10,12 +10,19 @@ enum class Addr
 
 	// HighFPSFixes
 	SetVelocity,
-	ProcessBreakableConstraint,
-	ProcessBallSocketConstraint,
-	ProcessLimitedHingeConstraint,
-	BuildJacobianRow,
-	ProcessTwistLimitConstraint,
-	ProcessConeLimitConstraint,
+
+	// HavokPhysicsFix
+	PhysicsSimUpdate,
+	PhysicsSimTerm,
+	hkWorldStepDeltaTime,
+	RigidBodyKeyframe,
+	RigidBodySoftKeyframe,
+	RigidBodyTerm,
+	RigidBodySetKeyframed,
+	RigidBodyApplyForce,
+	RigidBodyApplyTorque,
+	RigidBodyMarkTransformDirty,
+	ObjectMarkAttachmentsDirty,
 
 	// OptimizeSaveSpeed
 	FileWrite,
@@ -124,12 +131,19 @@ namespace
 
 		// HighFPSFixes
 		/* SetVelocity                      */ {   0x7D70,   0x7D70,   0xDDC0,   0xDDF0 },
-		/* ProcessBreakableConstraint       */ {  0x4A050,  0x4A170,  0x66D80,  0x679F0 },
-		/* ProcessBallSocketConstraint      */ {  0x98390,  0x984B0,  0xDC4B0,  0xDD520 },
-		/* ProcessLimitedHingeConstraint    */ {  0x99050,  0x99170,  0xDD4C0,  0xDE530 },
-		/* BuildJacobianRow                 */ {  0xA8D30,  0xA8E50,  0xFF710, 0x100780 },
-		/* ProcessTwistLimitConstraint      */ {  0xA9940,  0xA9A60, 0x100320, 0x101390 },
-		/* ProcessConeLimitConstraint       */ {  0xA9F00,  0xAA020, 0x1008E0, 0x101950 },
+
+		// HavokPhysicsFix
+		/* PhysicsSimUpdate                 */ {  0x4D100,  0x4D220,  0x6B330,  0x6BFA0 },
+		/* PhysicsSimTerm                   */ {  0x4D2D0,  0x4D3F0,  0x6B600,  0x6C270 },
+		/* hkWorldStepDeltaTime             */ {  0x96F40,  0x97060,  0xDA710,  0xDB780 },
+		/* RigidBodyKeyframe                */ {  0x4B230,  0x4B350,  0x68ED0,  0x69B40 },
+		/* RigidBodySoftKeyframe            */ {  0x3ACE0,  0x3AE00,  0x526A0,  0x53340 },
+		/* RigidBodyTerm                    */ {  0x4ABA0,  0x4ACC0,  0x68840,  0x694B0 },
+		/* RigidBodySetKeyframed            */ {  0x4BF10,  0x4C030,  0x69DB0,  0x6AA20 },
+		/* RigidBodyApplyForce              */ {  0x4B760,  0x4B880,  0x69560,  0x6A1D0 },
+		/* RigidBodyApplyTorque             */ {  0x4B980,  0x4BAA0,  0x69780,  0x6A3F0 },
+		/* RigidBodyMarkTransformDirty      */ {  0x4B200,  0x4B320,  0x68EA0,  0x69B10 },
+		/* ObjectMarkAttachmentsDirty       */ {  0x29220,  0x29340,  0x3B240,  0x3B420 },
 
 		// OptimizeSaveSpeed
 		/* FileWrite                        */ {  0x1C670,  0x1C790,  0x29720,  0x29900 },

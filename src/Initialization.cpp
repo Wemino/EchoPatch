@@ -15,6 +15,7 @@ static void ReadConfig()
     // Fixes
     DisableRedundantHIDInit = IniHelper::ReadInteger("Fixes", "DisableRedundantHIDInit", 1) == 1;
     HighFPSFixes = IniHelper::ReadInteger("Fixes", "HighFPSFixes", 1) == 1;
+    HavokPhysicsFix = IniHelper::ReadInteger("Fixes", "HavokPhysicsFix", 1) == 1;
     OptimizeSaveSpeed = IniHelper::ReadInteger("Fixes", "OptimizeSaveSpeed", 1) == 1;
     FixNvidiaShadowCorruption = IniHelper::ReadInteger("Fixes", "FixNvidiaShadowCorruption", 1) == 1;
     FixAspectRatioBlur = IniHelper::ReadInteger("Fixes", "FixAspectRatioBlur", 1) == 1;
@@ -326,6 +327,7 @@ static void Init()
     // Fixes
     ApplyFixDirectInputFps();
     ApplyFixHighFPSPhysics();
+    ApplyHavokPhysicsFix();
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();
     ApplyFixAspectRatioBlur();

@@ -170,6 +170,9 @@
     <ClInclude Include="..\src\Engine\Fixes\FixScriptedAnimationCrash.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp">
+      <Filter>Engine\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\HighFPSFixes.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>

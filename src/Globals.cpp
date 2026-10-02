@@ -212,7 +212,6 @@ struct GlobalState
 	bool inFriction = false;
 	bool previousJumpState = false;
 	bool useVelocitySmoothing = false;
-	bool isProcessingRagdoll = false;
 	bool pendingVelocityFix = false;
 	float lastPositiveYVelocity = 0.0f;
 
@@ -305,6 +304,7 @@ GlobalState g_State;
 // Fixes
 bool DisableRedundantHIDInit = false;
 bool HighFPSFixes = false;
+bool HavokPhysicsFix = false;
 bool OptimizeSaveSpeed = false;
 bool FixNvidiaShadowCorruption = false;
 bool FixAspectRatioBlur = false;
