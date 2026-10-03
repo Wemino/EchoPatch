@@ -78,8 +78,6 @@ Replaces the slow legacy DxDiag VRAM scan with instant DXGI detection, speeding 
 Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs.  
 This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers. The engine draws its world geometry with vertex indices too large for these drivers, the fix moves that offset to where they handle it.
 
-> **Note**: Can be disabled by setting `FixNvidiaShadowCorruption = 0` in `EchoPatch.ini` if wanted.
-
 ## Framerate Limiter
 Prevents the game from running too fast by capping the maximum framerate.  
 - **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `300` is recommended, as minor glitches may occur at uncapped framerates.  
