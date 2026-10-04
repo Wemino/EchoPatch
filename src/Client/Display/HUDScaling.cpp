@@ -6,6 +6,11 @@
 #include "../../ClientFX/ClientFX.hpp"
 #include "../../Server/Server.hpp"
 
+static bool crosshairSliderUpdated = false;
+static int int32ToUpdate = 0;
+static float floatToUpdate = 0.0f;
+static bool updateLayoutReturnValue = false;
+
 // ======================
 // HUDScaling
 // ======================
@@ -121,8 +126,8 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 					case 1: scaledSize = std::round(scaledSize * 0.95f); break;
 					case 2: scaledSize = dt.TextSize * g_State.scalingFactorText; break;
 				}
-				g_State.int32ToUpdate = static_cast<int32_t>(scaledSize);
-				g_State.updateLayoutReturnValue = true;
+				int32ToUpdate = static_cast<int32_t>(scaledSize);
+				updateLayoutReturnValue = true;
 			}
 		}
 		else if (Attribute[9] == 'l')
@@ -143,8 +148,8 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 
 				if (baseValue != 0.0f)
 				{
-					g_State.updateLayoutReturnValue = true;
-					g_State.floatToUpdate = baseValue * g_State.scalingFactor;
+					updateLayoutReturnValue = true;
+					floatToUpdate = baseValue * g_State.scalingFactor;
 				}
 			}
 			// AdditionalInt handling (HUDHealth medkit prompt)
@@ -152,8 +157,8 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 			{
 				if (g_State.healthAdditionalIntIndex == 2)
 				{
-					g_State.updateLayoutReturnValue = true;
-					g_State.int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
+					updateLayoutReturnValue = true;
+					int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
 				}
 				else
 				{
@@ -169,10 +174,10 @@ static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
 // Executed right after 'DBGetRecord'
 static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
 {
-	if (g_State.updateLayoutReturnValue)
+	if (updateLayoutReturnValue)
 	{
-		g_State.updateLayoutReturnValue = false;
-		return g_State.int32ToUpdate;
+		updateLayoutReturnValue = false;
+		return int32ToUpdate;
 	}
 
 	return DBGetInt32(a1, a2, a3);
@@ -181,10 +186,10 @@ static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
 // Executed right after 'DBGetRecord'
 static float __stdcall DBGetFloat_Hook(int a1, unsigned int a2, float a3)
 {
-	if (g_State.updateLayoutReturnValue)
+	if (updateLayoutReturnValue)
 	{
-		g_State.updateLayoutReturnValue = false;
-		return g_State.floatToUpdate;
+		updateLayoutReturnValue = false;
+		return floatToUpdate;
 	}
 
 	return DBGetFloat(a1, a2, a3);
@@ -205,15 +210,15 @@ static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 	{
 		if (nameHash == HashHelper::StringHashes::IDS_HELP_PICKUP_MSG_DUR)
 		{
-			g_State.crosshairSliderUpdated = false;
+			crosshairSliderUpdated = false;
 		}
 
-		if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !g_State.crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
+		if (nameHash == HashHelper::StringHashes::ScreenCrosshair_Size_Help && !crosshairSliderUpdated && g_State.scalingFactorCrosshair > 1.0f)
 		{
 			float unscaledIndex = nPos / g_State.scalingFactorCrosshair;
 			int newIndex = static_cast<int>((unscaledIndex / 2.0f) + 0.5f) * 2;
 			nPos = std::clamp(newIndex, 4, 16);
-			g_State.crosshairSliderUpdated = true;
+			crosshairSliderUpdated = true;
 		}
 	}
 

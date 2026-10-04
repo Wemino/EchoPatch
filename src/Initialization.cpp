@@ -5,6 +5,8 @@
 #include "CrashHandler.hpp"
 #include "Controller/Controller.hpp"
 
+static bool isInit = false;
+
 // WinAPI function pointers
 HWND(WINAPI* ori_CreateWindowExA)(DWORD, LPCSTR, LPCSTR, DWORD, int, int, int, int, HWND, HMENU, HINSTANCE, LPVOID);
 
@@ -358,12 +360,12 @@ static void Init()
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)
 {
     // Detect creation of F.E.A.R. window to initialize patches
-    if (!g_State.isInit && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && nWidth == 320 && nHeight == 200)
+    if (!isInit && lpWindowName && strstr(lpWindowName, "F.E.A.R.") && nWidth == 320 && nHeight == 200)
     {
         // Disable this hook and initialize patches once the game's code has been decrypted in memory (by SecuROM or SteamDRM)
         MH_DisableHook(MH_ALL_HOOKS);
         Init();
-        g_State.isInit = true;
+        isInit = true;
 
         if (FixWindowStyle)
         {

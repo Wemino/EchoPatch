@@ -3,6 +3,9 @@
 #include "../../Globals.cpp"
 #include "../../Addresses.cpp"
 
+static void* hookedSetTextureAddr = nullptr;
+static IDirect3DDevice9* hookedDevice = nullptr;
+
 bool(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
 
 static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
@@ -54,17 +57,17 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
         if (ReducedMipMapBias)
         {
             void* newSetTextureAddr = vtable[65];
-            if (g_State.hookedSetTextureAddr)
+            if (hookedSetTextureAddr)
             {
-                MH_RemoveHook(g_State.hookedSetTextureAddr);
+                MH_RemoveHook(hookedSetTextureAddr);
                 D3D9_SetTexture = nullptr;
             }
 
             g_State.sharpTextures.clear();
             std::fill(std::begin(g_State.stageIsDirty), std::end(g_State.stageIsDirty), false);
             HookHelper::ApplyHook(newSetTextureAddr, &SetTexture_Hook, (LPVOID*)&D3D9_SetTexture);
-            g_State.hookedSetTextureAddr = newSetTextureAddr;
-            g_State.hookedDevice = device;
+            hookedSetTextureAddr = newSetTextureAddr;
+            hookedDevice = device;
         }
     }
 

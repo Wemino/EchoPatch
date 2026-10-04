@@ -6,6 +6,12 @@
 #include "../../ClientFX/ClientFX.hpp"
 #include "../../Server/Server.hpp"
 
+static int actionAnimationThreshold = 0;
+static int pUpperAnimationContext = 0;
+static bool fireAnimationInterceptionDisabled = false;
+static bool requestNextWeapon = false;
+static bool requestPreviousWeapon = false;
+
 // ======================
 // WeaponFixes
 // ======================
@@ -31,28 +37,28 @@ static void __fastcall UpdateWeaponModel_Hook(DWORD* thisPtr, int)
 static void __fastcall SetAnimProp_Hook(DWORD* thisPtr, int, int eAnimPropGroup, int eAnimProp)
 {
 	// Skip if not an action
-	if (g_State.fireAnimationInterceptionDisabled || eAnimPropGroup != 0)
+	if (fireAnimationInterceptionDisabled || eAnimPropGroup != 0)
 	{
 		SetAnimProp(thisPtr, eAnimPropGroup, eAnimProp);
 		return;
 	}
 
-	g_State.actionAnimationThreshold++;
+	actionAnimationThreshold++;
 
 	// For the first 10 action animations after loading a map
-	if (g_State.actionAnimationThreshold <= 10)
+	if (actionAnimationThreshold <= 10)
 	{
 		// Check if the fire animation is playing
-		if (eAnimProp == g_State.kAP_ACT_Fire_Id && g_State.pUpperAnimationContext != 0)
+		if (eAnimProp == g_State.kAP_ACT_Fire_Id && pUpperAnimationContext != 0)
 		{
 			// Unblock the player
-			AnimationClearLock(g_State.pUpperAnimationContext);
-			g_State.fireAnimationInterceptionDisabled = true;
+			AnimationClearLock(pUpperAnimationContext);
+			fireAnimationInterceptionDisabled = true;
 		}
 	}
 	else
 	{
-		g_State.fireAnimationInterceptionDisabled = true;
+		fireAnimationInterceptionDisabled = true;
 	}
 
 	SetAnimProp(thisPtr, eAnimPropGroup, eAnimProp);
@@ -60,31 +66,31 @@ static void __fastcall SetAnimProp_Hook(DWORD* thisPtr, int, int eAnimPropGroup,
 
 static bool __fastcall InitAnimations_Hook(DWORD* thisPtr, int)
 {
-	g_State.actionAnimationThreshold = 0;
-	g_State.fireAnimationInterceptionDisabled = false;
+	actionAnimationThreshold = 0;
+	fireAnimationInterceptionDisabled = false;
 	bool res = InitAnimations(thisPtr);
-	g_State.pUpperAnimationContext = thisPtr[2];
+	pUpperAnimationContext = thisPtr[2];
 	return res;
 }
 
 static void __fastcall NextWeapon_Hook(DWORD* thisPtr, int)
 {
-	g_State.requestNextWeapon = true;
+	requestNextWeapon = true;
 	NextWeapon(thisPtr);
-	g_State.requestNextWeapon = false;
+	requestNextWeapon = false;
 }
 
 static void __fastcall PreviousWeapon_Hook(DWORD* thisPtr, int)
 {
-	g_State.requestPreviousWeapon = true;
+	requestPreviousWeapon = true;
 	PreviousWeapon(thisPtr);
-	g_State.requestPreviousWeapon = false;
+	requestPreviousWeapon = false;
 }
 
 static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 {
 	// If we're not switching weapons, just call the original
-	if (!g_State.requestNextWeapon && !g_State.requestPreviousWeapon)
+	if (!requestNextWeapon && !requestPreviousWeapon)
 	{
 		return GetWeaponSlot(thisPtr, weaponHandle);
 	}
@@ -107,7 +113,7 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 	// Not holding a weapon?
 	if (currentSlot < 0)
 	{
-		if (g_State.requestNextWeapon)
+		if (requestNextWeapon)
 		{
 			// Position just before the first non-empty slot
 			for (int i = 0; i < slotCount; i++)
@@ -117,7 +123,7 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 			}
 		}
 
-		if (g_State.requestPreviousWeapon)
+		if (requestPreviousWeapon)
 		{
 			// Position just after the last non-empty slot
 			for (int i = slotCount - 1; i >= 0; i--)
@@ -132,7 +138,7 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 	}
 
 	// NextWeapon()
-	if (g_State.requestNextWeapon)
+	if (requestNextWeapon)
 	{
 		int nextIndex = currentSlot + 1;
 
@@ -172,7 +178,7 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 	}
 
 	// PreviousWeapon()
-	if (g_State.requestPreviousWeapon)
+	if (requestPreviousWeapon)
 	{
 		int prevIndex = currentSlot - 1;
 

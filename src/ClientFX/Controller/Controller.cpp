@@ -3,6 +3,9 @@
 #include "../../Globals.cpp"
 #include "../../Controller/Controller.hpp"
 
+static uint64_t lastShakeRumbleTime = 0;
+static uint16_t lastShakeRumbleIntensity = 0;
+
 bool(__thiscall* CCameraShakeFX_GetShakeIntensity)(int, float, float*, float*) = nullptr;
 
 // ===============
@@ -67,11 +70,11 @@ static bool __fastcall CCameraShakeFX_GetShakeIntensity_Hook(int thisPtr, int, f
     uint16_t maxIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
     uint64_t currentTime = GetTickCount64();
 
-    if (currentTime > g_State.lastShakeRumbleTime + 50 || maxIntensity > g_State.lastShakeRumbleIntensity + 500)
+    if (currentTime > lastShakeRumbleTime + 50 || maxIntensity > lastShakeRumbleIntensity + 500)
     {
         SetGamepadRumble(lowFreq, highFreq, duration, 4);
-        g_State.lastShakeRumbleTime = currentTime;
-        g_State.lastShakeRumbleIntensity = maxIntensity;
+        lastShakeRumbleTime = currentTime;
+        lastShakeRumbleIntensity = maxIntensity;
     }
 
     return result;

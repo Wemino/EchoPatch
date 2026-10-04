@@ -6,6 +6,8 @@
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
 
+static float overrideSensitivity = 0.25f;
+
 static void ApplyHighFPSFixesClientPatch()
 {
     if (!HighFPSFixes) return;
@@ -65,8 +67,8 @@ static void ApplyMouseAimMultiplierClientPatch()
     if (addr_MouseAimMultiplier != 0)
     {
         // Write the updated multiplier
-        g_State.overrideSensitivity = g_State.overrideSensitivity * MouseAimMultiplier;
-        MemoryHelper::WriteMemory<uint32_t>(addr_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&g_State.overrideSensitivity));
+        overrideSensitivity = overrideSensitivity * MouseAimMultiplier;
+        MemoryHelper::WriteMemory<uint32_t>(addr_MouseAimMultiplier + 0x11, reinterpret_cast<uintptr_t>(&overrideSensitivity));
     }
 }
 

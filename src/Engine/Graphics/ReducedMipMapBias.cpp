@@ -3,6 +3,8 @@
 #include "../../Globals.cpp"
 #include "../../Addresses.cpp"
 
+static bool isLoadingWorld = false;
+
 namespace TextureHelper
 {
 	inline bool StartsWithI(const char* path, const char* prefix)
@@ -194,9 +196,9 @@ int(__thiscall* LoadWorld)(BYTE*, int, int) = nullptr;
 
 static int __fastcall LoadWorld_Hook(BYTE* thisPtr, int, int a2, int a3)
 {
-    g_State.isLoadingWorld = true;
+    isLoadingWorld = true;
     int result = LoadWorld(thisPtr, a2, a3);
-    g_State.isLoadingWorld = false;
+    isLoadingWorld = false;
     return result;
 }
 
@@ -204,7 +206,7 @@ static int __stdcall CreateTextureWrapper_Hook(DWORD* a1, int a2, int a3)
 {
     int result = CreateTextureWrapper(a1, a2, a3);
 
-    if (g_State.isLoadingWorld && result && a3)
+    if (isLoadingWorld && result && a3)
     {
         const char* path = reinterpret_cast<const char*>(a3);
 

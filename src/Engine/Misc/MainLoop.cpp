@@ -5,6 +5,9 @@
 #include "ConsoleMgr.hpp"
 #include "../../Controller/Controller.hpp"
 
+static FpsLimiter fpsLimiter{ 300.0f };
+static bool isUsingFpsLimiter = false;
+
 int(__thiscall* MainGameLoop)(int) = nullptr;
 
 // ===============================================
@@ -13,9 +16,9 @@ int(__thiscall* MainGameLoop)(int) = nullptr;
 
 static int __fastcall MainGameLoop_Hook(int thisPtr, int)
 {
-    if (g_State.isUsingFpsLimiter)
+    if (isUsingFpsLimiter)
     {
-        g_State.fpsLimiter.Limit();
+        fpsLimiter.Limit();
     }
 
     if (SDLGamepadSupport)
@@ -42,10 +45,10 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
 
 static void HookMainLoop()
 {
-    g_State.isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!g_State.isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled) return;
+    isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
+    if (!isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled) return;
 
-    g_State.fpsLimiter.SetTargetFps(MaxFPS);
+    fpsLimiter.SetTargetFps(MaxFPS);
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::MainGameLoop), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop, g_State.CurrentFEARGame == FEAR);
 }

@@ -5,6 +5,8 @@
 #include "../../Client/Client.hpp"
 #include "../../Server/Server.hpp"
 
+static bool isClientLoaded = false;
+
 intptr_t(__cdecl* LoadGameDLL)(char*, char, DWORD*) = nullptr;
 
 // When the game is loading the Client or Server
@@ -20,10 +22,10 @@ static intptr_t __cdecl LoadGameDLL_Hook(char* FileName, char a2, DWORD* a3)
     HMODULE ApiDLL = GetModuleHandleW(wFileName);
     if (ApiDLL)
     {
-        if (!g_State.isClientLoaded) // First time is client
+        if (!isClientLoaded) // First time is client
         {
             g_State.GameClient = ApiDLL;
-            g_State.isClientLoaded = true;
+            isClientLoaded = true;
             ApplyClientPatch();
         }
         else // Otherwise server

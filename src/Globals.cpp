@@ -77,7 +77,6 @@ struct GlobalState
 	float scalingFactorCrosshair = 0.0f;
 	float crosshairSize = 0.0f;
 	bool updateHUD = false;
-	bool crosshairSliderUpdated = false;
 
 	// ======================
 	// HUD Elements
@@ -91,7 +90,6 @@ struct GlobalState
 	// Resolution Settings
 	// ======================
 	bool isInAutoDetect = false;
-	bool isSettingOption = false;
 
 	// ======================
 	// User Profile
@@ -100,32 +98,16 @@ struct GlobalState
 	bool isLoadingDefault = false;
 
 	// ======================
-	// Input Settings
-	// ======================
-	float overrideSensitivity = 0.25f;
-
-	// ======================
 	// Module Handles
 	// ======================
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 	HMODULE GameClientFX = NULL;
-	bool isInit = false;
-	bool isClientLoaded = false;
-
-	// ======================
-	// FPS Limiter
-	// ======================
-	FpsLimiter fpsLimiter{ 300.0f };
-	bool isUsingFpsLimiter = false;
 
 	// ======================
 	// HUD Update State
 	// ======================
 	int healthAdditionalIntIndex = 0;
-	int int32ToUpdate = 0;
-	float floatToUpdate = 0.0f;
-	bool updateLayoutReturnValue = false;
 	bool slowMoBarUpdated = false;
 
 	// ======================
@@ -140,34 +122,17 @@ struct GlobalState
 	// ======================
 	// Controller State
 	// ======================
-	ULONGLONG lastCursorStateChangeTime = 0;
-	ULONGLONG cursorActivityStartTime = 0;
-	double zoomMag = 0;
-	int cursorMovementAccum = 0;
 	int pUseCursor = 0;
 	int pCurrentType = 0;
 	int currentType = 0;
 	int maxCurrentType = 0;
 	int screenPerformanceCPU = 0;
 	int screenPerformanceGPU = 0;
-	int detonatorListHead = 0;
-	int turretPrevDamageState = 0;
-	uint16_t healthBefore = 0;
-	uint16_t healthAfter = 0;
-	uint16_t armorBefore = 0;
-	uint16_t armorAfter = 0;
-	uint64_t lastShakeRumbleTime = 0;
-	uint16_t lastShakeRumbleIntensity = 0;
 	bool canActivate = false;
 	bool canSwap = false;
 	bool isAllowedToUseCursor = false;
 	bool shouldLockCursorToCenter = false;
-	bool updateGyroCamera = false;
-	bool isAiming = false;
-	bool isDoingMeleeAttack = false;
 	bool isUsingRemoteDetonator = false;
-	bool isTakingDamage = false;
-	bool isFallDamage = false;
 	bool isOperatingTurret = false;
 	bool isBuildingCScreenJoystick = false;
 
@@ -182,97 +147,29 @@ struct GlobalState
 	// ======================
 	BYTE* pAimMgr = 0;
 	int kAP_ACT_Fire_Id = 0;
-	int actionAnimationThreshold = 0;
-	int pUpperAnimationContext = 0;
-	bool fireAnimationInterceptionDisabled = false;
-	bool requestNextWeapon = false;
-	bool requestPreviousWeapon = false;
 
 	// ======================
 	// Physics/Velocity
 	// ======================
 	double simulationFrameTime = 0.0;
 	double totalGameTime = 0.0;
-	double jumpElapsedTime = -1.0;
-	double velocityAccumulator = 0.0;
-	double velocityTimeAccumulator = 0.0;
-	double lastReportedVelocity = 0.0;
-	double prevWindowSpeed = 0.0;
-	float waveUpdateAccumulator = 0.0f;
-	float windowStartX = 0.0f;
-	float windowStartY = 0.0f;
-	float windowStartZ = 0.0f;
-	int impededWindowCount = 0;
-	float prevPosX = 0.0f;
-	float prevPosY = 0.0f;
-	float prevPosZ = 0.0f;
-	bool prevPosValid;
-	bool moveGraceUsed;
-	bool inFriction = false;
-	bool previousJumpState = false;
-	bool useVelocitySmoothing = false;
 	bool pendingVelocityFix = false;
-	float lastPositiveYVelocity = 0.0f;
 
 	// ======================
 	// SlowMo Fix
 	// ======================
 	double clientSlowMoCharge = 0.0;
-	int phSlowMoRecord = 0;
-	int lastHSlowMoRecord = 0;
-	bool slowMoChargeObserved = false;
 
 	// ======================
 	// Console
 	// ======================
 	bool isConsoleOpen = false;
-	bool wasConsoleOpened = false;
 	bool wasInputDisabled = false;
-
-	// ======================
-	// PolyGrid Timing
-	// ======================
-	struct SplashEntry
-	{
-		uint64_t key;
-		double lastTime;
-	};
-
-	inline static std::array<SplashEntry, 64> splashCache{};
-	inline static size_t splashIndex = 0;
-
-	// ======================
-	// Save Optimization
-	// ======================
-	struct SaveBuffer
-	{
-		HANDLE handle = INVALID_HANDLE_VALUE;
-		std::vector<uint8_t> buffer{};
-		LONGLONG position = 0;
-		LONGLONG size = 0;
-		bool flushed = false;
-
-		void Reset()
-		{
-			handle = INVALID_HANDLE_VALUE;
-			buffer.clear();
-			position = 0;
-			size = 0;
-			flushed = false;
-		}
-
-		bool IsActive() const { return handle != INVALID_HANDLE_VALUE; }
-	};
-
-	static inline SaveBuffer saveBuffer{};
 
 	// ======================
 	// MipMapBias Override
 	// ======================
 	std::vector<void*> sharpTextures;
-	void* hookedSetTextureAddr = nullptr;
-	IDirect3DDevice9* hookedDevice = nullptr;
-	bool isLoadingWorld = false;
 	bool stageIsDirty[16] = { false };
 
 	// ======================

@@ -6,6 +6,22 @@
 #include "../../ClientFX/ClientFX.hpp"
 #include "../../Server/Server.hpp"
 
+static ULONGLONG lastCursorStateChangeTime = 0;
+static ULONGLONG cursorActivityStartTime = 0;
+static double zoomMag = 0;
+static int cursorMovementAccum = 0;
+static int turretPrevDamageState = 0;
+static uint16_t healthBefore = 0;
+static uint16_t healthAfter = 0;
+static uint16_t armorBefore = 0;
+static uint16_t armorAfter = 0;
+static bool updateGyroCamera = false;
+static bool isAiming = false;
+static bool isDoingMeleeAttack = false;
+static bool isTakingDamage = false;
+static bool isFallDamage = false;
+static bool wasConsoleOpened = false;
+
 // =======================
 // SDLGamepadSupport
 // =======================
@@ -36,8 +52,8 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 
 	auto ApplyZoomScale = [](double value) -> double
 	{
-		if (g_State.zoomMag > GPadZoomMagThreshold)
-			return value * (g_State.zoomMag / GPadZoomMagThreshold);
+		if (zoomMag > GPadZoomMagThreshold)
+			return value * (zoomMag / GPadZoomMagThreshold);
 		return value;
 	};
 
@@ -53,8 +69,8 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 
 static double __fastcall GetZoomMag_Hook(int thisPtr)
 {
-	g_State.zoomMag = GetZoomMag(thisPtr);
-	return g_State.zoomMag;
+	zoomMag = GetZoomMag(thisPtr);
+	return zoomMag;
 }
 
 static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int nNewType)
@@ -71,7 +87,7 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 
 	if (!pTurret)
 	{
-		g_State.turretPrevDamageState = 0;
+		turretPrevDamageState = 0;
 	}
 
 	return SetOperatingTurret(thisPtr, pTurret);
@@ -126,7 +142,7 @@ static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor, bool bL
 
 	if (bUseCursor != prevAllowed)
 	{
-		g_State.lastCursorStateChangeTime = GetTickCount64();
+		lastCursorStateChangeTime = GetTickCount64();
 	}
 
 	if (ShouldShowControllerPrompts() && !g_Controller.touchpadCursorActive)
@@ -147,20 +163,20 @@ static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 			{
 				ULONGLONG now = GetTickCount64();
 
-				if ((now - g_State.lastCursorStateChangeTime) > 500)
+				if ((now - lastCursorStateChangeTime) > 500)
 				{
-					if (now - g_State.cursorActivityStartTime > 500)
+					if (now - cursorActivityStartTime > 500)
 					{
-						g_State.cursorMovementAccum = 0;
-						g_State.cursorActivityStartTime = now;
+						cursorMovementAccum = 0;
+						cursorActivityStartTime = now;
 					}
 
-					g_State.cursorMovementAccum += abs(x) + abs(y);
+					cursorMovementAccum += abs(x) + abs(y);
 
-					if (g_State.cursorMovementAccum > 150)
+					if (cursorMovementAccum > 150)
 					{
-						g_State.cursorMovementAccum = 0;
-						g_State.cursorActivityStartTime = 0;
+						cursorMovementAccum = 0;
+						cursorActivityStartTime = 0;
 						OnKeyboardMouseInput();
 					}
 				}
@@ -220,18 +236,18 @@ static void __fastcall SetCurrentType_Hook(int thisPtr, int, int type)
 
 static void __fastcall UpdatePlayerMovement_Hook(int thisPtr, int)
 {
-	g_State.updateGyroCamera = true;
+	updateGyroCamera = true;
 	UpdatePlayerMovement(thisPtr);
-	g_State.updateGyroCamera = false;
+	updateGyroCamera = false;
 }
 
 static void __fastcall ApplyLocalRotationOffset_Hook(int thisPtr, int, float* vPYROffset)
 {
-	if (g_State.updateGyroCamera && g_Controller.isConnected && IsGyroEnabled() && !g_State.isConsoleOpen)
+	if (updateGyroCamera && g_Controller.isConnected && IsGyroEnabled() && !g_State.isConsoleOpen)
 	{
 		bool shouldApplyGyro = (GyroAimingMode == 0) 
-			|| (GyroAimingMode == 1 && g_State.isAiming) 
-			|| (GyroAimingMode == 2 && !g_State.isAiming);
+			|| (GyroAimingMode == 1 && isAiming) 
+			|| (GyroAimingMode == 2 && !isAiming);
 
 		if (shouldApplyGyro)
 		{
@@ -250,18 +266,18 @@ static void __fastcall ApplyLocalRotationOffset_Hook(int thisPtr, int, float* vP
 static void __fastcall BeginAim_Hook(BYTE* thisPtr, int)
 {
 	BeginAim(thisPtr);
-	g_State.isAiming = *thisPtr;
+	isAiming = *thisPtr;
 }
 
 static void __fastcall EndAim_Hook(BYTE* thisPtr, int)
 {
 	EndAim(thisPtr);
-	g_State.isAiming = *thisPtr;
+	isAiming = *thisPtr;
 }
 
 static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 {
-	g_State.isDoingMeleeAttack = false;
+	isDoingMeleeAttack = false;
 	g_State.isUsingRemoteDetonator = false;
 
 	DWORD ptrAmmo = thisPtr[106];
@@ -282,7 +298,7 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 				case HashHelper::WeaponHashes::Melee_JabLeft:
 				case HashHelper::WeaponHashes::Melee_RunKickRight:
 				case HashHelper::WeaponHashes::Melee_RunKickLeft:
-					g_State.isDoingMeleeAttack = true;
+					isDoingMeleeAttack = true;
 					break;
 
 				case HashHelper::WeaponHashes::RemoteDetonator:
@@ -352,16 +368,16 @@ static void __fastcall CClientWeaponFire_Hook(DWORD* thisPtr, int)
 
 static unsigned int __fastcall UpdateHealth_Hook(DWORD* thisPtr, int, unsigned int newHealth)
 {
-	if (g_State.isTakingDamage)
+	if (isTakingDamage)
 	{
-		g_State.healthBefore = static_cast<uint16_t>(thisPtr[1]);
+		healthBefore = static_cast<uint16_t>(thisPtr[1]);
 	}
 
 	unsigned int result = UpdateHealth(thisPtr, newHealth);
 
-	if (g_State.isTakingDamage)
+	if (isTakingDamage)
 	{
-		g_State.healthAfter = static_cast<uint16_t>(thisPtr[1]);
+		healthAfter = static_cast<uint16_t>(thisPtr[1]);
 	}
 
 	return result;
@@ -369,16 +385,16 @@ static unsigned int __fastcall UpdateHealth_Hook(DWORD* thisPtr, int, unsigned i
 
 static int __fastcall UpdateArmor_Hook(DWORD* thisPtr, int, unsigned int newArmor)
 {
-	if (g_State.isTakingDamage)
+	if (isTakingDamage)
 	{
-		g_State.armorBefore = static_cast<uint16_t>(thisPtr[2]);
+		armorBefore = static_cast<uint16_t>(thisPtr[2]);
 	}
 
 	int result = UpdateArmor(thisPtr, newArmor);
 
-	if (g_State.isTakingDamage)
+	if (isTakingDamage)
 	{
-		g_State.armorAfter = static_cast<uint16_t>(thisPtr[2]);
+		armorAfter = static_cast<uint16_t>(thisPtr[2]);
 	}
 
 	return result;
@@ -392,11 +408,11 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 		return;
 	}
 
-	g_State.isTakingDamage = true;
-	g_State.healthBefore = 0;
-	g_State.healthAfter = 0;
-	g_State.armorBefore = 0;
-	g_State.armorAfter = 0;
+	isTakingDamage = true;
+	healthBefore = 0;
+	healthAfter = 0;
+	armorBefore = 0;
+	armorAfter = 0;
 
 	float damageBefore[12];
 	float* damageArray = (float*)((BYTE*)thisPtr + 428);
@@ -404,24 +420,24 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 
 	HandleMsgPlayerDamage(thisPtr, a2);
 
-	g_State.isTakingDamage = false;
+	isTakingDamage = false;
 
-	if (g_State.isFallDamage)
+	if (isFallDamage)
 	{
-		g_State.isFallDamage = false;
+		isFallDamage = false;
 		return;
 	}
 
-	bool playerDied = (g_State.healthAfter == 0) || (g_State.healthAfter > g_State.healthBefore);
+	bool playerDied = (healthAfter == 0) || (healthAfter > healthBefore);
 
 	uint16_t healthLost = 0;
 	uint16_t armorLost = 0;
 
-	if (!playerDied && g_State.healthBefore > g_State.healthAfter)
-		healthLost = g_State.healthBefore - g_State.healthAfter;
+	if (!playerDied && healthBefore > healthAfter)
+		healthLost = healthBefore - healthAfter;
 
-	if (g_State.armorBefore > g_State.armorAfter)
-		armorLost = g_State.armorBefore - g_State.armorAfter;
+	if (armorBefore > armorAfter)
+		armorLost = armorBefore - armorAfter;
 
 	uint16_t totalLost = healthLost + armorLost;
 
@@ -560,10 +576,10 @@ static void __fastcall CHUDMgr_StartFlicker_Hook(DWORD* thisPtr, int, float fDur
 
 static bool __cdecl CClientWeapon_WeaponPath_OnImpactCB_Hook(DWORD* rImpactData, int a2)
 {
-	if (g_State.isDoingMeleeAttack && *rImpactData)
+	if (isDoingMeleeAttack && *rImpactData)
 	{
 		SetGamepadRumble(52000, 42000, 120, 3);
-		g_State.isDoingMeleeAttack = false;
+		isDoingMeleeAttack = false;
 	}
 
 	return CClientWeapon_WeaponPath_OnImpactCB(rImpactData, a2);
@@ -604,7 +620,7 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 		highFreq = static_cast<uint16_t>(15000 + scaled * 50535);
 		duration = static_cast<uint32_t>(250 + scaled * 350);
 		priority = 5;
-		g_State.isFallDamage = true;
+		isFallDamage = true;
 	}
 
 	SetGamepadRumble(lowFreq, highFreq, duration, priority);
@@ -619,7 +635,7 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 	if (!RumbleEnabled || !g_State.isOperatingTurret)
 		return;
 
-	if (newDamageState > g_State.turretPrevDamageState)
+	if (newDamageState > turretPrevDamageState)
 	{
 		uint16_t lowFreq, highFreq;
 		uint32_t duration;
@@ -656,7 +672,7 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 		SetGamepadRumble(12000, 8000, 120, 3);
 	}
 
-	g_State.turretPrevDamageState = newDamageState;
+	turretPrevDamageState = newDamageState;
 }
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
@@ -790,10 +806,10 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 	// Block input to game UI when console is visible
 	if (g_State.isConsoleOpen)
 	{
-		if (!g_State.wasConsoleOpened)
+		if (!wasConsoleOpened)
 		{
 			SetInputState(false);
-			g_State.wasConsoleOpened = true;
+			wasConsoleOpened = true;
 		}
 
 		if (Msg == WM_MOUSEWHEEL)
@@ -817,10 +833,10 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 				return 0;
 		}
 	}
-	else if (g_State.wasConsoleOpened)
+	else if (wasConsoleOpened)
 	{
 		SetInputState(!g_State.wasInputDisabled);
-		g_State.wasConsoleOpened = false;
+		wasConsoleOpened = false;
 	}
 
 	if (SDLGamepadSupport)

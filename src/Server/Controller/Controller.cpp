@@ -3,6 +3,8 @@
 #include "../../Globals.cpp"
 #include "../../Controller/Controller.hpp"
 
+static int detonatorListHead = 0;
+
 bool(__thiscall* CPlayerInventory_UseGear)(int*, int, int) = nullptr;
 void(__thiscall* DetonateRemoteCharges)(DWORD*) = nullptr;
 
@@ -48,7 +50,7 @@ static void __fastcall DetonateRemoteCharges_Hook(DWORD* thisPtr, int)
 {
     if (g_State.isUsingRemoteDetonator && RumbleEnabled)
     {
-        DWORD* listHead = (DWORD*)thisPtr[g_State.detonatorListHead];
+        DWORD* listHead = (DWORD*)thisPtr[detonatorListHead];
         DWORD* current = (DWORD*)*listHead;
         int count = 0;
 
@@ -84,7 +86,7 @@ static void ApplyControllerServerPatch()
     if (addr_UseGear == 0 || addr_DetonateRemoteCharges == 0)
         return;
 
-    g_State.detonatorListHead = MemoryHelper::ReadMemory<int>(addr_DetonateRemoteCharges + 0x6) / 4;
+    detonatorListHead = MemoryHelper::ReadMemory<int>(addr_DetonateRemoteCharges + 0x6) / 4;
     HookHelper::ApplyHookReplaceable((void*)addr_UseGear, &CPlayerInventory_UseGear_Hook, (LPVOID*)&CPlayerInventory_UseGear);
     HookHelper::ApplyHookReplaceable((void*)addr_DetonateRemoteCharges, &DetonateRemoteCharges_Hook, (LPVOID*)&DetonateRemoteCharges);
 }
