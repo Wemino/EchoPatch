@@ -108,11 +108,11 @@ void OnProcessDetach()
     }
 }
 
-BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     if (ul_reason_for_call == DLL_PROCESS_ATTACH)
         return OnProcessAttach(hModule);
-    if (ul_reason_for_call == DLL_PROCESS_DETACH)
+    if (ul_reason_for_call == DLL_PROCESS_DETACH && lpReserved == nullptr)
         OnProcessDetach();
     return TRUE;
 }
