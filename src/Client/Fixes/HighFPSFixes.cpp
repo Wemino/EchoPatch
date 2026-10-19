@@ -426,65 +426,17 @@ void __fastcall MoveLocalSolidObject_Hook(int* thisPtr, int)
 	MoveLocalSolidObject(thisPtr);
 }
 
-void __fastcall EnterSlowMo_Hook(int* pThis, int, int hRec, bool bTrans, double fPeriod, bool bPlayer)
-{
-	double* pCharge = (double*)((char*)pThis + 880);
-	double fCurrentCharge = *pCharge;
-
-	// Clamp period to current charge (fixes visual jump)
-	if (bPlayer && fCurrentCharge > 0.0 && fPeriod > fCurrentCharge)
-	{
-		fPeriod = fCurrentCharge;
-	}
-
-	g_State.clientSlowMoCharge = fCurrentCharge;
-
-	EnterSlowMo(pThis, hRec, bTrans, fPeriod, bPlayer);
-}
-
+// The client charge is the one displayed by the HUD, the server mirrors it in single player
 void __fastcall UpdateSlowMo_Hook(int* pThis, int)
 {
-	double* pCharge = (double*)((char*)pThis + 880);
-
-	// Keep server in sync with client charge
-	g_State.clientSlowMoCharge = *pCharge;
-
 	UpdateSlowMo(pThis);
+	g_State.clientSlowMoCharge = *(double*)((char*)pThis + 880);
 }
 
+// Charge sent by the server (pickups, loading, end of slowmo)
 unsigned int __fastcall HandleMsgSlowMo_Hook(int* pThis, int, void* pMsg)
 {
-	double* pCharge = (double*)((char*)pThis + 880);
-	int* pState = (int*)((char*)pThis + 640);
-
-	double fOldCharge = *pCharge;
-	int nOldState = *pState;
-
 	unsigned int result = HandleMsgSlowMo(pThis, pMsg);
-
-	double fNewCharge = *pCharge;
-	int nNewState = *pState;
-
-	g_State.clientSlowMoCharge = fNewCharge;
-
-	// Recharge protection, don't let server reset recharged amount
-	if (nOldState == 3 && nNewState == 3)
-	{
-		if (fNewCharge < fOldCharge)
-		{
-			*pCharge = fOldCharge;
-			g_State.clientSlowMoCharge = fOldCharge;
-		}
-	}
-	// Jump protection, prevent charge jumping up during active slowmo
-	else if (nNewState != 3)
-	{
-		if (fOldCharge > 0.0 && fNewCharge > fOldCharge)
-		{
-			*pCharge = fOldCharge;
-			g_State.clientSlowMoCharge = fOldCharge;
-		}
-	}
-
+	g_State.clientSlowMoCharge = *(double*)((char*)pThis + 880);
 	return result;
 }

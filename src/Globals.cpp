@@ -158,6 +158,7 @@ struct GlobalState
 	// SlowMo Fix
 	// ======================
 	double clientSlowMoCharge = 0.0;
+	bool isClientSlowMoTracked = false;
 
 	// ======================
 	// Console

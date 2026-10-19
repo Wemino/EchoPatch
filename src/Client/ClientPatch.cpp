@@ -23,7 +23,6 @@ static void ApplyHighFPSFixesClientPatch()
     DWORD addr_PolyGridFXCollisionHandlerCB = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 33 DB 3B CB ?? 74 05", "PolyGridFXCollisionHandlerCB");
 	DWORD addr_HandleMsgSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 34 01 00 00 53 56 8B 75 08", "HandleMsgSlowMo");
 	DWORD addr_MoveLocalSolidObject = ScanModuleSignature(g_State.GameClient, "81 EC A4 00 00 00 57 8B F9 8B 8F D8 03 00 00 E8", "MoveLocalSolidObject");
-	DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "DD 05 ?? ?? ?? ?? 89 86 18 03 00 00", "EnterSlowMo", 3);
 	DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
     addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
@@ -37,7 +36,6 @@ static void ApplyHighFPSFixesClientPatch()
         addr_UpdateWaveProp == 0 ||
 		addr_PolyGridFXCollisionHandlerCB == 0 ||
 		addr_HandleMsgSlowMo == 0 ||
-		addr_EnterSlowMo == 0 ||
 		addr_UpdateSlowMo == 0 ||
 		addr_MoveLocalSolidObject == 0) {
         return;
@@ -54,8 +52,8 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
 	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
 	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
-	HookHelper::ApplyHook((void*)(addr_EnterSlowMo), &EnterSlowMo_Hook, (LPVOID*)&EnterSlowMo);
 	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);
+	g_State.isClientSlowMoTracked = true;
 }
 
 static void ApplyMouseAimMultiplierClientPatch()

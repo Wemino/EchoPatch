@@ -22,7 +22,6 @@ void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 void(__thiscall* MoveLocalSolidObject)(int*) = nullptr;
-void(__thiscall* EnterSlowMo)(int*, int, bool, double, bool) = nullptr;
 unsigned int(__thiscall* HandleMsgSlowMo)(int*, void*) = nullptr;
 void(__thiscall* UpdateSlowMo)(int*) = nullptr;
 
