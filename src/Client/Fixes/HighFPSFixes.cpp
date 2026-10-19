@@ -11,6 +11,7 @@ static double velocityAccumulator = 0.0;
 static double velocityTimeAccumulator = 0.0;
 static double lastReportedVelocity = 0.0;
 static double prevWindowSpeed = 0.0;
+static double velocityUncheckedTime = 0.0;
 static float waveUpdateAccumulator = 0.0f;
 static float windowStartX = 0.0f;
 static float windowStartY = 0.0f;
@@ -24,6 +25,7 @@ static bool moveGraceUsed;
 static bool inFriction = false;
 static bool previousJumpState = false;
 static bool useVelocitySmoothing = false;
+static bool velocityChecked = false;
 
 struct SplashEntry
 {
@@ -110,6 +112,20 @@ static double __fastcall GetMaxRecentVelocityMag_Hook(int thisPtr, int)
 	{
 		return GetMaxRecentVelocityMag(thisPtr);
 	}
+
+	velocityChecked = true;
+
+	if (velocityUncheckedTime >= TARGET_FRAME_TIME)
+	{
+		lastReportedVelocity = 0.0;
+		prevWindowSpeed = 0.0;
+		impededWindowCount = 0;
+		velocityAccumulator = 0.0;
+		velocityTimeAccumulator = 0.0;
+		prevPosValid = false;
+		moveGraceUsed = false;
+	}
+	velocityUncheckedTime = 0.0;
 
 	double dt = g_State.simulationFrameTime;
 	bool dtUsable = (dt > 0.0 && dt <= 0.2);
@@ -389,8 +405,15 @@ static void __cdecl PolyGridFXCollisionHandlerCB_Hook(int hBody1, int hBody2, in
 static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int)
 {
 	useVelocitySmoothing = true;
+	velocityChecked = false;
 	UpdateNormalControlFlags(thisPtr);
 	useVelocitySmoothing = false;
+
+	// The game only checks the velocity while moving above 90% of the maximum speed
+	if (!velocityChecked)
+	{
+		velocityUncheckedTime += g_State.simulationFrameTime;
+	}
 }
 
 static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int)
