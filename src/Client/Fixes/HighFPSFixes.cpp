@@ -67,6 +67,7 @@ static bool __fastcall LoadFxDll_Hook(int thisPtr, int, char* Source, char a3)
 static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 {
 	bool* pJumped = reinterpret_cast<bool*>(thisPtr + 0x78);
+	bool* pOnGround = reinterpret_cast<bool*>(thisPtr + 0x64);
 
 	// Detect jump start
 	if (!previousJumpState && *pJumped)
@@ -82,6 +83,7 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 		if (jumpElapsedTime < TARGET_FRAME_TIME)
 		{
 			*pJumped = true;
+			*pOnGround = false;
 			jumpElapsedTime += g_State.simulationFrameTime;
 		}
 		else
