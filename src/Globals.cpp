@@ -34,7 +34,8 @@ const DWORD FEARXP_TIMESTAMP = 0x450B3629;
 const DWORD FEARXP_TIMESTAMP2 = 0x450DA808;
 const DWORD FEARXP2_TIMESTAMP = 0x46FC10A3;
 
-static constexpr float BASE_AREA = 1024.0f * 768.0f;
+static constexpr float BASE_WIDTH = 1024.0f;
+static constexpr float BASE_HEIGHT = 768.0f;
 static constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
 
 enum FEARGAME
@@ -76,7 +77,11 @@ struct GlobalState
 	float scalingFactorText = 0.0f;
 	float scalingFactorCrosshair = 0.0f;
 	float crosshairSize = 0.0f;
+	float perturbScale = 0.5f;
 	bool updateHUD = false;
+	bool isRenderingHUD = false;
+	DWORD crosshairThicknessAddr = 0;
+	DWORD pausedWidthAddr = 0;
 
 	// ======================
 	// HUD Elements
@@ -103,12 +108,6 @@ struct GlobalState
 	HMODULE GameClient = NULL;
 	HMODULE GameServer = NULL;
 	HMODULE GameClientFX = NULL;
-
-	// ======================
-	// HUD Update State
-	// ======================
-	int healthAdditionalIntIndex = 0;
-	bool slowMoBarUpdated = false;
 
 	// ======================
 	// Game State
@@ -175,19 +174,13 @@ struct GlobalState
 	// ======================
 	// HUD Data
 	// ======================
-	struct DataEntry
-	{
-		int TextSize;
-		int ScaleType;
-	};
-
 	struct HudScalingRule
 	{
 		std::unordered_set<std::string_view> attributes;
 		float* scalingFactorPtr;
 	};
 
-	static inline std::unordered_map<std::string_view, DataEntry> textDataMap;
+	static inline std::unordered_map<std::string_view, int> textDataMap;
 	static inline std::unordered_map<std::string_view, HudScalingRule> hudScalingRules;
 };
 

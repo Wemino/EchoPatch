@@ -154,6 +154,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
             }
             if (HUDScaling && varHash == HashHelper::CVarHashes::PerturbScale)
             {
+                g_State.perturbScale = fValue;
                 fValue *= g_State.scalingFactorCrosshair;
             }
             break;

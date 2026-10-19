@@ -60,12 +60,13 @@ bool(__thiscall* HUDGrenadeListInit)(int) = nullptr;
 int(__thiscall* ScreenDimsChanged)(int) = nullptr;
 DWORD* (__stdcall* LayoutDBGetPosition)(DWORD*, int, char*, int) = nullptr;
 float* (__stdcall* GetRectF)(DWORD*, int, char*, int) = nullptr;
-int(__stdcall* DBGetRecord)(int, char*) = nullptr;
-int(__stdcall* DBGetInt32)(int, unsigned int, int) = nullptr;
-float(__stdcall* DBGetFloat)(int, unsigned int, float) = nullptr;
-const char* (__stdcall* DBGetString)(int, unsigned int, int) = nullptr;
+int(__thiscall* DBGetRecord)(int, int, char*) = nullptr;
+int(__thiscall* DBGetInt32)(int, int, unsigned int, int) = nullptr;
+float(__thiscall* DBGetFloat)(int, int, unsigned int, float) = nullptr;
+const char* (__thiscall* DBGetString)(int, int, unsigned int, int) = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDPausedInit)(int) = nullptr;
+int(__thiscall* GUIStringRender)(int) = nullptr;
 
 // AutoResolution
 void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;

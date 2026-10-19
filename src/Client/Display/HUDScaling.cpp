@@ -7,9 +7,20 @@
 #include "../../Server/Server.hpp"
 
 static bool crosshairSliderUpdated = false;
-static int int32ToUpdate = 0;
-static float floatToUpdate = 0.0f;
-static bool updateLayoutReturnValue = false;
+
+struct PendingDBScale
+{
+	int hAttribute;
+	int valueIndex;
+	float scalingFactor;
+};
+
+static thread_local PendingDBScale pendingDBScale = {};
+
+static int ScaleValue(int value, float scalingFactor)
+{
+	return static_cast<int>(std::lround(value * scalingFactor));
+}
 
 // ======================
 // HUDScaling
@@ -24,7 +35,10 @@ static bool __fastcall HUDInit_Hook(int thisPtr, int)
 
 static void __fastcall HUDRender_Hook(int thisPtr, int, int eHUDRenderLayer)
 {
+	g_State.isRenderingHUD = true;
 	HUDRender(thisPtr, eHUDRenderLayer);
+	g_State.isRenderingHUD = false;
+
 	if (g_State.updateHUD)
 	{
 		*(DWORD*)(thisPtr + 0x14) = -1;  // Force full HUD refresh (update health bar)
@@ -47,10 +61,11 @@ static bool __fastcall HUDGrenadeListInit_Hook(int thisPtr, int)
 // Scale HUD position or dimension
 static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* Attribute, int a4)
 {
-	if (!Record)
-		return LayoutDBGetPosition(a1, Record, Attribute, a4);
-
 	DWORD* result = LayoutDBGetPosition(a1, Record, Attribute, a4);
+
+	if (!Record)
+		return result;
+
 	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
 
 	std::string_view hudElement(hudRecordString);
@@ -64,141 +79,112 @@ static DWORD* __stdcall LayoutDBGetPosition_Hook(DWORD* a1, int Record, char* At
 		if (rule.attributes.contains(attribute))
 		{
 			float scalingFactor = *rule.scalingFactorPtr;
-			result[0] = static_cast<DWORD>(static_cast<int>(result[0]) * scalingFactor);
-			result[1] = static_cast<DWORD>(static_cast<int>(result[1]) * scalingFactor);
+			result[0] = static_cast<DWORD>(ScaleValue(static_cast<int>(result[0]), scalingFactor));
+			result[1] = static_cast<DWORD>(ScaleValue(static_cast<int>(result[1]), scalingFactor));
 		}
 	}
 
 	return result;
 }
 
-// Increase the length of the bar used for the flashlight and slowmo
+// Scale the rectangles of the flashlight and slowmo bars
 static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, int a4)
 {
-	if (!Record)
-		return GetRectF(a1, Record, Attribute, a4);
-
 	float* result = GetRectF(a1, Record, Attribute, a4);
-	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
 
-	// Quick early-out: 'l' at index 4 matches "HUDSlowMo2" and "HUDFlashlight"
-	if (hudRecordString[4] == 'l')
+	if (!Record || HashHelper::FNV1aRuntime(Attribute) != HashHelper::HUDHashes::AdditionalRect)
+		return result;
+
+	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
+	const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
+
+	if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight)
 	{
-		const uint32_t attrHash = HashHelper::FNV1aRuntime(Attribute);
-		if (attrHash == HashHelper::HUDHashes::AdditionalRect)
-		{
-			const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
-			if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight)
-			{
-				result[0] *= g_State.scalingFactor;
-				result[1] *= g_State.scalingFactor;
-				result[2] *= g_State.scalingFactor;
-				result[3] *= g_State.scalingFactor;
-			}
-		}
+		result[0] *= g_State.scalingFactor;
+		result[1] *= g_State.scalingFactor;
+		result[2] *= g_State.scalingFactor;
+		result[3] *= g_State.scalingFactor;
 	}
 
 	return result;
 }
 
-// Override 'DBGetInt32' and other related functions to return specific values
-static int __stdcall DBGetRecord_Hook(int Record, char* Attribute)
+// Remember which attribute must be scaled, its value is scaled once it is read by 'DBGetInt32' or 'DBGetFloat'
+static int __fastcall DBGetRecord_Hook(int thisPtr, int, int Record, char* Attribute)
 {
-	if (!Record)
-		return DBGetRecord(Record, Attribute);
+	int hAttribute = DBGetRecord(thisPtr, Record, Attribute);
+	pendingDBScale.hAttribute = 0;
 
-	if (Attribute[5] == 'i')
+	if (!hAttribute || !Record || (Attribute[0] != 'T' && Attribute[0] != 'A'))
+		return hAttribute;
+
+	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
+	const uint32_t attrHash = HashHelper::FNV1aRuntime(Attribute);
+
+	if (attrHash == HashHelper::HUDHashes::TextSize)
 	{
-		const char* hudRecordString = *reinterpret_cast<const char**>(Record);
-		const uint32_t attrHash = HashHelper::FNV1aRuntime(Attribute);
+		auto it = g_State.textDataMap.find(hudRecordString);
+		if (it != g_State.textDataMap.end())
+		{
+			float scalingFactor = g_State.scalingFactor;
+			switch (it->second)
+			{
+				case 1: scalingFactor *= 0.95f; break;
+				case 2: scalingFactor = g_State.scalingFactorText; break;
+			}
+			pendingDBScale = { hAttribute, -1, scalingFactor };
+		}
+	}
+	else if (attrHash == HashHelper::HUDHashes::AdditionalFloat)
+	{
 		const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
-
-		// TextSize handling
-		if (attrHash == HashHelper::HUDHashes::TextSize)
+		if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight)
 		{
-			auto it = g_State.textDataMap.find(hudRecordString);
-			if (it != g_State.textDataMap.end())
-			{
-				auto& dt = it->second;
-				float scaledSize = dt.TextSize * g_State.scalingFactor;
-				switch (dt.ScaleType)
-				{
-					case 1: scaledSize = std::round(scaledSize * 0.95f); break;
-					case 2: scaledSize = dt.TextSize * g_State.scalingFactorText; break;
-				}
-				int32ToUpdate = static_cast<int32_t>(scaledSize);
-				updateLayoutReturnValue = true;
-			}
-		}
-		else if (Attribute[9] == 'l')
-		{
-			// AdditionalFloat handling
-			if (attrHash == HashHelper::HUDHashes::AdditionalFloat)
-			{
-				float baseValue = 0.0f;
-				if (!g_State.slowMoBarUpdated && elemHash == HashHelper::HUDHashes::HUDSlowMo2)
-				{
-					baseValue = 10.0f;
-					g_State.slowMoBarUpdated = true;
-				}
-				else if (elemHash == HashHelper::HUDHashes::HUDFlashlight)
-				{
-					baseValue = 6.0f;
-				}
-
-				if (baseValue != 0.0f)
-				{
-					updateLayoutReturnValue = true;
-					floatToUpdate = baseValue * g_State.scalingFactor;
-				}
-			}
-			// AdditionalInt handling (HUDHealth medkit prompt)
-			else if (attrHash == HashHelper::HUDHashes::AdditionalInt && elemHash == HashHelper::HUDHashes::HUDHealth)
-			{
-				if (g_State.healthAdditionalIntIndex == 2)
-				{
-					updateLayoutReturnValue = true;
-					int32ToUpdate = static_cast<int32_t>(std::round(14 * g_State.scalingFactor));
-				}
-				else
-				{
-					g_State.healthAdditionalIntIndex++;
-				}
-			}
+			pendingDBScale = { hAttribute, 0, g_State.scalingFactor };
 		}
 	}
-
-	return DBGetRecord(Record, Attribute);
-}
-
-// Executed right after 'DBGetRecord'
-static int __stdcall DBGetInt32_Hook(int a1, unsigned int a2, int a3)
-{
-	if (updateLayoutReturnValue)
+	// HUDHealth medkit prompt
+	else if (attrHash == HashHelper::HUDHashes::AdditionalInt && HashHelper::FNV1aRuntime(hudRecordString) == HashHelper::HUDHashes::HUDHealth)
 	{
-		updateLayoutReturnValue = false;
-		return int32ToUpdate;
+		pendingDBScale = { hAttribute, 2, g_State.scalingFactor };
 	}
 
-	return DBGetInt32(a1, a2, a3);
+	return hAttribute;
 }
 
-// Executed right after 'DBGetRecord'
-static float __stdcall DBGetFloat_Hook(int a1, unsigned int a2, float a3)
+static bool IsPendingDBScale(int hAttribute, unsigned int nValueIndex)
 {
-	if (updateLayoutReturnValue)
-	{
-		updateLayoutReturnValue = false;
-		return floatToUpdate;
-	}
+	if (!hAttribute || hAttribute != pendingDBScale.hAttribute)
+		return false;
 
-	return DBGetFloat(a1, a2, a3);
+	return pendingDBScale.valueIndex == -1 || pendingDBScale.valueIndex == static_cast<int>(nValueIndex);
 }
 
-// Executed right after 'DBGetRecord'
-static const char* __stdcall DBGetString_Hook(int a1, unsigned int a2, int a3)
+static int __fastcall DBGetInt32_Hook(int thisPtr, int, int hAttribute, unsigned int nValueIndex, int nDefault)
 {
-	return DBGetString(a1, a2, a3);
+	int result = DBGetInt32(thisPtr, hAttribute, nValueIndex, nDefault);
+
+	if (!IsPendingDBScale(hAttribute, nValueIndex))
+		return result;
+
+	pendingDBScale.hAttribute = 0;
+	return ScaleValue(result, pendingDBScale.scalingFactor);
+}
+
+static float __fastcall DBGetFloat_Hook(int thisPtr, int, int hAttribute, unsigned int nValueIndex, float fDefault)
+{
+	float result = DBGetFloat(thisPtr, hAttribute, nValueIndex, fDefault);
+
+	if (!IsPendingDBScale(hAttribute, nValueIndex))
+		return result;
+
+	pendingDBScale.hAttribute = 0;
+	return result * pendingDBScale.scalingFactor;
+}
+
+static const char* __fastcall DBGetString_Hook(int thisPtr, int, int hAttribute, unsigned int nValueIndex, int pszDefault)
+{
+	return DBGetString(thisPtr, hAttribute, nValueIndex, pszDefault);
 }
 
 static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
@@ -337,19 +323,42 @@ static void __fastcall CycleCtrlSetSelIndex_Hook(int thisPtr, int, unsigned __in
 	CycleCtrlSetSelIndex(thisPtr, index);
 }
 
+// Scale the 'ImageRect' read from the texture data list, it is only written when the record has one
 static void __stdcall InitAdditionalTextureData_Hook(int a1, int a2, int* a3, DWORD* vPos, DWORD* vSize, float a6)
 {
-	vPos[0] = static_cast<DWORD>((int)vPos[0] * g_State.scalingFactor);
-	vPos[1] = static_cast<DWORD>((int)vPos[1] * g_State.scalingFactor);
-
-	vSize[0] = static_cast<DWORD>((int)vSize[0] * g_State.scalingFactor);
-	vSize[1] = static_cast<DWORD>((int)vSize[1] * g_State.scalingFactor);
+	const DWORD defaultPosX = vPos[0];
+	vPos[0] = 0x80000000;
 
 	InitAdditionalTextureData(a1, a2, a3, vPos, vSize, a6);
+
+	if (vPos[0] == 0x80000000)
+	{
+		vPos[0] = defaultPosX;
+		return;
+	}
+
+	vPos[0] = static_cast<DWORD>(ScaleValue(static_cast<int>(vPos[0]), g_State.scalingFactor));
+	vPos[1] = static_cast<DWORD>(ScaleValue(static_cast<int>(vPos[1]), g_State.scalingFactor));
+	vSize[0] = static_cast<DWORD>(ScaleValue(static_cast<int>(vSize[0]), g_State.scalingFactor));
+	vSize[1] = static_cast<DWORD>(ScaleValue(static_cast<int>(vSize[1]), g_State.scalingFactor));
 }
 
 static void __fastcall HUDPausedInit_Hook(int thisPtr, int)
 {
 	g_State.CHUDPaused = thisPtr;
 	HUDPausedInit(thisPtr);
+}
+
+// Scale the drop shadow offset of the HUD texts
+static int __fastcall GUIStringRender_Hook(int thisPtr, int)
+{
+	BYTE dropShadow = *(BYTE*)(thisPtr + 0x54);
+
+	if (!g_State.isRenderingHUD || dropShadow == 0)
+		return GUIStringRender(thisPtr);
+
+	*(BYTE*)(thisPtr + 0x54) = static_cast<BYTE>(std::clamp(ScaleValue(dropShadow, g_State.scalingFactor), 1, 255));
+	int result = GUIStringRender(thisPtr);
+	*(BYTE*)(thisPtr + 0x54) = dropShadow;
+	return result;
 }

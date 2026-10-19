@@ -280,6 +280,9 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
     DWORD addr_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
     DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
+    DWORD addr_GUIStringRender = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 28 56 8B F1 57 8D 4E 30 FF 15", "GUIStringRender");
+    DWORD addr_CrosshairThickness = ScanModuleSignature(g_State.GameClient, "7A 3A D9 05 ?? ?? ?? ?? D8 44 24", "CrosshairThickness");
+    DWORD addr_PausedWidth = ScanModuleSignature(g_State.GameClient, "C7 83 30 04 00 00 80 02 00 00 89 8B 24 04", "PausedWidth");
 
     if (addr_HUDTerminate == 0 ||
         addr_HUDInit == 0 ||
@@ -288,7 +291,10 @@ static void ApplyHUDScalingClientPatch()
         addr_GetRectF == 0 ||
         addr_HUDWeaponListReset == 0 ||
         addr_InitAdditionalTextureData == 0 ||
-        addr_HUDPausedInit == 0) {
+        addr_HUDPausedInit == 0 ||
+        addr_GUIStringRender == 0 ||
+        addr_CrosshairThickness == 0 ||
+        addr_PausedWidth == 0) {
         return;
     }
 
@@ -298,6 +304,9 @@ static void ApplyHUDScalingClientPatch()
     HookHelper::ApplyHook((void*)(addr_GetRectF - 0x58), &GetRectF_Hook, (LPVOID*)&GetRectF);
     HookHelper::ApplyHook((void*)(addr_InitAdditionalTextureData - 6), &InitAdditionalTextureData_Hook, (LPVOID*)&InitAdditionalTextureData);
     HookHelper::ApplyHook((void*)addr_HUDPausedInit, &HUDPausedInit_Hook, (LPVOID*)&HUDPausedInit);
+    HookHelper::ApplyHook((void*)addr_GUIStringRender, &GUIStringRender_Hook, (LPVOID*)&GUIStringRender);
+    g_State.crosshairThicknessAddr = MemoryHelper::ReadMemory<DWORD>(addr_CrosshairThickness + 4);
+    g_State.pausedWidthAddr = addr_PausedWidth + 6;
 	HUDTerminate = reinterpret_cast<decltype(HUDTerminate)>(addr_HUDTerminate);
 	HUDWeaponListReset = reinterpret_cast<decltype(HUDWeaponListReset)>(addr_HUDWeaponListReset);
 }

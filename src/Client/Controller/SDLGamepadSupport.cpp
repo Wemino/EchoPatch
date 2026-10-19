@@ -761,7 +761,7 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 	if (!HUDScaling) return;
 
 	// Calculate the new scaling factor
-	g_State.scalingFactor = std::sqrt((g_State.currentWidth * g_State.currentHeight) / BASE_AREA);
+	g_State.scalingFactor = std::min(g_State.currentWidth / BASE_WIDTH, g_State.currentHeight / BASE_HEIGHT);
 
 	// Don't downscale the HUD
 	if (g_State.scalingFactor < 1.0f) g_State.scalingFactor = 1.0f;
@@ -775,13 +775,18 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 	// Apply custom scaling to calculated scaling
 	g_State.scalingFactor *= HUDCustomScalingFactor;
 
-	// Reset slow-mo bar update flag and HUDHealth.AdditionalInt index
-	g_State.slowMoBarUpdated = false;
-	g_State.healthAdditionalIntIndex = 0;
+	// Scale the crosshair lines thickness and the width of the pause message
+	if (g_State.crosshairThicknessAddr != 0 && g_State.pausedWidthAddr != 0)
+	{
+		MemoryHelper::WriteMemory<float>(g_State.crosshairThicknessAddr, std::max(1.0f, std::round(g_State.scalingFactorCrosshair)));
+		MemoryHelper::WriteMemory<int>(g_State.pausedWidthAddr, static_cast<int>(std::lround(640 * g_State.scalingFactor)));
+	}
 
 	// If the resolution is updated
 	if (g_State.CHUDMgr != 0)
 	{
+		bool isHUDVisible = *(bool*)(g_State.CHUDMgr + 0x8);
+
 		// Reinitialize the HUD
 		HUDTerminate(g_State.CHUDMgr);
 		HUDInit(g_State.CHUDMgr);
@@ -791,9 +796,11 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 		HUDPausedInit(g_State.CHUDPaused);
 		g_State.updateHUD = true;
 
+		*(bool*)(g_State.CHUDMgr + 0x8) = isHUDVisible;
+
 		// Update the size of the crosshair
 		SetConsoleVariableFloat("CrosshairSize", g_State.crosshairSize * g_State.scalingFactorCrosshair);
-		SetConsoleVariableFloat("PerturbScale", 0.5f * g_State.scalingFactorCrosshair);
+		SetConsoleVariableFloat("PerturbScale", g_State.perturbScale * g_State.scalingFactorCrosshair);
 	}
 }
 
