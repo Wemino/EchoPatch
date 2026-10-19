@@ -24,6 +24,8 @@ static void ApplyHighFPSFixesClientPatch()
 	DWORD addr_HandleMsgSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC 34 01 00 00 53 56 8B 75 08", "HandleMsgSlowMo");
 	DWORD addr_MoveLocalSolidObject = ScanModuleSignature(g_State.GameClient, "81 EC A4 00 00 00 57 8B F9 8B 8F D8 03 00 00 E8", "MoveLocalSolidObject");
 	DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
+	DWORD addr_UpdateRotation = ScanModuleSignature(g_State.GameClient, "83 EC 54 A1 ?? ?? ?? ?? 8B 40 28 55 56 8B F1 57 8D 48 1C 51", "UpdateRotation");
+	DWORD addr_TimerIsTimedOut = ScanModuleSignature(g_State.GameClient, "8D BE 58 04 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 18 C6 86 80 04 00 00 00", "TimerIsTimedOut");
     addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
     if (addr_SurfaceJumpImpulse == 0 ||
@@ -37,6 +39,8 @@ static void ApplyHighFPSFixesClientPatch()
 		addr_PolyGridFXCollisionHandlerCB == 0 ||
 		addr_HandleMsgSlowMo == 0 ||
 		addr_UpdateSlowMo == 0 ||
+		addr_UpdateRotation == 0 ||
+		addr_TimerIsTimedOut == 0 ||
 		addr_MoveLocalSolidObject == 0) {
         return;
     }
@@ -51,6 +55,9 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
 	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
+	g_State.playerMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_UpdateRotation + 0x4);
+	TimerIsTimedOut = reinterpret_cast<decltype(TimerIsTimedOut)>(MemoryHelper::ResolveRelativeAddress(addr_TimerIsTimedOut, 0x9));
+	HookHelper::ApplyHook((void*)addr_UpdateRotation, &UpdateRotation_Hook, (LPVOID*)&UpdateRotation);
 	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
 	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);
 	g_State.isClientSlowMoTracked = true;

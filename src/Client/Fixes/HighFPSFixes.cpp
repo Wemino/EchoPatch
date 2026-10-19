@@ -12,6 +12,7 @@ static double velocityTimeAccumulator = 0.0;
 static double lastReportedVelocity = 0.0;
 static double prevWindowSpeed = 0.0;
 static double velocityUncheckedTime = 0.0;
+static double cameraBlendRotationTime = 0.0;
 static float waveUpdateAccumulator = 0.0f;
 static float windowStartX = 0.0f;
 static float windowStartY = 0.0f;
@@ -414,6 +415,28 @@ static void __fastcall UpdateNormalControlFlags_Hook(int thisPtr, int)
 	{
 		velocityUncheckedTime += g_State.simulationFrameTime;
 	}
+}
+
+static void __fastcall UpdateRotation_Hook(int thisPtr, int)
+{
+	int playerCamera = *(int*)(MemoryHelper::ReadMemory<int>(g_State.playerMgrAddr) + 0x28);
+	int cameraDesc = *(int*)(playerCamera + 0x190);
+
+	if ((cameraDesc == 29 || cameraDesc == 30) && !TimerIsTimedOut(playerCamera + 0x80))
+	{
+		cameraBlendRotationTime += g_State.simulationFrameTime;
+		if (cameraBlendRotationTime < TARGET_FRAME_TIME)
+		{
+			return;
+		}
+		cameraBlendRotationTime -= TARGET_FRAME_TIME;
+	}
+	else
+	{
+		cameraBlendRotationTime = 0.0;
+	}
+
+	UpdateRotation(thisPtr);
 }
 
 static void __fastcall UpdateNormalFriction_Hook(int thisPtr, int)

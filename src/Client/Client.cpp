@@ -22,6 +22,8 @@ void(__thiscall* UpdateNormalControlFlags)(int) = nullptr;
 void(__thiscall* UpdateNormalFriction)(int) = nullptr;
 double(__thiscall* GetTimerElapsedS)(int) = nullptr;
 void(__thiscall* MoveLocalSolidObject)(int*) = nullptr;
+void(__thiscall* UpdateRotation)(int) = nullptr;
+bool(__thiscall* TimerIsTimedOut)(int) = nullptr;
 unsigned int(__thiscall* HandleMsgSlowMo)(int*, void*) = nullptr;
 void(__thiscall* UpdateSlowMo)(int*) = nullptr;
 

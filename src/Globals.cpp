@@ -113,6 +113,7 @@ struct GlobalState
 	// Game State
 	// ======================
 	int pGameClientShell = 0;
+	DWORD playerMgrAddr = 0;
 	bool isPlaying = false;
 	bool isMsgBoxVisible = false;
 	bool isEnteringWorld = false;
