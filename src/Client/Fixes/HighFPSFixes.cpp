@@ -7,6 +7,7 @@
 #include "../../Server/Server.hpp"
 
 static double jumpElapsedTime = -1.0;
+static double swimJumpElapsedTime = -1.0;
 static double velocityAccumulator = 0.0;
 static double velocityTimeAccumulator = 0.0;
 static double lastReportedVelocity = 0.0;
@@ -25,6 +26,7 @@ static bool prevPosValid;
 static bool moveGraceUsed;
 static bool inFriction = false;
 static bool previousJumpState = false;
+static bool previousSwimJumpState = false;
 static bool useVelocitySmoothing = false;
 static bool velocityChecked = false;
 
@@ -464,12 +466,44 @@ static double __fastcall GetTimerElapsedS_Hook(int thisPtr, int)
 
 void __fastcall MoveLocalSolidObject_Hook(int* thisPtr, int)
 {
-	bool bBodyInLiquid = *((BYTE*)thisPtr + 48);
 	bool bSwimJumped = *((BYTE*)thisPtr + 121);
 
-	g_State.pendingVelocityFix = (bBodyInLiquid && bSwimJumped);
+	// Detect jump out of water start
+	if (!previousSwimJumpState && bSwimJumped)
+	{
+		swimJumpElapsedTime = 0.0;
+	}
+	previousSwimJumpState = bSwimJumped;
+
+	// Gravity is off on the first frame of a jump out of water, keep the jump velocity for the length of a 60 FPS frame
+	if (!bSwimJumped || swimJumpElapsedTime < 0.0 || swimJumpElapsedTime + g_State.simulationFrameTime * 0.5 >= TARGET_FRAME_TIME)
+	{
+		swimJumpElapsedTime = -1.0;
+		MoveLocalSolidObject(thisPtr);
+		return;
+	}
+
+	using Velocity_t = int(__thiscall*)(int, int, float*);
+	int physicsLT = MemoryHelper::ReadMemory<int>(g_State.physicsLTAddr);
+	auto vtable = *(uintptr_t*)physicsLT;
+	Velocity_t getVelocity = (Velocity_t)(*(uintptr_t*)(vtable + 0x28));
+	Velocity_t setVelocity = (Velocity_t)(*(uintptr_t*)(vtable + 0x2C));
+
+	int hObject = thisPtr[4];
+	float velocity[3];
+	getVelocity(physicsLT, hObject, velocity);
+	float jumpVelocity = velocity[1];
 
 	MoveLocalSolidObject(thisPtr);
+
+	getVelocity(physicsLT, hObject, velocity);
+	if (velocity[1] > 0.0f && velocity[1] < jumpVelocity)
+	{
+		velocity[1] = jumpVelocity;
+		setVelocity(physicsLT, hObject, velocity);
+	}
+
+	swimJumpElapsedTime += g_State.simulationFrameTime;
 }
 
 // The client charge is the one displayed by the HUD, the server mirrors it in single player

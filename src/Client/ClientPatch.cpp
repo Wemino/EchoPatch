@@ -54,10 +54,11 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)addr_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
     HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
-	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
 	g_State.playerMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_UpdateRotation + 0x4);
+	g_State.physicsLTAddr = MemoryHelper::ReadMemory<DWORD>(addr_MoveLocalSolidObject + 0xB5);
 	TimerIsTimedOut = reinterpret_cast<decltype(TimerIsTimedOut)>(MemoryHelper::ResolveRelativeAddress(addr_TimerIsTimedOut, 0x9));
 	HookHelper::ApplyHook((void*)addr_UpdateRotation, &UpdateRotation_Hook, (LPVOID*)&UpdateRotation);
+	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
 	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
 	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);
 	g_State.isClientSlowMoTracked = true;

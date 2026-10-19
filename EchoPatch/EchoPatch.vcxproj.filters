@@ -173,9 +173,6 @@
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\Fixes\HighFPSFixes.cpp">
-      <Filter>Engine\Fixes</Filter>
-    </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>

@@ -114,6 +114,7 @@ struct GlobalState
 	// ======================
 	int pGameClientShell = 0;
 	DWORD playerMgrAddr = 0;
+	DWORD physicsLTAddr = 0;
 	bool isPlaying = false;
 	bool isMsgBoxVisible = false;
 	bool isEnteringWorld = false;
@@ -153,7 +154,6 @@ struct GlobalState
 	// ======================
 	double simulationFrameTime = 0.0;
 	double totalGameTime = 0.0;
-	bool pendingVelocityFix = false;
 
 	// ======================
 	// SlowMo Fix
