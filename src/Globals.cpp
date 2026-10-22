@@ -37,6 +37,7 @@ const DWORD FEARXP2_TIMESTAMP = 0x46FC10A3;
 static constexpr float BASE_WIDTH = 1024.0f;
 static constexpr float BASE_HEIGHT = 768.0f;
 static constexpr float TARGET_FRAME_TIME = 1.0f / 60.0f;
+static constexpr float MIN_TARGET_FRAME_TIME = 0.016f;
 
 enum FEARGAME
 {
@@ -154,6 +155,9 @@ struct GlobalState
 	// ======================
 	double simulationFrameTime = 0.0;
 	double totalGameTime = 0.0;
+	double realFrameTime = 0.0;
+	double totalRealTime = 0.0;
+	unsigned int frameCount = 0;
 
 	// ======================
 	// SlowMo Fix
@@ -187,6 +191,21 @@ struct GlobalState
 };
 
 GlobalState g_State;
+
+static double GetFrameScale()
+{
+	return g_State.realFrameTime >= MIN_TARGET_FRAME_TIME ? 1.0 : g_State.realFrameTime / TARGET_FRAME_TIME;
+}
+
+static bool IsTargetFrameDue(double& lastTime)
+{
+	double elapsedTime = g_State.totalRealTime - lastTime;
+	if (elapsedTime < MIN_TARGET_FRAME_TIME)
+		return false;
+
+	lastTime = elapsedTime < TARGET_FRAME_TIME * 2 ? lastTime + TARGET_FRAME_TIME : g_State.totalRealTime;
+	return true;
+}
 
 // =============================
 // Ini Variables

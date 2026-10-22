@@ -14,7 +14,10 @@ static double lastReportedVelocity = 0.0;
 static double prevWindowSpeed = 0.0;
 static double velocityUncheckedTime = 0.0;
 static double cameraBlendRotationTime = 0.0;
-static float waveUpdateAccumulator = 0.0f;
+static double turningWindowRealTime = 0.0;
+static double turningWindowFrameTime = 0.0;
+static double gotoNodeTime = 0.0;
+static float turningRate = 0.0f;
 static float windowStartX = 0.0f;
 static float windowStartY = 0.0f;
 static float windowStartZ = 0.0f;
@@ -36,7 +39,15 @@ struct SplashEntry
     double lastTime;
 };
 static std::array<SplashEntry, 64> splashCache{};
+static std::unordered_map<int, float> waveUpdateAccumulators;
 static size_t splashIndex = 0;
+
+struct PositionSample
+{
+	float position[3];
+	double time;
+};
+static std::deque<PositionSample> gotoNodePositions;
 
 // ======================
 // HighFPSFixes
@@ -99,6 +110,7 @@ static void __fastcall UpdateOnGround_Hook(int thisPtr, int)
 static void __fastcall UpdateWaveProp_Hook(int thisPtr, int, float frameDelta)
 {
 	// Updates water wave propagation at fixed time intervals for consistent simulation
+	float& waveUpdateAccumulator = waveUpdateAccumulators[thisPtr];
 	waveUpdateAccumulator += frameDelta;
 
 	if (waveUpdateAccumulator > TARGET_FRAME_TIME * 5)
@@ -506,6 +518,153 @@ void __fastcall MoveLocalSolidObject_Hook(int* thisPtr, int)
 	}
 
 	swimJumpElapsedTime += g_State.simulationFrameTime;
+}
+
+static float __cdecl TurningPerturbRate(int accuracyMgr, float oneMinusDot, float frameTime, float* forward)
+{
+	// The game divides how far the camera turned by the frame time, which shrinks with the frame time, measure the turn over a 60 FPS frame instead
+	turningWindowRealTime += g_State.realFrameTime;
+	turningWindowFrameTime += frameTime;
+
+	if (turningWindowRealTime < MIN_TARGET_FRAME_TIME)
+	{
+		// Keep the forward from the start of the window
+		float* lastForward = reinterpret_cast<float*>(accuracyMgr + 0x8);
+		forward[0] = lastForward[0];
+		forward[1] = lastForward[1];
+		forward[2] = lastForward[2];
+		return turningRate;
+	}
+
+	if (turningWindowFrameTime > 0.0)
+	{
+		double windowScale = TARGET_FRAME_TIME / turningWindowRealTime;
+		double turnAngle = std::acos(std::clamp(1.0 - oneMinusDot, -1.0, 1.0)) * windowScale;
+		turningRate = static_cast<float>((1.0 - std::cos(turnAngle)) / (turningWindowFrameTime * windowScale));
+	}
+
+	turningWindowRealTime = 0.0;
+	turningWindowFrameTime = 0.0;
+	return turningRate;
+}
+
+// Replaces the division by the frame time in the turning perturb, the forward is in st1 and st2 and on the stack
+static __declspec(naked) void TurningPerturbRate_Hook()
+{
+	__asm
+	{
+		sub esp, 16
+		fstp dword ptr [esp + 12]
+		fstp dword ptr [esp + 4]
+		fstp dword ptr [esp]
+		mov eax, [esp + 44]
+		mov [esp + 8], eax
+		mov eax, esp
+		push eax
+		push dword ptr [esp + 32]
+		push dword ptr [esp + 20]
+		push edi
+		call TurningPerturbRate
+		add esp, 16
+		fstp dword ptr [esp + 12]
+		fld dword ptr [esp]
+		fld dword ptr [esp + 4]
+		fld dword ptr [esp + 12]
+		mov eax, [esp + 8]
+		mov [esp + 44], eax
+		fst dword ptr [esp + 28]
+		add esp, 16
+		ret
+	}
+}
+
+static void __fastcall UpdatePushers_Hook(int thisPtr, int)
+{
+	using Velocity_t = int(__thiscall*)(int, int, float*);
+	int physicsLT = MemoryHelper::ReadMemory<int>(g_State.physicsLTAddr);
+	int hObject = *reinterpret_cast<int*>(thisPtr + 0x10);
+
+	if (!physicsLT || !hObject)
+	{
+		UpdatePushers(thisPtr);
+		return;
+	}
+
+	auto vtable = *(uintptr_t*)physicsLT;
+	Velocity_t getVelocity = (Velocity_t)(*(uintptr_t*)(vtable + 0x28));
+	Velocity_t setVelocity = (Velocity_t)(*(uintptr_t*)(vtable + 0x2C));
+
+	float previousVelocity[3];
+	getVelocity(physicsLT, hObject, previousVelocity);
+
+	UpdatePushers(thisPtr);
+
+	float velocity[3];
+	getVelocity(physicsLT, hObject, velocity);
+	if (velocity[0] == previousVelocity[0] && velocity[1] == previousVelocity[1] && velocity[2] == previousVelocity[2])
+		return;
+
+	// Pushers add their push to the velocity every frame
+	float pushScale = static_cast<float>(GetFrameScale());
+	for (int i = 0; i < 3; i++)
+	{
+		velocity[i] = previousVelocity[i] + (velocity[i] - previousVelocity[i]) * pushScale;
+	}
+	setVelocity(physicsLT, hObject, velocity);
+}
+
+static void __fastcall UpdateGotoNodeMovement_Hook(int thisPtr, int)
+{
+	int hGotoNode = *reinterpret_cast<int*>(MemoryHelper::ReadMemory<int>(g_State.playerMgrAddr) + 0x620);
+	if (!hGotoNode)
+	{
+		gotoNodePositions.clear();
+		gotoNodeTime = 0.0;
+		UpdateGotoNodeMovement(thisPtr);
+		return;
+	}
+
+	float* lastPosition = reinterpret_cast<float*>(thisPtr + 0x428);
+	gotoNodePositions.push_back({ { lastPosition[0], lastPosition[1], lastPosition[2] }, gotoNodeTime });
+	gotoNodeTime += g_State.realFrameTime;
+
+	while (gotoNodePositions.size() > 1 && gotoNodeTime - gotoNodePositions[1].time >= MIN_TARGET_FRAME_TIME)
+	{
+		gotoNodePositions.pop_front();
+	}
+
+	if (gotoNodeTime - gotoNodePositions.front().time < MIN_TARGET_FRAME_TIME)
+		return;
+
+	float currentLastPosition[3] = { lastPosition[0], lastPosition[1], lastPosition[2] };
+	std::copy_n(gotoNodePositions.front().position, 3, lastPosition);
+	UpdateGotoNodeMovement(thisPtr);
+	std::copy_n(currentLastPosition, 3, lastPosition);
+}
+
+static void __fastcall UpdateDuck_Hook(int thisPtr, int)
+{
+	float* pDuckDownVelocity = reinterpret_cast<float*>(thisPtr + 0x110);
+	float* pDuckUpVelocity = reinterpret_cast<float*>(thisPtr + 0x114);
+	float duckDownVelocity = *pDuckDownVelocity;
+	float duckUpVelocity = *pDuckUpVelocity;
+
+	// Every frame moves the camera by the time since the duck started
+	float duckScale = static_cast<float>(GetFrameScale());
+	*pDuckDownVelocity *= duckScale;
+	*pDuckUpVelocity *= duckScale;
+
+	UpdateDuck(thisPtr);
+
+	*pDuckDownVelocity = duckDownVelocity;
+	*pDuckUpVelocity = duckUpVelocity;
+
+	// A duck that ends before the camera moved leaves its timer running, which drops the camera at once on the next duck
+	bool isDucking = (*reinterpret_cast<uint32_t*>(thisPtr + 0x2C) & 0x20) != 0 || *reinterpret_cast<bool*>(thisPtr + 0x1A8);
+	if (!isDucking && *reinterpret_cast<float*>(thisPtr + 0x10C) == 0.0f)
+	{
+		*reinterpret_cast<bool*>(thisPtr + 0x108) = false;
+	}
 }
 
 // The client charge is the one displayed by the HUD, the server mirrors it in single player

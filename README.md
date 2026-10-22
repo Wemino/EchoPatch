@@ -62,6 +62,9 @@ Resolves multiple issues at high framerates, designed and optimized for smooth g
 - Excessive sliding on sloped surfaces.
 - Slow-motion charge and timer desynchronization.
 - Degraded AI reactions.
+- Turning barely affecting weapon accuracy.
+- Explosions pushing the player too far.
+- Repeated damage effects from fire and other hazards.
 
 ## Optimized Save Performance
 Dramatically reduces save times by buffering file operations in memory instead of writing directly to disk.  

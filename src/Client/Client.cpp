@@ -26,6 +26,9 @@ void(__thiscall* UpdateRotation)(int) = nullptr;
 bool(__thiscall* TimerIsTimedOut)(int) = nullptr;
 unsigned int(__thiscall* HandleMsgSlowMo)(int*, void*) = nullptr;
 void(__thiscall* UpdateSlowMo)(int*) = nullptr;
+void(__thiscall* UpdatePushers)(int) = nullptr;
+void(__thiscall* UpdateGotoNodeMovement)(int) = nullptr;
+void(__thiscall* UpdateDuck)(int) = nullptr;
 
 // FixKeyboardInputLanguage
 void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;

@@ -26,6 +26,11 @@ static void ApplyHighFPSFixesClientPatch()
 	DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
 	DWORD addr_UpdateRotation = ScanModuleSignature(g_State.GameClient, "83 EC 54 A1 ?? ?? ?? ?? 8B 40 28 55 56 8B F1 57 8D 48 1C 51", "UpdateRotation");
 	DWORD addr_TimerIsTimedOut = ScanModuleSignature(g_State.GameClient, "8D BE 58 04 00 00 8B CF E8 ?? ?? ?? ?? 84 C0 74 18 C6 86 80 04 00 00 00", "TimerIsTimedOut");
+	DWORD addr_TurningPerturbRate = ScanModuleSignature(g_State.GameClient, "D8 2D ?? ?? ?? ?? D8 74 24 08 D9 54 24 08 D8 1D", "TurningPerturbRate");
+	DWORD addr_UpdatePushers = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 81 EC D0 00 00 00 33 D2 83 C8 FF 53 8B D9 55", "UpdatePushers");
+	DWORD addr_UpdateGotoNodeMovement = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? 83 EC 30 56 57 8B B8 20 06 00 00 85 FF 8B F1 0F 84", "UpdateGotoNodeMovement");
+	DWORD addr_UpdateDuck = ScanModuleSignature(g_State.GameClient, "51 A1 ?? ?? ?? ?? 53 56 8B F1 8B 48 14 8A 41 30 33 DB 3A C3 0F 85", "UpdateDuck");
+	DWORD addr_CameraSmoothingStart = ScanModuleSignature(g_State.GameClient, "D8 4C 24 0C D8 5C 24 18 DF E0 F6 C4 41 7A", "CameraSmoothingStart");
     addr_GetMaxRecentVelocityMag = MemoryHelper::ResolveRelativeAddress(addr_GetMaxRecentVelocityMag, 0xC);
 
     if (addr_SurfaceJumpImpulse == 0 ||
@@ -41,9 +46,18 @@ static void ApplyHighFPSFixesClientPatch()
 		addr_UpdateSlowMo == 0 ||
 		addr_UpdateRotation == 0 ||
 		addr_TimerIsTimedOut == 0 ||
-		addr_MoveLocalSolidObject == 0) {
+		addr_MoveLocalSolidObject == 0 ||
+		addr_TurningPerturbRate == 0 ||
+		addr_UpdatePushers == 0 ||
+		addr_UpdateGotoNodeMovement == 0 ||
+		addr_UpdateDuck == 0 ||
+		addr_CameraSmoothingStart == 0) {
         return;
     }
+
+    g_State.playerMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_UpdateRotation + 0x4);
+    g_State.physicsLTAddr = MemoryHelper::ReadMemory<DWORD>(addr_MoveLocalSolidObject + 0xB5);
+    TimerIsTimedOut = reinterpret_cast<decltype(TimerIsTimedOut)>(MemoryHelper::ResolveRelativeAddress(addr_TimerIsTimedOut, 0x9));
 
     MemoryHelper::MakeNOP(addr_SurfaceJumpImpulse, 0x10);
 	MemoryHelper::WriteMemory<uint16_t>(addr_HeightOffset + 0x11, 0xE990);
@@ -54,13 +68,16 @@ static void ApplyHighFPSFixesClientPatch()
     HookHelper::ApplyHook((void*)addr_UpdateNormalFriction, &UpdateNormalFriction_Hook, (LPVOID*)&UpdateNormalFriction);
     HookHelper::ApplyHook((void*)(addr_GetTimerElapsedS - 0x20), &GetTimerElapsedS_Hook, (LPVOID*)&GetTimerElapsedS);
     HookHelper::ApplyHook((void*)(addr_PolyGridFXCollisionHandlerCB - 0x6), &PolyGridFXCollisionHandlerCB_Hook, (LPVOID*)&PolyGridFXCollisionHandlerCB);
-	g_State.playerMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_UpdateRotation + 0x4);
-	g_State.physicsLTAddr = MemoryHelper::ReadMemory<DWORD>(addr_MoveLocalSolidObject + 0xB5);
-	TimerIsTimedOut = reinterpret_cast<decltype(TimerIsTimedOut)>(MemoryHelper::ResolveRelativeAddress(addr_TimerIsTimedOut, 0x9));
 	HookHelper::ApplyHook((void*)addr_UpdateRotation, &UpdateRotation_Hook, (LPVOID*)&UpdateRotation);
 	HookHelper::ApplyHook((void*)(addr_MoveLocalSolidObject), &MoveLocalSolidObject_Hook, (LPVOID*)&MoveLocalSolidObject);
 	HookHelper::ApplyHook((void*)(addr_HandleMsgSlowMo), &HandleMsgSlowMo_Hook,(LPVOID*)&HandleMsgSlowMo);
 	HookHelper::ApplyHook((void*)(addr_UpdateSlowMo),&UpdateSlowMo_Hook,(LPVOID*)&UpdateSlowMo);
+	HookHelper::ApplyHook((void*)addr_UpdatePushers, &UpdatePushers_Hook, (LPVOID*)&UpdatePushers);
+	HookHelper::ApplyHook((void*)addr_UpdateGotoNodeMovement, &UpdateGotoNodeMovement_Hook, (LPVOID*)&UpdateGotoNodeMovement);
+	HookHelper::ApplyHook((void*)addr_UpdateDuck, &UpdateDuck_Hook, (LPVOID*)&UpdateDuck);
+    MemoryHelper::MakeCALL(addr_TurningPerturbRate + 0x6, reinterpret_cast<uintptr_t>(&TurningPerturbRate_Hook));
+    MemoryHelper::MakeNOP(addr_TurningPerturbRate + 0xB, 3);
+	MemoryHelper::WriteMemory<uint8_t>(addr_CameraSmoothingStart + 0xC, 0x01);
 	g_State.isClientSlowMoTracked = true;
 }
 
