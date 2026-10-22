@@ -120,7 +120,7 @@ static void ReadConfig()
     GAMEPAD_RIGHT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1", 82);
     GAMEPAD_RIGHT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD", -1);
     GAMEPAD_RIGHT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD_TIME", 500);
-    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", 75);
+    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", -1);
     GAMEPAD_LEFT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD", -1);
     GAMEPAD_LEFT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD_TIME", 500);
     GAMEPAD_RIGHT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2", -1);

@@ -107,9 +107,23 @@ struct GyroAutoOffset
     bool isSurfaceMode = false;
 };
 
+struct GyroSamples
+{
+    float sumX = 0.0f;
+    float sumY = 0.0f;
+    float sumZ = 0.0f;
+    int count = 0;
+
+    float averageX = 0.0f;
+    float averageY = 0.0f;
+    float averageZ = 0.0f;
+    bool hasAverage = false;
+};
+
 static GyroConfig s_gyroConfig;
 static GyroProcessingState s_gyroProcessing;
 static GyroAutoOffset s_gyroOffset;
+static GyroSamples s_gyroSamples;
 
 static bool s_gyroCalibrationPersistenceEnabled = true;
 static bool s_gyroCalibrationSavedThisSession = false;
@@ -490,6 +504,7 @@ static void ResetControllerState()
     s_gyroState = GyroState();
     s_gyroProcessing = GyroProcessingState();
     s_gyroOffset = GyroAutoOffset();
+    s_gyroSamples = GyroSamples();
     s_gyroCalibrationSavedThisSession = false;
     s_currentControllerSerial.clear();
 
@@ -530,12 +545,13 @@ bool InitializeSDLGamepad()
         SDL_EVENT_JOYSTICK_BUTTON_DOWN, SDL_EVENT_JOYSTICK_BUTTON_UP,
         SDL_EVENT_GAMEPAD_AXIS_MOTION, SDL_EVENT_GAMEPAD_BUTTON_DOWN, SDL_EVENT_GAMEPAD_BUTTON_UP,
         SDL_EVENT_GAMEPAD_TOUCHPAD_DOWN, SDL_EVENT_GAMEPAD_TOUCHPAD_MOTION, SDL_EVENT_GAMEPAD_TOUCHPAD_UP,
-        SDL_EVENT_GAMEPAD_SENSOR_UPDATE,
     };
     for (SDL_EventType eventType : unusedEvents)
     {
         SDL_SetEventEnabled(eventType, false);
     }
+
+    SDL_SetEventEnabled(SDL_EVENT_GAMEPAD_SENSOR_UPDATE, s_gyroConfig.isEnabled);
 
     QueryPerformanceFrequency(&s_frameTiming.frequency);
     QueryPerformanceCounter(&s_frameTiming.lastFrameTime);
@@ -625,6 +641,11 @@ bool HasTouchpad()
 void SetGyroEnabled(bool enabled)
 {
     s_gyroConfig.isEnabled = enabled;
+
+    if (SDL_WasInit(SDL_INIT_GAMEPAD))
+    {
+        SDL_SetEventEnabled(SDL_EVENT_GAMEPAD_SENSOR_UPDATE, enabled);
+    }
 }
 
 void SetGyroSensitivity(float sensitivity)
@@ -1059,18 +1080,34 @@ static void ProcessGyro()
     s_gyroState.isValid = false;
 
     if (!s_pGamepad || !s_gyroConfig.isEnabled || !s_capabilities.hasGyro)
+    {
+        s_gyroSamples = GyroSamples();
         return;
+    }
 
-    float gyro[3] = { 0.0f, 0.0f, 0.0f };
+    // Average every sample received since the last frame, the previous average is kept if none arrived
+    if (s_gyroSamples.count > 0)
+    {
+        s_gyroSamples.averageX = s_gyroSamples.sumX / s_gyroSamples.count;
+        s_gyroSamples.averageY = s_gyroSamples.sumY / s_gyroSamples.count;
+        s_gyroSamples.averageZ = s_gyroSamples.sumZ / s_gyroSamples.count;
+        s_gyroSamples.hasAverage = true;
+
+        s_gyroSamples.sumX = 0.0f;
+        s_gyroSamples.sumY = 0.0f;
+        s_gyroSamples.sumZ = 0.0f;
+        s_gyroSamples.count = 0;
+    }
+
     float accel[3] = { 0.0f, 0.0f, 0.0f };
 
-    if (SDL_GetGamepadSensorData(s_pGamepad, SDL_SENSOR_GYRO, gyro, 3) && SDL_GetGamepadSensorData(s_pGamepad, SDL_SENSOR_ACCEL, accel, 3))
+    if (s_gyroSamples.hasAverage && SDL_GetGamepadSensorData(s_pGamepad, SDL_SENSOR_ACCEL, accel, 3))
     {
-        UpdateGyroOffset(gyro[0], gyro[1], gyro[2], accel[0], accel[1], accel[2], s_frameTiming.deltaTime);
+        UpdateGyroOffset(s_gyroSamples.averageX, s_gyroSamples.averageY, s_gyroSamples.averageZ, accel[0], accel[1], accel[2], s_frameTiming.deltaTime);
 
-        s_gyroState.x = gyro[0] - s_gyroOffset.offsetX;
-        s_gyroState.y = gyro[1] - s_gyroOffset.offsetY;
-        s_gyroState.z = gyro[2] - s_gyroOffset.offsetZ;
+        s_gyroState.x = s_gyroSamples.averageX - s_gyroOffset.offsetX;
+        s_gyroState.y = s_gyroSamples.averageY - s_gyroOffset.offsetY;
+        s_gyroState.z = s_gyroSamples.averageZ - s_gyroOffset.offsetZ;
         s_gyroState.isValid = true;
     }
 }
@@ -1104,12 +1141,22 @@ void GetProcessedGyroDelta(float& outYaw, float& outPitch)
 
     if (s_gyroConfig.invertY) rawPitch = -rawPitch;
 
-    float smoothFactor = expf(-deltaTime / fmaxf(s_gyroConfig.smoothing, 0.001f));
-    s_gyroProcessing.smoothedYaw = rawYaw + (s_gyroProcessing.smoothedYaw - rawYaw) * smoothFactor;
-    s_gyroProcessing.smoothedPitch = rawPitch + (s_gyroProcessing.smoothedPitch - rawPitch) * smoothFactor;
+    // Soft tiered smoothing, slow movements are smoothed while fast movements stay responsive
+    const float SMOOTH_THRESH_LOW = 0.087f;  // 5 deg/s
+    const float SMOOTH_THRESH_HIGH = 0.175f; // 10 deg/s
 
-    outYaw = s_gyroProcessing.smoothedYaw * deltaTime * s_gyroConfig.sensitivity;
-    outPitch = s_gyroProcessing.smoothedPitch * deltaTime * s_gyroConfig.sensitivity;
+    float magnitude = sqrtf(rawYaw * rawYaw + rawPitch * rawPitch);
+    float directWeight = std::clamp((magnitude - SMOOTH_THRESH_LOW) / (SMOOTH_THRESH_HIGH - SMOOTH_THRESH_LOW), 0.0f, 1.0f);
+
+    float smoothInputYaw = rawYaw * (1.0f - directWeight);
+    float smoothInputPitch = rawPitch * (1.0f - directWeight);
+
+    float smoothFactor = expf(-deltaTime / fmaxf(s_gyroConfig.smoothing, 0.001f));
+    s_gyroProcessing.smoothedYaw = smoothInputYaw + (s_gyroProcessing.smoothedYaw - smoothInputYaw) * smoothFactor;
+    s_gyroProcessing.smoothedPitch = smoothInputPitch + (s_gyroProcessing.smoothedPitch - smoothInputPitch) * smoothFactor;
+
+    outYaw = (rawYaw * directWeight + s_gyroProcessing.smoothedYaw) * deltaTime * s_gyroConfig.sensitivity;
+    outPitch = (rawPitch * directWeight + s_gyroProcessing.smoothedPitch) * deltaTime * s_gyroConfig.sensitivity;
 }
 
 // ==========================================================
@@ -1155,7 +1202,7 @@ static void ReleaseAllGameButtons()
                 int holdSimulatedKey = GetSimulatedKey(holdCommandId);
                 if (holdSimulatedKey != 0)
                 {
-                    PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
+                    PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, SIMULATED_KEY_FLAG);
                 }
                 else
                 {
@@ -1171,9 +1218,9 @@ static void ReleaseAllGameButtons()
             int simulatedKey = GetSimulatedKey(commandId);
             if (simulatedKey != 0)
             {
-                PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
+                PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, SIMULATED_KEY_FLAG);
             }
-            else if (commandId != 0)
+            else if (commandId > 0)
             {
                 g_Controller.commandActive[commandId] = false;
                 OnCommandOff(g_State.pGameClientShell, commandId);
@@ -1187,13 +1234,13 @@ static void ReleaseAllGameButtons()
     // Release all held gamepad buttons
     for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
-        ReleaseInput(g_Controller.gameButtons[i], s_buttonHoldTriggered[i], s_buttonCommands[i], s_buttonHoldCommands[i], s_buttonHoldTimes[i]);
+        ReleaseInput(g_Controller.gameButtons[i], s_buttonHoldTriggered[i], g_Controller.gameButtons[i].commandId, s_buttonHoldCommands[i], s_buttonHoldTimes[i]);
     }
 
     // Release all held triggers
     for (int i = 0; i < 2; i++)
     {
-        ReleaseInput(g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], s_triggerCommands[i], s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
+        ReleaseInput(g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], g_Controller.triggerButtons[i].commandId, s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
     }
 }
 
@@ -1372,9 +1419,10 @@ bool IsTouchpadRecentlyUsed()
 // Configuration - Mappings
 // ==========================================================
 
-static int SanitizeCommandId(int cmd, int invalidValue = -1)
+// 0 is COMMAND_ID_FORWARD, it is treated as unbound like -1
+static int SanitizeCommandId(int cmd)
 {
-    if (cmd < -1 || cmd > MAX_COMMAND_ID) return invalidValue;
+    if (cmd <= 0 || cmd > MAX_COMMAND_ID) return -1;
     return cmd;
 }
 
@@ -1382,7 +1430,7 @@ void ConfigureButton(int buttonIndex, int commandId, int holdCommandId, int hold
 {
     if (buttonIndex >= 0 && buttonIndex < SDL_GAMEPAD_BUTTON_COUNT)
     {
-        s_buttonCommands[buttonIndex] = SanitizeCommandId(commandId, 0);
+        s_buttonCommands[buttonIndex] = SanitizeCommandId(commandId);
         s_buttonHoldCommands[buttonIndex] = SanitizeCommandId(holdCommandId);
         s_buttonHoldTimes[buttonIndex] = holdTimeMs;
     }
@@ -1392,7 +1440,7 @@ void ConfigureTrigger(int triggerIndex, int commandId, int holdCommandId, int ho
 {
     if (triggerIndex >= 0 && triggerIndex < 2)
     {
-        s_triggerCommands[triggerIndex] = SanitizeCommandId(commandId, 0);
+        s_triggerCommands[triggerIndex] = SanitizeCommandId(commandId);
         s_triggerHoldCommands[triggerIndex] = SanitizeCommandId(holdCommandId);
         s_triggerHoldTimes[triggerIndex] = holdTimeMs;
     }
@@ -1546,6 +1594,17 @@ static void OnGamepadDisconnected(SDL_JoystickID deviceId)
     }
 }
 
+static void OnGamepadSensorUpdate(const SDL_GamepadSensorEvent& sensorEvent)
+{
+    if (!s_pGamepad || sensorEvent.sensor != SDL_SENSOR_GYRO || sensorEvent.which != SDL_GetGamepadID(s_pGamepad))
+        return;
+
+    s_gyroSamples.sumX += sensorEvent.data[0];
+    s_gyroSamples.sumY += sensorEvent.data[1];
+    s_gyroSamples.sumZ += sensorEvent.data[2];
+    s_gyroSamples.count++;
+}
+
 static void ProcessSDLEvents()
 {
     SDL_Event event;
@@ -1560,6 +1619,10 @@ static void ProcessSDLEvents()
             case SDL_EVENT_GAMEPAD_REMOVED:
                 OnGamepadDisconnected(event.gdevice.which);
                 break;
+
+            case SDL_EVENT_GAMEPAD_SENSOR_UPDATE:
+                OnGamepadSensorUpdate(event.gsensor);
+                break;
         }
     }
 }
@@ -1573,10 +1636,17 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
     bool hasHoldAction = (holdCommandId >= 0 && holdTime > 0);
 
     // Activate instead of Reload
-    if (commandId == 88 && (g_State.canActivate || g_State.canSwap || g_State.isOperatingTurret))
+    if (!btnState.isPressed)
     {
-        commandId = 87;
+        btnState.commandId = commandId;
+
+        if (commandId == 88 && (g_State.canActivate || g_State.canSwap || g_State.isOperatingTurret))
+        {
+            btnState.commandId = 87;
+        }
     }
+
+    commandId = btnState.commandId;
 
     if (IsInTransitionPeriod())
     {
@@ -1609,10 +1679,9 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
         {
             if (simulatedKey != 0)
             {
-                g_Controller.simulatedKeyPressCount++;
-                PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, 0);
+                PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, SIMULATED_KEY_FLAG);
             }
-            else
+            else if (commandId > 0)
             {
                 g_Controller.commandActive[commandId] = true;
                 OnCommandOn(g_State.pGameClientShell, commandId);
@@ -1635,9 +1704,8 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
 
                     if (holdSimulatedKey != 0)
                     {
-                        g_Controller.simulatedKeyPressCount++;
-                        PostMessage(g_State.hWnd, WM_KEYDOWN, holdSimulatedKey, 0);
-                        PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, 0);
+                        PostMessage(g_State.hWnd, WM_KEYDOWN, holdSimulatedKey, SIMULATED_KEY_FLAG);
+                        PostMessage(g_State.hWnd, WM_KEYUP, holdSimulatedKey, SIMULATED_KEY_FLAG);
                     }
                     else
                     {
@@ -1655,7 +1723,7 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
         else
         {
             // No hold action, keep tap action active
-            if (simulatedKey == 0)
+            if (simulatedKey == 0 && commandId > 0)
             {
                 g_Controller.commandActive[commandId] = true;
             }
@@ -1680,11 +1748,10 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
                 // Released before hold threshold, pulse tap action for one frame
                 if (simulatedKey != 0)
                 {
-                    g_Controller.simulatedKeyPressCount++;
-                    PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, 0);
-                    PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
+                    PostMessage(g_State.hWnd, WM_KEYDOWN, simulatedKey, SIMULATED_KEY_FLAG);
+                    PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, SIMULATED_KEY_FLAG);
                 }
-                else
+                else if (commandId > 0)
                 {
                     // Set active for this frame, memset next frame will clear it
                     g_Controller.commandActive[commandId] = true;
@@ -1698,9 +1765,9 @@ static void HandleGamepadInput(bool isPressed, int commandId, ButtonState& btnSt
             // No hold action configured, release tap action normally
             if (simulatedKey != 0)
             {
-                PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, 0);
+                PostMessage(g_State.hWnd, WM_KEYUP, simulatedKey, SIMULATED_KEY_FLAG);
             }
-            else if (commandId != 0)
+            else if (commandId > 0)
             {
                 g_Controller.commandActive[commandId] = false;
                 OnCommandOff(g_State.pGameClientShell, commandId);
@@ -1720,7 +1787,7 @@ void ProcessGameplayInput()
     for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; i++)
     {
         int commandId = s_buttonCommands[i];
-        if (commandId != 0)
+        if (commandId > 0 || s_buttonHoldCommands[i] > 0)
         {
             bool isPressed = SDL_GetGamepadButton(s_pGamepad, static_cast<SDL_GamepadButton>(i));
             HandleGamepadInput(isPressed, commandId, g_Controller.gameButtons[i], s_buttonHoldTriggered[i], s_buttonHoldCommands[i], s_buttonHoldTimes[i]);
@@ -1729,10 +1796,14 @@ void ProcessGameplayInput()
 
     for (int i = 0; i < 2; i++)
     {
-        SDL_GamepadAxis axis = (i == 0) ? SDL_GAMEPAD_AXIS_LEFT_TRIGGER : SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-        Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
-        bool isPressed = value > TRIGGER_THRESHOLD;
-        HandleGamepadInput(isPressed, s_triggerCommands[i], g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
+        int commandId = s_triggerCommands[i];
+        if (commandId > 0 || s_triggerHoldCommands[i] > 0)
+        {
+            SDL_GamepadAxis axis = (i == 0) ? SDL_GAMEPAD_AXIS_LEFT_TRIGGER : SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
+            Sint16 value = SDL_GetGamepadAxis(s_pGamepad, axis);
+            bool isPressed = value > TRIGGER_THRESHOLD;
+            HandleGamepadInput(isPressed, commandId, g_Controller.triggerButtons[i], s_triggerHoldTriggered[i], s_triggerHoldCommands[i], s_triggerHoldTimes[i]);
+        }
     }
 }
 
@@ -1788,8 +1859,7 @@ static void ProcessMenuNavigation()
 
                 if (elapsed > MENU_REPEAT_DELAY && sinceLast > MENU_REPEAT_RATE)
                 {
-                    g_Controller.simulatedKeyPressCount++;
-                    PostMessage(g_State.hWnd, WM_KEYDOWN, menuNavigation[i].vkey, 0);
+                    PostMessage(g_State.hWnd, WM_KEYDOWN, menuNavigation[i].vkey, SIMULATED_KEY_FLAG);
                     btnState.lastRepeatTime = currentTime;
                 }
             }
@@ -1804,8 +1874,6 @@ static void ProcessMenuNavigation()
         {
             if (pressed)
             {
-                g_Controller.simulatedKeyPressCount++;
-
                 if (g_Controller.touchpadCursorActive && g_State.pUseCursor)
                 {
                     g_Controller.touchpadCursorActive = false;
@@ -1813,7 +1881,7 @@ static void ProcessMenuNavigation()
                 }
             }
 
-            PostMessage(g_State.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, menuNavigation[i].vkey, 0);
+            PostMessage(g_State.hWnd, pressed ? WM_KEYDOWN : WM_KEYUP, menuNavigation[i].vkey, SIMULATED_KEY_FLAG);
             btnState.isPressed = pressed;
 
             if (pressed)

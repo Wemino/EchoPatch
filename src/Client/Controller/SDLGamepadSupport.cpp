@@ -10,12 +10,15 @@ static ULONGLONG lastCursorStateChangeTime = 0;
 static ULONGLONG cursorActivityStartTime = 0;
 static double zoomMag = 0;
 static int cursorMovementAccum = 0;
+static int lastCursorX = 0;
+static int lastCursorY = 0;
 static int turretPrevDamageState = 0;
 static uint16_t healthBefore = 0;
 static uint16_t healthAfter = 0;
 static uint16_t armorBefore = 0;
 static uint16_t armorAfter = 0;
 static bool updateGyroCamera = false;
+static int bindMgr = 0;
 static bool isAiming = false;
 static bool isDoingMeleeAttack = false;
 static bool isTakingDamage = false;
@@ -33,6 +36,8 @@ static bool __fastcall IsCommandOn_Hook(int thisPtr, int, int commandId)
 
 static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int commandId)
 {
+	bindMgr = thisPtr;
+
 	if (!g_Controller.isConnected || g_State.isConsoleOpen)
 		return GetExtremalCommandValue(thisPtr, commandId);
 
@@ -40,29 +45,34 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 	if (!pGamepad)
 		return GetExtremalCommandValue(thisPtr, commandId);
 
-	static constexpr int DEAD_ZONE = 7849;
+	static constexpr double DEAD_ZONE = 7849.0 / 32767.0;
 
-	auto ReadAxis = [&](SDL_GamepadAxis axis) -> double
+	// Radial dead zone, rescaled so the value starts from 0 at its edge
+	auto ReadStickAxis = [&](SDL_GamepadAxis axis, SDL_GamepadAxis otherAxis) -> double
 	{
-		Sint16 value = SDL_GetGamepadAxis(pGamepad, axis);
-		if (abs(value) < DEAD_ZONE)
+		double value = std::max(SDL_GetGamepadAxis(pGamepad, axis) / 32767.0, -1.0);
+		double otherValue = std::max(SDL_GetGamepadAxis(pGamepad, otherAxis) / 32767.0, -1.0);
+
+		double magnitude = std::sqrt(value * value + otherValue * otherValue);
+		if (magnitude <= DEAD_ZONE)
 			return 0.0;
-		return value / 32768.0;
+
+		return value * std::min((magnitude - DEAD_ZONE) / (1.0 - DEAD_ZONE), 1.0) / magnitude;
 	};
 
 	auto ApplyZoomScale = [](double value) -> double
 	{
 		if (zoomMag > GPadZoomMagThreshold)
-			return value * (zoomMag / GPadZoomMagThreshold);
+			return value * std::sqrt(zoomMag / GPadZoomMagThreshold);
 		return value;
 	};
 
 	switch (commandId)
 	{
-		case 2:  return -ReadAxis(SDL_GAMEPAD_AXIS_LEFTY);                      // Forward
-		case 5:  return  ReadAxis(SDL_GAMEPAD_AXIS_LEFTX);                      // Strafe
-		case 22: return  ApplyZoomScale(ReadAxis(SDL_GAMEPAD_AXIS_RIGHTY));     // Pitch
-		case 23: return  ApplyZoomScale(ReadAxis(SDL_GAMEPAD_AXIS_RIGHTX));     // Yaw
+		case 2:  return -ReadStickAxis(SDL_GAMEPAD_AXIS_LEFTY, SDL_GAMEPAD_AXIS_LEFTX);                      // Forward
+		case 5:  return  ReadStickAxis(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY);                      // Strafe
+		case 22: return  ApplyZoomScale(ReadStickAxis(SDL_GAMEPAD_AXIS_RIGHTY, SDL_GAMEPAD_AXIS_RIGHTX));     // Pitch
+		case 23: return  ApplyZoomScale(ReadStickAxis(SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY));     // Yaw
 		default: return  GetExtremalCommandValue(thisPtr, commandId);
 	}
 }
@@ -73,11 +83,16 @@ static double __fastcall GetZoomMag_Hook(int thisPtr)
 	return zoomMag;
 }
 
-static int __fastcall HUDActivateObjectSetObject_Hook(int thisPtr, int, void** a2, int a3, int a4, int a5, int nNewType)
+static __declspec(naked) void HUDActivateObjectSetObject_Hook()
 {
-	// If we can open a door or pick up an item
-	g_State.canActivate = nNewType != -1;
-	return HUDActivateObjectSetObject(thisPtr, a2, a3, a4, a5, nNewType);
+	__asm
+	{
+		// If we can open a door or pick up an item (nNewType is after the return address and the LTObjRef)
+		cmp dword ptr [esp + 0x14], -1
+		setne al
+		mov g_State.canActivate, al
+		jmp HUDActivateObjectSetObject
+	}
 }
 
 static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
@@ -155,11 +170,16 @@ static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor, bool bL
 
 static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 {
+	int deltaX = x - lastCursorX;
+	int deltaY = y - lastCursorY;
+	lastCursorX = x;
+	lastCursorY = y;
+
 	if (ShouldShowControllerPrompts())
 	{
 		if (!IsTouchpadRecentlyUsed())
 		{
-			if (g_State.isAllowedToUseCursor && (x != 0 || y != 0))
+			if (g_State.isAllowedToUseCursor && (deltaX != 0 || deltaY != 0))
 			{
 				ULONGLONG now = GetTickCount64();
 
@@ -171,7 +191,7 @@ static bool __fastcall OnMouseMove_Hook(int thisPtr, int, int x, int y)
 						cursorActivityStartTime = now;
 					}
 
-					cursorMovementAccum += abs(x) + abs(y);
+					cursorMovementAccum += abs(deltaX) + abs(deltaY);
 
 					if (cursorMovementAccum > 150)
 					{
@@ -243,7 +263,10 @@ static void __fastcall UpdatePlayerMovement_Hook(int thisPtr, int)
 
 static void __fastcall ApplyLocalRotationOffset_Hook(int thisPtr, int, float* vPYROffset)
 {
-	if (updateGyroCamera && g_Controller.isConnected && IsGyroEnabled() && !g_State.isConsoleOpen)
+	// Input lock of the bind manager
+	bool isInputEnabled = bindMgr == 0 || *(bool*)(bindMgr + 0x4C);
+
+	if (updateGyroCamera && isInputEnabled && g_Controller.isConnected && IsGyroEnabled() && !g_State.isConsoleOpen)
 	{
 		bool shouldApplyGyro = (GyroAimingMode == 0) 
 			|| (GyroAimingMode == 1 && isAiming) 
@@ -851,9 +874,7 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 		switch (Msg)
 		{
 			case WM_KEYDOWN:
-				if (g_Controller.simulatedKeyPressCount > 0)
-					g_Controller.simulatedKeyPressCount--;
-				else
+				if ((lParam & SIMULATED_KEY_FLAG) != SIMULATED_KEY_FLAG)
 					OnKeyboardMouseInput();
 			break;
 			case WM_LBUTTONDOWN:
@@ -872,8 +893,9 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 
 static bool __fastcall ChangeState_Hook(int thisPtr, int, int state, int screenId)
 {
-	g_State.isPlaying = state == 1;
-	return ChangeState(thisPtr, state, screenId);
+	bool result = ChangeState(thisPtr, state, screenId);
+	g_State.isPlaying = *(int*)(thisPtr + 0x8) == 1;
+	return result;
 }
 
 static void __fastcall MsgBoxShow_Hook(int thisPtr, int, const wchar_t* pString, int pCreate, int nFontSize, bool bDefaultReturn)

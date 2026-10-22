@@ -71,7 +71,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 
         case 'M':  // ModelLODDistanceScale, MouseInvertY
         {
-            if (!NoLODBias && !(SDLGamepadSupport && GyroEnabled)) break;
+            if (!NoLODBias && !SDLGamepadSupport) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
             if (NoLODBias && varHash == HashHelper::CVarHashes::ModelLODDistanceScale)
@@ -79,7 +79,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
                 if (fValue > 0.0f)
                     fValue = 0.003f;
             }
-            else if (SDLGamepadSupport && GyroEnabled && varHash == HashHelper::CVarHashes::MouseInvertY)
+            else if (SDLGamepadSupport && varHash == HashHelper::CVarHashes::MouseInvertY)
             {
                 SetGyroInvertY(fValue == 1.0f);
             }

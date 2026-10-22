@@ -7,6 +7,9 @@
 
 static constexpr int MAX_COMMAND_ID = 114;
 
+// Reserved lParam bits (25-28), never set by real key messages
+static constexpr LPARAM SIMULATED_KEY_FLAG = 0x1E000000;
+
 enum class GamepadStyle
 {
     Xbox,
@@ -40,6 +43,7 @@ struct ButtonState
     bool wasHandled = false;
     ULONGLONG pressStartTime = 0;
     ULONGLONG lastRepeatTime = 0;
+    int commandId = -1;
 };
 
 struct RumbleState
@@ -66,7 +70,6 @@ struct ControllerState
     ButtonState rightShoulderState;
     bool commandActive[MAX_COMMAND_ID + 1] = { false };
     bool usingControllerInput = false;
-    int simulatedKeyPressCount = 0;
     ULONGLONG lastTouchpadInputTime = 0;
     bool touchpadCursorActive = false;
     RumbleState rumble;
