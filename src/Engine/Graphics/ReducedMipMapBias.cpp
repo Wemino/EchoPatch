@@ -257,14 +257,14 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
     {
         if (!g_State.stageIsDirty[Stage])
         {
-            float sharpBias = -2.0f;
+            float sharpBias = -1.5f;
             device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&sharpBias));
             g_State.stageIsDirty[Stage] = true;
         }
     }
     else if (g_State.stageIsDirty[Stage])
     {
-        float defaultBias = -0.5f;
+        float defaultBias = -0.2f;
         device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&defaultBias));
         g_State.stageIsDirty[Stage] = false;
     }
