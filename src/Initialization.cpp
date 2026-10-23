@@ -4,6 +4,7 @@
 #include "LAAPatcher.hpp"
 #include "CrashHandler.hpp"
 #include "Controller/Controller.hpp"
+#include "Controller/ControllerBindings.hpp"
 
 static bool isInit = false;
 
@@ -66,69 +67,7 @@ static void ReadConfig()
     GPadAimEdgeMultiplier = IniHelper::ReadFloat("Controller", "GPadAimEdgeMultiplier", 1.6f);
     GPadAimAspectRatio = IniHelper::ReadFloat("Controller", "GPadAimAspectRatio", 1.0f);
     GPadZoomMagThreshold = IniHelper::ReadFloat("Controller", "GPadZoomMagThreshold", 1.3f);
-    GAMEPAD_SOUTH = IniHelper::ReadInteger("Controller", "GAMEPAD_SOUTH", 15);
-    GAMEPAD_SOUTH_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_SOUTH_HOLD", -1);
-    GAMEPAD_SOUTH_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_SOUTH_HOLD_TIME", 500);
-    GAMEPAD_EAST = IniHelper::ReadInteger("Controller", "GAMEPAD_EAST", 14);
-    GAMEPAD_EAST_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_EAST_HOLD", -1);
-    GAMEPAD_EAST_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_EAST_HOLD_TIME", 500);
-    GAMEPAD_WEST = IniHelper::ReadInteger("Controller", "GAMEPAD_WEST", 88);
-    GAMEPAD_WEST_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_WEST_HOLD", -1);
-    GAMEPAD_WEST_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_WEST_HOLD_TIME", 500);
-    GAMEPAD_NORTH = IniHelper::ReadInteger("Controller", "GAMEPAD_NORTH", 106);
-    GAMEPAD_NORTH_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_NORTH_HOLD", -1);
-    GAMEPAD_NORTH_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_NORTH_HOLD_TIME", 500);
-    GAMEPAD_LEFT_STICK = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_STICK", 70);
-    GAMEPAD_LEFT_STICK_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_STICK_HOLD", -1);
-    GAMEPAD_LEFT_STICK_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_STICK_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_STICK = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_STICK", 114);
-    GAMEPAD_RIGHT_STICK_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_STICK_HOLD", -1);
-    GAMEPAD_RIGHT_STICK_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_STICK_HOLD_TIME", 500);
-    GAMEPAD_LEFT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER", 81);
-    GAMEPAD_LEFT_SHOULDER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER_HOLD", -1);
-    GAMEPAD_LEFT_SHOULDER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_SHOULDER_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_SHOULDER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER", 19);
-    GAMEPAD_RIGHT_SHOULDER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER_HOLD", -1);
-    GAMEPAD_RIGHT_SHOULDER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_SHOULDER_HOLD_TIME", 500);
-    GAMEPAD_DPAD_UP = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP", 77);
-    GAMEPAD_DPAD_UP_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP_HOLD", 102);
-    GAMEPAD_DPAD_UP_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_UP_HOLD_TIME", 500);
-    GAMEPAD_DPAD_DOWN = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN", 73);
-    GAMEPAD_DPAD_DOWN_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN_HOLD", 50);
-    GAMEPAD_DPAD_DOWN_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_DOWN_HOLD_TIME", 500);
-    GAMEPAD_DPAD_LEFT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT", 20);
-    GAMEPAD_DPAD_LEFT_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT_HOLD", -1);
-    GAMEPAD_DPAD_LEFT_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_LEFT_HOLD_TIME", 500);
-    GAMEPAD_DPAD_RIGHT = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT", 21);
-    GAMEPAD_DPAD_RIGHT_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT_HOLD", -1);
-    GAMEPAD_DPAD_RIGHT_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_DPAD_RIGHT_HOLD_TIME", 500);
-    GAMEPAD_LEFT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER", 71);
-    GAMEPAD_LEFT_TRIGGER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER_HOLD", -1);
-    GAMEPAD_LEFT_TRIGGER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_TRIGGER_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_TRIGGER = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER", 17);
-    GAMEPAD_RIGHT_TRIGGER_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER_HOLD", -1);
-    GAMEPAD_RIGHT_TRIGGER_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_TRIGGER_HOLD_TIME", 500);
-    GAMEPAD_BACK = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK", 78);
-    GAMEPAD_BACK_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK_HOLD", 74);
-    GAMEPAD_BACK_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_BACK_HOLD_TIME", 500);
-    GAMEPAD_START = IniHelper::ReadInteger("Controller", "GAMEPAD_START", 13);
-    GAMEPAD_START_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_START_HOLD", 75);
-    GAMEPAD_START_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_START_HOLD_TIME", 500);
-    GAMEPAD_MISC1 = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1", 50);
-    GAMEPAD_MISC1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1_HOLD", -1);
-    GAMEPAD_MISC1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_MISC1_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1", 82);
-    GAMEPAD_RIGHT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD", -1);
-    GAMEPAD_RIGHT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE1_HOLD_TIME", 500);
-    GAMEPAD_LEFT_PADDLE1 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1", -1);
-    GAMEPAD_LEFT_PADDLE1_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD", -1);
-    GAMEPAD_LEFT_PADDLE1_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE1_HOLD_TIME", 500);
-    GAMEPAD_RIGHT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2", -1);
-    GAMEPAD_RIGHT_PADDLE2_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2_HOLD", -1);
-    GAMEPAD_RIGHT_PADDLE2_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_RIGHT_PADDLE2_HOLD_TIME", 500);
-    GAMEPAD_LEFT_PADDLE2 = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2", -1);
-    GAMEPAD_LEFT_PADDLE2_HOLD = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2_HOLD", -1);
-    GAMEPAD_LEFT_PADDLE2_HOLD_TIME = IniHelper::ReadInteger("Controller", "GAMEPAD_LEFT_PADDLE2_HOLD_TIME", 500);
+    ControllerBindings::LoadFromIni();
 
     // SkipIntro
     SkipSplashScreen = IniHelper::ReadInteger("SkipIntro", "SkipSplashScreen", 1) == 1;
@@ -183,27 +122,7 @@ static void ReadConfig()
 
     if (SDLGamepadSupport)
     {
-        ConfigureButton(SDL_GAMEPAD_BUTTON_SOUTH, GAMEPAD_SOUTH, GAMEPAD_SOUTH_HOLD, GAMEPAD_SOUTH_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_EAST, GAMEPAD_EAST, GAMEPAD_EAST_HOLD, GAMEPAD_EAST_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_WEST, GAMEPAD_WEST, GAMEPAD_WEST_HOLD, GAMEPAD_WEST_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_NORTH, GAMEPAD_NORTH, GAMEPAD_NORTH_HOLD, GAMEPAD_NORTH_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_LEFT_STICK, GAMEPAD_LEFT_STICK, GAMEPAD_LEFT_STICK_HOLD, GAMEPAD_LEFT_STICK_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_RIGHT_STICK, GAMEPAD_RIGHT_STICK, GAMEPAD_RIGHT_STICK_HOLD, GAMEPAD_RIGHT_STICK_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, GAMEPAD_LEFT_SHOULDER, GAMEPAD_LEFT_SHOULDER_HOLD, GAMEPAD_LEFT_SHOULDER_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER, GAMEPAD_RIGHT_SHOULDER, GAMEPAD_RIGHT_SHOULDER_HOLD, GAMEPAD_RIGHT_SHOULDER_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_DPAD_UP, GAMEPAD_DPAD_UP, GAMEPAD_DPAD_UP_HOLD, GAMEPAD_DPAD_UP_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_DPAD_DOWN, GAMEPAD_DPAD_DOWN, GAMEPAD_DPAD_DOWN_HOLD, GAMEPAD_DPAD_DOWN_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_DPAD_LEFT, GAMEPAD_DPAD_LEFT, GAMEPAD_DPAD_LEFT_HOLD, GAMEPAD_DPAD_LEFT_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_DPAD_RIGHT, GAMEPAD_DPAD_RIGHT, GAMEPAD_DPAD_RIGHT_HOLD, GAMEPAD_DPAD_RIGHT_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_BACK, GAMEPAD_BACK, GAMEPAD_BACK_HOLD, GAMEPAD_BACK_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_START, GAMEPAD_START, GAMEPAD_START_HOLD, GAMEPAD_START_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_MISC1, GAMEPAD_MISC1, GAMEPAD_MISC1_HOLD, GAMEPAD_MISC1_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_RIGHT_PADDLE1, GAMEPAD_RIGHT_PADDLE1, GAMEPAD_RIGHT_PADDLE1_HOLD, GAMEPAD_RIGHT_PADDLE1_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_LEFT_PADDLE1, GAMEPAD_LEFT_PADDLE1, GAMEPAD_LEFT_PADDLE1_HOLD, GAMEPAD_LEFT_PADDLE1_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_RIGHT_PADDLE2, GAMEPAD_RIGHT_PADDLE2, GAMEPAD_RIGHT_PADDLE2_HOLD, GAMEPAD_RIGHT_PADDLE2_HOLD_TIME);
-        ConfigureButton(SDL_GAMEPAD_BUTTON_LEFT_PADDLE2, GAMEPAD_LEFT_PADDLE2, GAMEPAD_LEFT_PADDLE2_HOLD, GAMEPAD_LEFT_PADDLE2_HOLD_TIME);
-        ConfigureTrigger(0, GAMEPAD_LEFT_TRIGGER, GAMEPAD_LEFT_TRIGGER_HOLD, GAMEPAD_LEFT_TRIGGER_HOLD_TIME);
-        ConfigureTrigger(1, GAMEPAD_RIGHT_TRIGGER, GAMEPAD_RIGHT_TRIGGER_HOLD, GAMEPAD_RIGHT_TRIGGER_HOLD_TIME);
+        ControllerBindings::ApplyAll();
     }
 
     if (HUDScaling)

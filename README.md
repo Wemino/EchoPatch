@@ -122,7 +122,7 @@ Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.
 | **Share / Capture**              | Holster Weapon                      |
 | **Right Paddle 1**               | Center View                         |
 
-> **Note**: Buttons support hold actions for secondary commands. Configure hold bindings and duration via `EchoPatch.ini`. See [COMMANDS.md](https://github.com/Wemino/EchoPatch/blob/main/COMMANDS.md) for the full list of command IDs.
+> **Note**: Buttons support hold actions for secondary commands. Configure the button mapping, hold bindings and duration in-game (see below) or via `EchoPatch.ini`. See [COMMANDS.md](https://github.com/Wemino/EchoPatch/blob/main/COMMANDS.md) for the full list of command IDs.
 
 ### Rumble
 Supports controller vibration feedback.  
@@ -145,6 +145,8 @@ Customizable alongside sensitivity settings within the `[Controller]` section of
 > **Note**: Hotplugging is supported, connect or disconnect controllers at any time without restarting the game.  
 
 Some controller settings from `EchoPatch.ini` can also be adjusted directly in-game via a custom menu accessible from Options → Controls → Configure joystick/gamepad.
+
+The **Button Mapping** sub-menu of this screen assigns a press action and a hold action to every button, grouped by face buttons, shoulders & triggers, D-Pad, sticks & menu buttons, and extra buttons (Share/Capture and back paddles). It also sets the hold duration and restores the default mapping. Changes apply immediately and are saved to `EchoPatch.ini`.
 
 <div align="center">
   <table>

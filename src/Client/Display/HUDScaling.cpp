@@ -254,6 +254,10 @@ static void __fastcall SliderSetSliderPos_Hook(int thisPtr, int, int nPos)
 				IniHelper::Save();
 			}
 		}
+		else if (nameHash == HashHelper::StringHashes::IDS_HELP_HOLD_DURATION)
+		{
+			ScreenJoystickHook::OnHoldDurationChanged(nPos);
+		}
 	}
 
 	SliderSetSliderPos(thisPtr, nPos);

@@ -154,6 +154,7 @@
     <ClInclude Include="..\src\ClientFX\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Controller\Controller.cpp" />
     <ClInclude Include="..\src\Controller\Controller.hpp" />
+    <ClInclude Include="..\src\Controller\ControllerBindings.hpp" />
     <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp" />
     <ClInclude Include="..\src\Core\DInputProxy.hpp" />
     <ClInclude Include="..\src\Engine\Console\ConsoleEnabled.cpp" />

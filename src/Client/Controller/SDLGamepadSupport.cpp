@@ -717,6 +717,17 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:			return L"Adjust the sensitivity of the gyroscope.";
 		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:				return L"Adjust smoothing applied to gyroscope input.";
 		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:					return L"Enable or disable touchpad functionality.";
+		case HashHelper::StringHashes::IDS_HOLD_DURATION:					return L"Hold Duration";
+		case HashHelper::StringHashes::IDS_HELP_BUTTON_MAPPING:				return L"Change the actions assigned to the controller buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_FACE:				return L"Change the actions assigned to the face buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_SHOULDERS:			return L"Change the actions assigned to the shoulder buttons and triggers.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_DPAD:				return L"Change the actions assigned to the directional pad.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_STICKS:			return L"Change the actions assigned to the stick buttons and menu buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_EXTRA:				return L"Change the actions assigned to the share/capture button and the back paddles.";
+		case HashHelper::StringHashes::IDS_HELP_BINDING_PRESS:				return L"Action performed when the button is pressed.";
+		case HashHelper::StringHashes::IDS_HELP_BINDING_HOLD:				return L"Action performed when the button is held. A button with a hold action performs its press action on release.";
+		case HashHelper::StringHashes::IDS_HELP_HOLD_DURATION:				return L"How long a button must be held to perform its hold action. Applies to every button.";
+		case HashHelper::StringHashes::IDS_HELP_RESTORE_BINDINGS:			return L"Restore the default controller button mapping.";
 
 		case HashHelper::StringHashes::IDS_QUICKSAVE:
 			if (ShouldShowControllerPrompts())

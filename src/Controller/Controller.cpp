@@ -1546,6 +1546,36 @@ const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName)
     return buffer;
 }
 
+const wchar_t* GetGamepadInputName(bool isTrigger, int index, bool shortName)
+{
+    const ButtonNameSet& names = GetButtonNameSet();
+    const ButtonNames* entry = nullptr;
+
+    if (isTrigger)
+    {
+        if (index >= 0 && index < 2)
+            entry = &names.triggers[index];
+    }
+    else if (index >= 0 && index < SDL_GAMEPAD_BUTTON_COUNT)
+    {
+        entry = &names.buttons[index];
+    }
+
+    if (!entry || !entry->shortName)
+        return L"";
+
+    return shortName ? entry->shortName : entry->longName;
+}
+
+// Re-reads the trigger names cached by the HUD after the button mapping changed
+void RefreshGamepadPrompts()
+{
+    if (!g_State.CHUDWeaponList || !g_State.CHUDGrenadeList || !HUDWeaponListUpdateTriggerNames || !HUDGrenadeListUpdateTriggerNames || !HUDSwapUpdateTriggerName)
+        return;
+
+    NotifyHUDConnectionChange();
+}
+
 // ==========================================================
 // Event Processing
 // ==========================================================

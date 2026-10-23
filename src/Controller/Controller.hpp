@@ -168,6 +168,8 @@ void ConfigureTrigger(int triggerIndex, int commandId, int holdCommandId = -1, i
 const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
 ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName);
 const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName);
+const wchar_t* GetGamepadInputName(bool isTrigger, int index, bool shortName);
+void RefreshGamepadPrompts();
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs, int priority = 0);
 void OnKeyboardMouseInput();
 bool ShouldShowControllerPrompts();

@@ -131,6 +131,9 @@
     <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp">
       <Filter>Controller</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Controller\ControllerBindings.hpp">
+      <Filter>Controller</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Core\DInputProxy.hpp">
       <Filter>Core</Filter>
     </ClInclude>

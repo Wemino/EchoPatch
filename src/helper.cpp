@@ -833,6 +833,18 @@ namespace HashHelper
 		static constexpr uint32_t IDS_HELP_GYRO_SENSITIVITY = FNV1a("IDS_HELP_GYRO_SENSITIVITY");
 		static constexpr uint32_t IDS_HELP_GYRO_SMOOTHING = FNV1a("IDS_HELP_GYRO_SMOOTHING");
 		static constexpr uint32_t IDS_HELP_TOUCHPAD = FNV1a("IDS_HELP_TOUCHPAD");
+
+		static constexpr uint32_t IDS_HOLD_DURATION = FNV1a("IDS_HOLD_DURATION");
+		static constexpr uint32_t IDS_HELP_BUTTON_MAPPING = FNV1a("IDS_HELP_BUTTON_MAPPING");
+		static constexpr uint32_t IDS_HELP_BINDINGS_FACE = FNV1a("IDS_HELP_BINDINGS_FACE");
+		static constexpr uint32_t IDS_HELP_BINDINGS_SHOULDERS = FNV1a("IDS_HELP_BINDINGS_SHOULDERS");
+		static constexpr uint32_t IDS_HELP_BINDINGS_DPAD = FNV1a("IDS_HELP_BINDINGS_DPAD");
+		static constexpr uint32_t IDS_HELP_BINDINGS_STICKS = FNV1a("IDS_HELP_BINDINGS_STICKS");
+		static constexpr uint32_t IDS_HELP_BINDINGS_EXTRA = FNV1a("IDS_HELP_BINDINGS_EXTRA");
+		static constexpr uint32_t IDS_HELP_BINDING_PRESS = FNV1a("IDS_HELP_BINDING_PRESS");
+		static constexpr uint32_t IDS_HELP_BINDING_HOLD = FNV1a("IDS_HELP_BINDING_HOLD");
+		static constexpr uint32_t IDS_HELP_HOLD_DURATION = FNV1a("IDS_HELP_HOLD_DURATION");
+		static constexpr uint32_t IDS_HELP_RESTORE_BINDINGS = FNV1a("IDS_HELP_RESTORE_BINDINGS");
 	};
 
 	// Console variable name hashes
