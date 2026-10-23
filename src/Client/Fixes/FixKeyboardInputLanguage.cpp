@@ -77,16 +77,16 @@ static bool __fastcall RestoreDefaults_Hook(int thisPtr, int, uint8_t nFlags)
 static void __fastcall SetBinding_Hook(int thisPtr, int, const DWORD* pBinding, bool bOverwrite)
 {
 	int inputMgr = g_State.defaultKeyInputMgr;
-	if (inputMgr == 0)
+	bool isUnresolved = g_State.isDefaultKeyUnresolved;
+	g_State.defaultKeyInputMgr = 0;
+	g_State.isDefaultKeyUnresolved = false;
+
+	// Only the binding made from the last default key lookup, see GetDeviceObjectDesc_Hook
+	if (inputMgr == 0 || pBinding[0] != g_State.defaultKeyDevice || pBinding[1] != g_State.defaultKeyObject)
 	{
 		SetBinding(thisPtr, pBinding, bOverwrite);
 		return;
 	}
-
-	// Keyboard binding from the default profile, see GetDeviceObjectDesc_Hook
-	bool isUnresolved = g_State.isDefaultKeyUnresolved;
-	g_State.defaultKeyInputMgr = 0;
-	g_State.isDefaultKeyUnresolved = false;
 
 	// Only the command's first keyboard binding takes the default key
 	unsigned int command = pBinding[2];

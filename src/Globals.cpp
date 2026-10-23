@@ -102,6 +102,8 @@ struct GlobalState
 	// ======================
 	bool isLoadingDefault = false;
 	int defaultKeyInputMgr = 0;
+	unsigned int defaultKeyDevice = 0;
+	unsigned int defaultKeyObject = 0;
 	bool isDefaultKeyUnresolved = false;
 
 	// ======================
