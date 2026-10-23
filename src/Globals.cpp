@@ -100,8 +100,9 @@ struct GlobalState
 	// ======================
 	// User Profile
 	// ======================
-	int currentKeyIndex = 0;
 	bool isLoadingDefault = false;
+	int defaultKeyInputMgr = 0;
+	bool isDefaultKeyUnresolved = false;
 
 	// ======================
 	// Module Handles

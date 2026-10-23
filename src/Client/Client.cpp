@@ -33,6 +33,7 @@ void(__thiscall* UpdateDuck)(int) = nullptr;
 // FixKeyboardInputLanguage
 void(__thiscall* LoadUserProfile)(int, bool, bool) = nullptr;
 bool(__thiscall* RestoreDefaults)(int, uint8_t) = nullptr;
+void(__thiscall* SetBinding)(int, const DWORD*, bool) = nullptr;
 
 // WeaponFixes
 BYTE* (__thiscall* AimMgrCtor)(BYTE*) = nullptr;

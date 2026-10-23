@@ -396,12 +396,15 @@ static void ApplyKeyboardInputLanguageClientCheck()
 
     DWORD addr_LoadUserProfile = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
     DWORD addr_RestoreDefaults = ScanModuleSignature(g_State.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
+    DWORD addr_SetBinding = ScanModuleSignature(g_State.GameClient, "8A 44 24 08 84 C0 56 57 8B 7C 24 0C 8B F1 74 06 57 E8", "SetBinding");
 
     if (addr_LoadUserProfile == 0 ||
-        addr_RestoreDefaults == 0) {
+        addr_RestoreDefaults == 0 ||
+        addr_SetBinding == 0) {
         return;
     }
 
+    HookHelper::ApplyHook((void*)addr_SetBinding, &SetBinding_Hook, (LPVOID*)&SetBinding);
     HookHelper::ApplyHook((void*)addr_LoadUserProfile, &LoadUserProfile_Hook, (LPVOID*)&LoadUserProfile);
     HookHelper::ApplyHook((void*)addr_RestoreDefaults, &RestoreDefaults_Hook, (LPVOID*)&RestoreDefaults);
 }

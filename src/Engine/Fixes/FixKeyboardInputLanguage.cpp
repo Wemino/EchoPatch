@@ -6,20 +6,34 @@
 bool(__thiscall* GetDeviceObjectName)(int, int, LPWSTR) = nullptr;
 int(__thiscall* GetDeviceObjectDesc)(int, unsigned int, wchar_t*, unsigned int*) = nullptr;
 
-static bool FindDIKInTable(int thisPtr, uint8_t dikCode, unsigned int* ret)
+static uintptr_t GetKeyboardDevice(int inputMgr, unsigned int deviceIndex)
 {
-    int KB_DIK_Table = MemoryHelper::ReadMemory<int>(thisPtr + 0xC);
-    int tableStart = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x10);
-    int tableEnd = MemoryHelper::ReadMemory<int>(KB_DIK_Table + 0x14);
+    uintptr_t devicesStart = MemoryHelper::ReadMemory<uintptr_t>(inputMgr + 0xC);
+    uintptr_t devicesEnd = MemoryHelper::ReadMemory<uintptr_t>(inputMgr + 0x10);
 
-    while (tableStart < tableEnd)
+    if (devicesStart == 0 || deviceIndex >= (devicesEnd - devicesStart) / 0x54)
+        return 0;
+
+    uintptr_t device = devicesStart + 0x54 * deviceIndex;
+    return MemoryHelper::ReadMemory<int>(device + 0x4) == 0 ? device : 0;
+}
+
+static bool FindDIKInTable(uintptr_t keyboard, uint8_t dikCode, unsigned int* ret)
+{
+    uintptr_t tableStart = MemoryHelper::ReadMemory<uintptr_t>(keyboard + 0x10);
+    uintptr_t tableEnd = MemoryHelper::ReadMemory<uintptr_t>(keyboard + 0x14);
+
+    if (tableStart == 0)
+        return false;
+
+    for (uintptr_t entry = tableStart; entry < tableEnd; entry += 0x20)
     {
-        if (MemoryHelper::ReadMemory<uint8_t>(tableStart + 0x1) == dikCode)
+        if (MemoryHelper::ReadMemory<uint8_t>(entry + 0x1) == dikCode)
         {
-            *ret = MemoryHelper::ReadMemory<int>(tableStart + 0x1C);
+            // Object index, same as the original lookup returns
+            *ret = static_cast<unsigned int>((entry - tableStart) / 0x20);
             return true;
         }
-        tableStart += 0x20;
     }
     return false;
 }
@@ -32,10 +46,10 @@ static bool __fastcall GetDeviceObjectName_Hook(int thisPtr, int, int keyIndex, 
 {
     bool result = GetDeviceObjectName(thisPtr, keyIndex, lpWideCharStr);
 
-    if (!result || wcslen(lpWideCharStr) != 1)
+    if (!result || MemoryHelper::ReadMemory<int>(thisPtr + 0x4) != 0 || wcslen(lpWideCharStr) != 1)
         return result;
 
-    int tableBase = MemoryHelper::ReadMemory<int>(thisPtr + 0x10);
+    uintptr_t tableBase = MemoryHelper::ReadMemory<uintptr_t>(thisPtr + 0x10);
     uint8_t dikCode = MemoryHelper::ReadMemory<uint8_t>(tableBase + 32 * keyIndex + 0x1);
 
     HKL layout = GetKeyboardLayout(0);
@@ -44,11 +58,12 @@ static bool __fastcall GetDeviceObjectName_Hook(int thisPtr, int, int keyIndex, 
 
     BYTE keyState[256] = {};
     wchar_t buf[4] = {};
-    int chars = ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0, layout);
+    int chars = ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0x4, layout);
 
     if (chars < 0)
     {
-        ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0, layout);
+        // Clears the dead key on older Windows versions, which ignore 0x4
+        ToUnicodeEx(vk, dikCode, keyState, buf, 4, 0x4, layout);
         return result;
     }
 
@@ -65,53 +80,9 @@ static bool __fastcall GetDeviceObjectName_Hook(int thisPtr, int, int keyIndex, 
     return result;
 }
 
-static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
+static int FindKeyboardObject(int thisPtr, uintptr_t keyboard, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
 {
-    if (g_State.isLoadingDefault && DeviceType == 0) // Initialization of the keyboard layout
-    {
-        // Index to DirectInput Key Id mapping
-        static const std::unordered_map<int, unsigned int> keyMap =
-        {
-            {0, 0x11},   // W
-            {1, 0x1F},   // S
-            {2, 0x1E},   // A
-            {3, 0x20},   // D
-            {4, 0xCB},   // Left
-            {5, 0xCD},   // Right
-            {6, 0x9D},   // Right Ctrl
-            {8, 0x39},   // Space
-            {9, 0x2E},   // C
-            {10, 0x10},  // Q
-            {11, 0x12},  // E
-            {13, 0x22},  // G
-            {14, 0x21},  // F
-            {15, 0x13},  // R
-            {16, 0x2A},  // Shift
-            {17, 0x1D},  // Ctrl
-            {18, 0x2D},  // X
-            {19, 0x0F},  // Tab
-            {20, 0x32},  // M
-            {21, 0x14},  // T
-            {22, 0x15},  // Y
-            {23, 0x2F},  // V
-            {24, 0xC8},  // Up
-            {25, 0xD0},  // Down
-            {26, 0xCF},  // End
-            {31, 0x30},  // B
-            {36, 0x2C},  // Z
-            {37, 0x23}   // H
-        };
-
-        auto it = keyMap.find(g_State.currentKeyIndex);
-        g_State.currentKeyIndex++;
-
-        if (it != keyMap.end() && FindDIKInTable(thisPtr, static_cast<uint8_t>(it->second), ret))
-        {
-            return 0;
-        }
-    }
-
-    if (DeviceType == 0 && KeyName && wcslen(KeyName) == 1)
+    if (wcslen(KeyName) == 1)
     {
         wchar_t ch = KeyName[0];
         if ((ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z'))
@@ -121,7 +92,7 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
             HKL layout = GetKeyboardLayout(0);
             UINT scanCode = MapVirtualKeyEx(vk, MAPVK_VK_TO_VSC, layout);
 
-            if (scanCode != 0 && FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
+            if (scanCode != 0 && FindDIKInTable(keyboard, static_cast<uint8_t>(scanCode), ret))
             {
                 return 0;
             }
@@ -131,7 +102,7 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
     int result = GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
 
     // Fallback for non-ASCII single chars the original couldn't resolve
-    if (result != 61 || DeviceType != 0 || !KeyName || wcslen(KeyName) != 1)
+    if (result != 61 || wcslen(KeyName) != 1)
     {
         return result;
     }
@@ -143,9 +114,35 @@ static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int De
     if (vkScan != -1)
     {
         UINT scanCode = MapVirtualKeyEx(LOBYTE(vkScan), MAPVK_VK_TO_VSC, layout);
-        if (scanCode != 0 && FindDIKInTable(thisPtr, static_cast<uint8_t>(scanCode), ret))
+        if (scanCode != 0 && FindDIKInTable(keyboard, static_cast<uint8_t>(scanCode), ret))
         {
             return 0;
+        }
+    }
+
+    return result;
+}
+
+static int __fastcall GetDeviceObjectDesc_Hook(int thisPtr, int, unsigned int DeviceType, wchar_t* KeyName, unsigned int* ret)
+{
+    uintptr_t keyboard = (KeyName && ret) ? GetKeyboardDevice(thisPtr, DeviceType) : 0;
+    if (keyboard == 0)
+    {
+        return GetDeviceObjectDesc(thisPtr, DeviceType, KeyName, ret);
+    }
+
+    int result = FindKeyboardObject(thisPtr, keyboard, DeviceType, KeyName, ret);
+
+    if (g_State.isLoadingDefault)
+    {
+        g_State.defaultKeyInputMgr = thisPtr;
+        g_State.isDefaultKeyUnresolved = result != 0;
+
+        // Placeholder so the game still calls SetBinding, which drops it if the command has no default key
+        if (result != 0)
+        {
+            *ret = 0;
+            result = 0;
         }
     }
 
