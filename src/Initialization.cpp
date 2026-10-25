@@ -229,7 +229,13 @@ static void Init()
     // LAA Patching if needed
     if (CheckLAAPatch)
     {
-        LAAPatcher::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2);
+        // The expansions are patched together with FEAR.exe
+        if (LAAPatcher::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2, g_State.CurrentFEARGame == FEAR) == LAAPatcher::PatchResult::Declined)
+        {
+            // Don't ask again
+            IniHelper::iniReader["Fixes"]["CheckLAAPatch"] = "0";
+            IniHelper::Save();
+        }
     }
 
     // Load SDL

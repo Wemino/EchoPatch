@@ -66,6 +66,9 @@ bool OnProcessAttach(HMODULE hModule)
     // Prevents DLL from receiving thread notifications
     DisableThreadLibraryCalls(hModule);
 
+    // Wait for the previous instance to exit if the game was restarted by the LAA patcher
+    LAAPatcher::WaitForPreviousInstance();
+
     uintptr_t base = (uintptr_t)GetModuleHandleA(NULL);
     g_State.BaseAddress = base;
     IMAGE_DOS_HEADER* dos = (IMAGE_DOS_HEADER*)(base);

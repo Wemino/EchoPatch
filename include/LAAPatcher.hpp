@@ -12,6 +12,19 @@ namespace fs = std::filesystem;
 
 namespace LAAPatcher
 {
+	constexpr DWORD STEAM_ENTRY_POINT = 0x13E428;
+	constexpr uint32_t STEAM_TEXT_HASH = 0x96EC25CA;
+	constexpr uint32_t STEAM_PATCHED_HASH = 0x8786B8E8;
+
+	constexpr wchar_t RESTART_ENV_VAR[] = L"ECHOPATCH_LAA_RESTART";
+
+	enum class PatchResult
+	{
+		Patched,
+		Declined,
+		Failed
+	};
+
 	// ========================
 	// Error Handling
 	// ========================
@@ -24,6 +37,20 @@ namespace LAAPatcher
 	inline void ShowError(const std::string& message)
 	{
 		MessageBoxA(NULL, message.c_str(), "EchoPatch - LAAPatcher Error", MB_ICONERROR);
+	}
+
+	// fs::path::string() throws if the path has characters that don't exist in the ANSI code page
+	inline std::string PathToString(const fs::path& path)
+	{
+		std::wstring widePath = path.wstring();
+		int size = WideCharToMultiByte(CP_ACP, 0, widePath.c_str(), -1, NULL, 0, NULL, NULL);
+		if (size <= 0)
+			return "?";
+
+		std::string result(size, '\0');
+		WideCharToMultiByte(CP_ACP, 0, widePath.c_str(), -1, result.data(), size, NULL, NULL);
+		result.resize(size - 1);
+		return result;
 	}
 
 	// ========================
@@ -46,7 +73,7 @@ namespace LAAPatcher
 
 	inline bool CheckBounds(size_t offset, size_t size, size_t bufferSize, const char* context, char* outError, size_t errorSize)
 	{
-		if (offset + size <= bufferSize)
+		if (offset <= bufferSize && size <= bufferSize - offset)
 			return true;
 
 		sprintf_s(outError, errorSize, "%s exceeds bounds (offset=0x%zX, size=0x%zX, bufferSize=%zu).", context, offset, size, bufferSize);
@@ -87,9 +114,9 @@ namespace LAAPatcher
 				return false;
 			}
 
-			if (DosHeader()->e_lfanew < 0)
+			if (DosHeader()->e_lfanew < static_cast<LONG>(sizeof(IMAGE_DOS_HEADER)))
 			{
-				sprintf_s(outError, errorSize, "Invalid e_lfanew value (%d, must be non-negative).", DosHeader()->e_lfanew);
+				sprintf_s(outError, errorSize, "Invalid e_lfanew value (%d, must be at least %zu).", DosHeader()->e_lfanew, sizeof(IMAGE_DOS_HEADER));
 				return false;
 			}
 
@@ -108,7 +135,7 @@ namespace LAAPatcher
 				return false;
 			}
 
-			size_t sectionHeadersOffset = DosHeader()->e_lfanew + sizeof(IMAGE_NT_HEADERS);
+			size_t sectionHeadersOffset = DosHeader()->e_lfanew + offsetof(IMAGE_NT_HEADERS, OptionalHeader) + NtHeaders()->FileHeader.SizeOfOptionalHeader;
 			size_t sectionHeadersSize = NtHeaders()->FileHeader.NumberOfSections * sizeof(IMAGE_SECTION_HEADER);
 
 			if (!CheckBounds(sectionHeadersOffset, sectionHeadersSize, m_buffer.size(), "Section headers", outError, errorSize))
@@ -178,6 +205,23 @@ namespace LAAPatcher
 		return file.read(reinterpret_cast<char*>(buffer.data()), size).good();
 	}
 
+	inline bool MoveFileWithRetry(const fs::path& from, const fs::path& to, DWORD flags)
+	{
+		for (int i = 0; i < 20; i++)
+		{
+			if (MoveFileExW(from.wstring().c_str(), to.wstring().c_str(), flags))
+				return true;
+
+			DWORD err = GetLastError();
+			if (err != ERROR_SHARING_VIOLATION && err != ERROR_LOCK_VIOLATION && err != ERROR_ACCESS_DENIED)
+				return false;
+
+			Sleep(100);
+		}
+
+		return false;
+	}
+
 	// ========================
 	// Hashing
 	// ========================
@@ -231,21 +275,21 @@ namespace LAAPatcher
 	// Validation
 	// ========================
 
-	inline bool ValidatePatchedFile(const fs::path& origPath, const fs::path& patchPath, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize, uint32_t expectedTextHash)
+	inline bool ValidatePatchedFile(const fs::path& origPath, const fs::path& patchPath, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize, uint32_t expectedTextHash, uint32_t expectedFileHash)
 	{
 		char error[512];
 		std::vector<uint8_t> origData, patchData;
 
 		if (!ReadFile(origPath, origData))
 		{
-			sprintf_s(error, "Validation failed: Could not read original file.\nPath: %s", origPath.string().c_str());
+			sprintf_s(error, "Validation failed: Could not read original file.\nPath: %s", PathToString(origPath).c_str());
 			ShowError(error);
 			return false;
 		}
 
 		if (!ReadFile(patchPath, patchData))
 		{
-			sprintf_s(error, "Validation failed: Could not read patched file.\nPath: %s", patchPath.string().c_str());
+			sprintf_s(error, "Validation failed: Could not read patched file.\nPath: %s", PathToString(patchPath).c_str());
 			ShowError(error);
 			return false;
 		}
@@ -309,6 +353,14 @@ namespace LAAPatcher
 		if (patchTextHash != expectedTextHash)
 		{
 			sprintf_s(error, "Validation failed: .text section hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\nThis may indicate a different game version or corrupted executable.", expectedTextHash, patchTextHash);
+			ShowError(error);
+			return false;
+		}
+
+		uint32_t patchFileHash = MurmurHash3(patchData.data(), patchData.size());
+		if (patchFileHash != expectedFileHash)
+		{
+			sprintf_s(error, "Validation failed: Patched file hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\nThis may indicate a different game version or corrupted executable.", expectedFileHash, patchFileHash);
 			ShowError(error);
 			return false;
 		}
@@ -416,18 +468,217 @@ namespace LAAPatcher
 	}
 
 	// ========================
+	// File Replacement
+	// ========================
+
+	// Writes the patched file next to the executable, validates it, then swaps them (the original is kept as a backup)
+	inline bool ReplaceExecutable(const fs::path& exePath, const std::vector<uint8_t>& buffer, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize)
+	{
+		char error[512];
+		std::error_code ec;
+
+		std::string exeName = PathToString(exePath.filename());
+		fs::path newPath = exePath; newPath += ".new";
+		fs::path bakPath = exePath; bakPath += ".bak";
+
+		if (fs::exists(newPath, ec))
+		{
+			fs::remove(newPath, ec);
+			if (ec)
+			{
+				sprintf_s(error, "Failed to remove existing .new file.\nPath: %s\nError: %d", PathToString(newPath).c_str(), ec.value());
+				ShowError(error);
+				return false;
+			}
+		}
+
+		{
+			std::ofstream outFile(newPath, std::ios::binary);
+			if (!outFile)
+			{
+				DWORD err = GetLastError();
+				if (err == ERROR_ACCESS_DENIED)
+					sprintf_s(error, "Unable to write patched file (Access Denied).\n\nYour Anti-Virus may be blocking modification.\nPlease add an exception for this folder.\nPath: %s", PathToString(newPath).c_str());
+				else
+					sprintf_s(error, "Failed to create patched file.\nPath: %s\nError: %d", PathToString(newPath).c_str(), err);
+
+				ShowError(error);
+				return false;
+			}
+
+			outFile.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
+
+			if (!outFile.good())
+			{
+				sprintf_s(error, "Failed to write patched file data.\nPath: %s", PathToString(newPath).c_str());
+				ShowError(error);
+				fs::remove(newPath, ec);
+				return false;
+			}
+		}
+
+		// Make sure the patched file is on disk before replacing the original
+		HANDLE hNewFile = CreateFileW(newPath.wstring().c_str(), GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hNewFile != INVALID_HANDLE_VALUE)
+		{
+			FlushFileBuffers(hNewFile);
+			CloseHandle(hNewFile);
+		}
+
+		auto writtenSize = fs::file_size(newPath, ec);
+		if (ec || writtenSize != buffer.size())
+		{
+			sprintf_s(error, "Written file size mismatch (expected=%zu, actual=%zu).\nPath: %s", buffer.size(), static_cast<size_t>(writtenSize), PathToString(newPath).c_str());
+			ShowError(error);
+			fs::remove(newPath, ec);
+			return false;
+		}
+
+		if (!ValidatePatchedFile(exePath, newPath, hasBindSection, textSectionFileOffset, textSectionFileSize, STEAM_TEXT_HASH, STEAM_PATCHED_HASH))
+		{
+			fs::remove(newPath, ec);
+			return false;
+		}
+
+		// Don't overwrite an existing backup unless it's identical to the current executable
+		std::vector<uint8_t> bakData, exeData;
+		if (fs::exists(bakPath, ec) && !(ReadFile(bakPath, bakData) && ReadFile(exePath, exeData) && bakData == exeData))
+		{
+			for (int i = 1; fs::exists(bakPath, ec); i++)
+			{
+				bakPath = exePath;
+				bakPath += ".bak" + std::to_string(i);
+			}
+		}
+
+		if (!MoveFileWithRetry(exePath, bakPath, MOVEFILE_REPLACE_EXISTING))
+		{
+			DWORD err = GetLastError();
+
+			if (err == ERROR_ACCESS_DENIED)
+			{
+				sprintf_s(error, "LAA Patch failed: Access Denied (Error 5).\n\n"
+					"Windows is blocking the modification of %s.\n"
+					"Please restart the game as Administrator to apply the patch.\n\n"
+					"You can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini", exeName.c_str());
+				ShowError(error);
+				fs::remove(newPath, ec);
+				return false;
+			}
+
+			if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION)
+			{
+				uint32_t exeHash = MurmurHash3(buffer.data(), buffer.size());
+				constexpr uint32_t NOCD_HASH = 0x080D7FDF;
+
+				if (exeHash == NOCD_HASH)
+				{
+					ShowError("LAA Patch failed: Detected obsolete NO-CD version.\n\nThis version cannot be patched while running.");
+				}
+				else
+				{
+					sprintf_s(error, "LAA Patch failed: %s is locked by another process.\n\nError: %d\n\nYou can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini", exeName.c_str(), err);
+					ShowError(error);
+				}
+
+				fs::remove(newPath, ec);
+				return false;
+			}
+
+			sprintf_s(error, "Failed to backup %s.\n\nError: %d", exeName.c_str(), err);
+			ShowError(error);
+			fs::remove(newPath, ec);
+			return false;
+		}
+
+		if (!MoveFileWithRetry(newPath, exePath, 0))
+		{
+			DWORD err = GetLastError();
+
+			if (!MoveFileWithRetry(bakPath, exePath, 0))
+			{
+				sprintf_s(error, "Failed to rename patched file to %s, and restoring the backup also failed.\n\nError: %d\n\nPlease close the game and rename %s back to %s.", exeName.c_str(), err, PathToString(bakPath.filename()).c_str(), exeName.c_str());
+				ShowError(error);
+				return false;
+			}
+
+			sprintf_s(error, "Failed to rename patched file to %s. Restored from backup.\n\nError: %d", exeName.c_str(), err);
+			ShowError(error);
+			fs::remove(newPath, ec);
+			return false;
+		}
+
+		return true;
+	}
+
+	// ========================
+	// Restart Handling
+	// ========================
+
+	// The game only allows one instance, wait for the previous one to exit after a restart (called from DLL_PROCESS_ATTACH)
+	inline void WaitForPreviousInstance()
+	{
+		wchar_t value[16];
+		DWORD len = GetEnvironmentVariableW(RESTART_ENV_VAR, value, 16);
+		if (len == 0 || len >= 16)
+			return;
+
+		SetEnvironmentVariableW(RESTART_ENV_VAR, NULL);
+
+		DWORD pid = wcstoul(value, NULL, 10);
+		HANDLE hProcess = OpenProcess(SYNCHRONIZE, FALSE, pid);
+		if (hProcess)
+		{
+			WaitForSingleObject(hProcess, 10000);
+			CloseHandle(hProcess);
+		}
+	}
+
+	// ========================
 	// Main Patching Logic
 	// ========================
 
+	inline void PatchExpansion(const fs::path& exePath)
+	{
+		char error[512];
+		std::error_code ec;
+
+		if (!fs::exists(exePath, ec))
+			return;
+
+		std::vector<uint8_t> buffer;
+		if (!ReadFile(exePath, buffer))
+		{
+			sprintf_s(error, "Could not read executable file.\nPath: %s", PathToString(exePath).c_str());
+			ShowError(error);
+			return;
+		}
+
+		PEFile pe(buffer);
+		if (!pe.Validate(error, sizeof(error)))
+		{
+			ShowError(PathToString(exePath.filename()) + ": " + error);
+			return;
+		}
+
+		if (pe.IsLAAEnabled())
+			return;
+
+		pe.EnableLAA();
+		pe.ClearChecksum();
+
+		ReplaceExecutable(exePath, buffer, false, 0, 0);
+	}
+
 	// Reference: https://github.com/nipkownix/re4_tweaks/blob/master/dllmain/LAApatch.cpp
-	inline bool PerformLAAPatch(HMODULE hModule, bool showConfirmation)
+	inline PatchResult PerformLAAPatch(HMODULE hModule, bool showConfirmation, bool patchExpansions)
 	{
 		char error[512];
 
 		if (!hModule)
 		{
 			ShowError("PerformLAAPatch called with NULL module handle.");
-			return false;
+			return PatchResult::Failed;
 		}
 
 		wchar_t modulePathRaw[MAX_PATH];
@@ -436,43 +687,41 @@ namespace LAAPatcher
 		{
 			sprintf_s(error, "GetModuleFileNameW failed. Error: %d", GetLastError());
 			ShowError(error);
-			return false;
+			return PatchResult::Failed;
 		}
 
 		if (pathLen >= MAX_PATH)
 		{
 			ShowError("Module path exceeds MAX_PATH. Path may be truncated.");
-			return false;
+			return PatchResult::Failed;
 		}
 
 		fs::path exePath = modulePathRaw;
 		fs::path exeName = exePath.filename();
-		fs::path newPath = exePath; newPath += ".new";
-		fs::path bakPath = exePath; bakPath += ".bak";
 
-		if (!fs::exists(exePath))
+		std::error_code ec;
+		if (!fs::exists(exePath, ec))
 		{
-			sprintf_s(error, "Executable path does not exist: %s", exePath.string().c_str());
+			sprintf_s(error, "Executable path does not exist: %s", PathToString(exePath).c_str());
 			ShowError(error);
-			return false;
+			return PatchResult::Failed;
 		}
 
 		std::vector<uint8_t> buffer;
 		if (!ReadFile(exePath, buffer))
 		{
-			sprintf_s(error, "Could not read executable file.\nPath: %s\nError: %d", exePath.string().c_str(), GetLastError());
+			sprintf_s(error, "Could not read executable file.\nPath: %s\nError: %d", PathToString(exePath).c_str(), GetLastError());
 			ShowError(error);
-			return false;
+			return PatchResult::Failed;
 		}
 
 		if (buffer.empty())
 		{
-			sprintf_s(error, "Executable file is empty.\nPath: %s", exePath.string().c_str());
+			sprintf_s(error, "Executable file is empty.\nPath: %s", PathToString(exePath).c_str());
 			ShowError(error);
-			return false;
+			return PatchResult::Failed;
 		}
 
-		std::error_code ec;
 		auto spaceInfo = fs::space(exePath.parent_path(), ec);
 		if (!ec)
 		{
@@ -481,7 +730,7 @@ namespace LAAPatcher
 			{
 				sprintf_s(error, "Not enough disk space to create backup and patched files.\n\nRequired: %llu MB\nAvailable: %llu MB", (requiredSpace / (1024 * 1024)) + 1, spaceInfo.available / (1024 * 1024));
 				ShowError(error);
-				return false;
+				return PatchResult::Failed;
 			}
 		}
 
@@ -489,7 +738,7 @@ namespace LAAPatcher
 		if (!pe.Validate(error, sizeof(error)))
 		{
 			ShowError(error);
-			return false;
+			return PatchResult::Failed;
 		}
 
 		bool isLAA = pe.IsLAAEnabled();
@@ -501,18 +750,32 @@ namespace LAAPatcher
 		DWORD textSectionFileSize = textSection ? textSection->SizeOfRawData : 0;
 
 		if (isLAA && !bindSectionIndex)
-			return true;
+			return PatchResult::Patched;
+
+		// Check the decrypted code in memory before asking anything
+		if (bindSectionIndex)
+		{
+			uint32_t textHash = MurmurHash3(reinterpret_cast<const uint8_t*>(hModule) + textSectionVA, textSectionFileSize);
+			if (textHash != STEAM_TEXT_HASH)
+			{
+				sprintf_s(error, "LAA Patch failed: .text section hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\n"
+					"This may indicate a different game version, or another mod modifying the game code.\n\n"
+					"You can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini", STEAM_TEXT_HASH, textHash);
+				ShowError(error);
+				return PatchResult::Failed;
+			}
+		}
 
 		if (showConfirmation)
 		{
 			std::string msg = "Your game executable is missing the 4GB/LAA patch. "
 				"This allows the game to use 4GB of memory instead of 2GB, which prevents crashes when loading levels.\n\n"
-				"EchoPatch will patch " + exeName.string() + " and create a backup.\n\n"
+				"EchoPatch will patch " + PathToString(exeName) + (patchExpansions ? " (and the expansions, if installed)" : "") + " and create a backup.\n\n"
 				"Apply patch and restart the game?\n\n"
-				"(This check can be disabled by setting CheckLAAPatch=0 in the [Fixes] section of EchoPatch.ini)";
+				"(Selecting No disables this check, it can be enabled again by setting CheckLAAPatch=1 in the [Fixes] section of EchoPatch.ini)";
 
 			if (MessageBoxA(NULL, msg.c_str(), "4GB/Large Address Aware patch missing!", MB_YESNO | MB_ICONEXCLAMATION) != IDYES)
-				return false;
+				return PatchResult::Declined;
 		}
 
 		LONG storedElfanew = pe.DosHeader()->e_lfanew;
@@ -528,7 +791,7 @@ namespace LAAPatcher
 			if (!CheckBounds(textSectionFileOffset, textSectionFileSize, buffer.size(), ".text section", error, sizeof(error)))
 			{
 				ShowError(error);
-				return false;
+				return PatchResult::Failed;
 			}
 
 			DWORD bindOffset = sections[bindIdx].PointerToRawData;
@@ -537,7 +800,7 @@ namespace LAAPatcher
 			if (!CheckBounds(bindOffset, bindSize, buffer.size(), ".bind section", error, sizeof(error)))
 			{
 				ShowError(error);
-				return false;
+				return PatchResult::Failed;
 			}
 
 			size_t stubSize = storedElfanew - sizeof(IMAGE_DOS_HEADER);
@@ -546,7 +809,7 @@ namespace LAAPatcher
 				memset(buffer.data() + sizeof(IMAGE_DOS_HEADER), 0, stubSize);
 			}
 
-			pe.NtHeaders()->OptionalHeader.AddressOfEntryPoint = 0x13E428;
+			pe.NtHeaders()->OptionalHeader.AddressOfEntryPoint = STEAM_ENTRY_POINT;
 
 			const uint8_t* textInMemory = reinterpret_cast<const uint8_t*>(hModule) + textSectionVA;
 			memcpy(buffer.data() + textSectionFileOffset, textInMemory, textSectionFileSize);
@@ -579,126 +842,42 @@ namespace LAAPatcher
 			if (align == 0)
 			{
 				ShowError("SectionAlignment is zero, cannot calculate SizeOfImage.");
-				return false;
+				return PatchResult::Failed;
 			}
 			pe.NtHeaders()->OptionalHeader.SizeOfImage = (newSizeOfImage + align - 1) & ~(align - 1);
 
 			buffer.erase(buffer.begin() + bindOffset, buffer.begin() + bindOffset + bindSize);
 		}
 
-		if (fs::exists(newPath))
+		if (!ReplaceExecutable(exePath, buffer, bindSectionIndex.has_value(), textSectionFileOffset, textSectionFileSize))
+			return PatchResult::Failed;
+
+		if (patchExpansions)
 		{
-			fs::remove(newPath, ec);
-			if (ec)
-			{
-				sprintf_s(error, "Failed to remove existing .new file.\nPath: %s\nError: %s", newPath.string().c_str(), ec.message().c_str());
-				ShowError(error);
-				return false;
-			}
+			PatchExpansion(exePath.parent_path() / "FEARXP" / "FEARXP.exe");
+			PatchExpansion(exePath.parent_path() / "FEARXP2" / "FEARXP2.exe");
 		}
 
+		// Restart with the same command line, the new instance waits for this one to exit
+		SetEnvironmentVariableW(RESTART_ENV_VAR, std::to_wstring(GetCurrentProcessId()).c_str());
+
+		std::wstring commandLine = GetCommandLineW();
+		STARTUPINFOW si = { sizeof(si) };
+		PROCESS_INFORMATION pi = {};
+
+		if (CreateProcessW(exePath.wstring().c_str(), commandLine.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
 		{
-			std::ofstream outFile(newPath, std::ios::binary);
-			if (!outFile)
-			{
-				DWORD err = GetLastError();
-				if (err == ERROR_ACCESS_DENIED)
-					sprintf_s(error, "Unable to write patched file (Access Denied).\n\nYour Anti-Virus may be blocking modification.\nPlease add an exception for this folder.\nPath: %s", newPath.string().c_str());
-				else
-					sprintf_s(error, "Failed to create patched file.\nPath: %s\nError: %d", newPath.string().c_str(), err);
-
-				ShowError(error);
-				return false;
-			}
-
-			outFile.write(reinterpret_cast<const char*>(buffer.data()), buffer.size());
-
-			if (!outFile.good())
-			{
-				sprintf_s(error, "Failed to write patched file data.\nPath: %s", newPath.string().c_str());
-				ShowError(error);
-				fs::remove(newPath, ec);
-				return false;
-			}
-		}
-
-		Sleep(100);
-
-		auto writtenSize = fs::file_size(newPath, ec);
-		if (ec || writtenSize != buffer.size())
-		{
-			sprintf_s(error, "Written file size mismatch (expected=%zu, actual=%zu).\nPath: %s", buffer.size(), static_cast<size_t>(writtenSize), newPath.string().c_str());
-			ShowError(error);
-			fs::remove(newPath, ec);
-			return false;
-		}
-
-		if (!ValidatePatchedFile(exePath, newPath, bindSectionIndex.has_value(), textSectionFileOffset, textSectionFileSize, 0x96EC25CA))
-		{
-			fs::remove(newPath, ec);
-			return false;
-		}
-
-		if (!MoveFileExW(exePath.wstring().c_str(), bakPath.wstring().c_str(), MOVEFILE_REPLACE_EXISTING))
-		{
-			DWORD err = GetLastError();
-
-			if (err == ERROR_ACCESS_DENIED)
-			{
-				ShowError("LAA Patch failed: Access Denied (Error 5).\n\n"
-					"Windows is blocking the file modification.\n"
-					"Please restart the game as Administrator to apply the patch.\n\n"
-					"You can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini");
-				fs::remove(newPath, ec);
-				return false;
-			}
-
-			if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION)
-			{
-				uint32_t exeHash = MurmurHash3(buffer.data(), buffer.size());
-				constexpr uint32_t NOCD_HASH = 0x080D7FDF;
-
-				if (exeHash == NOCD_HASH)
-				{
-					ShowError("LAA Patch failed: Detected obsolete NO-CD version.\n\nThis version cannot be patched while running.");
-				}
-				else
-				{
-					sprintf_s(error, "LAA Patch failed: File is locked by another process.\n\nError: %d\n\nYou can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini", err);
-					ShowError(error);
-				}
-
-				fs::remove(newPath, ec);
-				return false;
-			}
-
-			sprintf_s(error, "Failed to backup original executable.\n\nError: %d", err);
-			ShowError(error);
-			fs::remove(newPath, ec);
-			return false;
-		}
-
-		if (!MoveFileW(newPath.wstring().c_str(), exePath.wstring().c_str()))
-		{
-			DWORD err = GetLastError();
-			MoveFileW(bakPath.wstring().c_str(), exePath.wstring().c_str());
-			sprintf_s(error, "Failed to rename patched file to original. Restored from backup.\n\nError: %d", err);
-			ShowError(error);
-			return false;
-		}
-
-		Sleep(50);
-
-		INT_PTR shellResult = reinterpret_cast<INT_PTR>(ShellExecuteW(NULL, L"open", exePath.wstring().c_str(), NULL, NULL, SW_SHOWDEFAULT));
-		if (shellResult > 32)
-		{
+			CloseHandle(pi.hThread);
+			CloseHandle(pi.hProcess);
 			ExitProcess(0);
 		}
 		else
 		{
-			sprintf_s(error, "Patching completed successfully, but failed to restart the application.\nShellExecute returned: %d\n\nPlease restart the game manually.", static_cast<int>(shellResult));
+			DWORD err = GetLastError();
+			SetEnvironmentVariableW(RESTART_ENV_VAR, NULL);
+			sprintf_s(error, "Patching completed successfully, but failed to restart the application.\nError: %d\n\nPlease restart the game manually.", err);
 			MessageBoxA(NULL, error, "EchoPatch - LAAPatcher Warning", MB_ICONWARNING);
-			return true;
+			return PatchResult::Patched;
 		}
 	}
 }
