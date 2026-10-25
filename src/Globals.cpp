@@ -10,6 +10,7 @@
 
 #include <Windows.h>
 #include <d3d9.h>
+#include <string>
 #include <string_view>
 #include <array>
 #include <unordered_set>
@@ -342,7 +343,12 @@ bool SkipDellIntro = false;
 
 // Console
 bool ConsoleEnabled = false;
+int ConsoleKey = VK_HOME;
 int DebugLevel = 0;
+int ConsoleBufferLen = 0;
+int ConsoleHistoryLen = 0;
+float ConsoleAlpha = 0.0f;
+std::string MoveConsole = "Top";
 bool HighResolutionScaling = false;
 bool LogOutputToFile = false;
 

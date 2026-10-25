@@ -8,4 +8,5 @@ void ApplyServerPatch()
     ApplySetWeaponCapacityServerPatch();
     ApplyHighFPSFixesServerPatch();
     ApplyControllerServerPatch();
+    ApplyConsoleDebugLinesServerPatch();
 }

@@ -112,6 +112,15 @@ bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
 // ConsoleEnabled
 void(__stdcall* SetInputState)(bool) = nullptr;
+void*(__cdecl* GetBindMgr)() = nullptr;
+void(__thiscall* BindMgrClearAllCommands)(void*) = nullptr;
+
+// ConsoleDebugTools
+void(__thiscall* UpdateRenderLevel)(DWORD) = nullptr;
+const char*(__thiscall* GetMarkFXName)(DWORD, DWORD, const char*, uint32_t, const char*) = nullptr;
+float(__thiscall* CalculateMovementPerturb)(DWORD) = nullptr;
+float(__thiscall* CalculateFiringPerturb)(DWORD) = nullptr;
+float(__thiscall* CalculateTurningPerturb)(DWORD) = nullptr;
 
 // EnableCustomMaxWeaponCapacity
 uint8_t(__thiscall* GetWeaponCapacity)(int) = nullptr;

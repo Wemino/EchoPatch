@@ -137,6 +137,7 @@
     <ClInclude Include="..\src\Client\Client.hpp" />
     <ClInclude Include="..\src\Client\ClientPatch.cpp" />
     <ClInclude Include="..\src\Client\Console\ConsoleEnabled.cpp" />
+    <ClInclude Include="..\src\Client\Console\DebugTools.cpp" />
     <ClInclude Include="..\src\Client\Controller\SDLGamepadSupport.cpp" />
     <ClInclude Include="..\src\Client\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Client\Display\HUDScaling.cpp" />
@@ -157,7 +158,9 @@
     <ClInclude Include="..\src\Controller\ControllerBindings.hpp" />
     <ClInclude Include="..\src\Controller\ScreenJoystickHook.hpp" />
     <ClInclude Include="..\src\Core\DInputProxy.hpp" />
+    <ClInclude Include="..\src\Engine\Console\ClassTicks.cpp" />
     <ClInclude Include="..\src\Engine\Console\ConsoleEnabled.cpp" />
+    <ClInclude Include="..\src\Engine\Console\EngineInterfaces.cpp" />
     <ClInclude Include="..\src\Engine\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Engine\Display\FixWindow.cpp" />
     <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp" />
@@ -182,6 +185,7 @@
     <ClInclude Include="..\src\Globals.cpp" />
     <ClInclude Include="..\src\helper.cpp" />
     <ClInclude Include="..\src\Initialization.cpp" />
+    <ClInclude Include="..\src\Server\Console\DebugLines.cpp" />
     <ClInclude Include="..\src\Server\Controller\Controller.cpp" />
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />

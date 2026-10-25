@@ -77,6 +77,9 @@
     <ClInclude Include="..\src\Client\Console\ConsoleEnabled.cpp">
       <Filter>Client\Console</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Console\DebugTools.cpp">
+      <Filter>Client\Console</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Controller\SDLGamepadSupport.cpp">
       <Filter>Client\Controller</Filter>
     </ClInclude>
@@ -137,7 +140,13 @@
     <ClInclude Include="..\src\Core\DInputProxy.hpp">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Console\ClassTicks.cpp">
+      <Filter>Engine\Console</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Console\ConsoleEnabled.cpp">
+      <Filter>Engine\Console</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Engine\Console\EngineInterfaces.cpp">
       <Filter>Engine\Console</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\Display\AutoResolution.cpp">
@@ -206,6 +215,9 @@
     <ClInclude Include="..\src\Globals.cpp" />
     <ClInclude Include="..\src\helper.cpp" />
     <ClInclude Include="..\src\Initialization.cpp" />
+    <ClInclude Include="..\src\Server\Console\DebugLines.cpp">
+      <Filter>Server\Console</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Server\Controller\Controller.cpp">
       <Filter>Server\Controller</Filter>
     </ClInclude>
@@ -342,6 +354,9 @@
     </Filter>
     <Filter Include="include\imgui">
       <UniqueIdentifier>{ed403466-fe95-4ed9-9a05-bba46fc5373e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Server\Console">
+      <UniqueIdentifier>{d2d0e37d-68ae-402b-b8b4-d82ff092aa43}</UniqueIdentifier>
     </Filter>
     <Filter Include="Server\Controller">
       <UniqueIdentifier>{e5ca543c-be68-5cbc-8b8c-2ec70f36db96}</UniqueIdentifier>

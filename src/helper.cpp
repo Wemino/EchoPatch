@@ -432,6 +432,17 @@ namespace IniHelper
 		catch (...) {}
 		return defaultValue;
 	}
+
+	inline std::string ReadString(const char* sectionName, const char* valueName, const std::string& defaultValue)
+	{
+		if (iniReader.has(sectionName) && iniReader.get(sectionName).has(valueName))
+		{
+			const std::string& s = iniReader.get(sectionName).get(valueName);
+			if (!s.empty())
+				return s;
+		}
+		return defaultValue;
+	}
 };
 
 namespace HookHelper

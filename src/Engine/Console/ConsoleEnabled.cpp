@@ -3,24 +3,23 @@
 #include "../../Globals.cpp"
 #include "../../Addresses.cpp"
 #include "ConsoleMgr.hpp"
+#include "EngineInterfaces.cpp"
+#include "ClassTicks.cpp"
 
-bool(__cdecl* EndScene)() = nullptr;
+int(__thiscall* PresentFrame)(void*) = nullptr;
 bool(__thiscall* ResetDevice)(void*, void*, unsigned char) = nullptr;
 int(__stdcall* WindowProc)(HWND, UINT, WPARAM, LPARAM) = nullptr;
-int(__cdecl* ConsoleOutput)(int, int, char*) = nullptr;
-int(__stdcall* RegisterConsoleProgramClient)(char*, int) = nullptr;
-int(__stdcall* RegisterConsoleProgramServer)(char*, int) = nullptr;
-int(__stdcall* UnregisterConsoleProgramClient)(char*) = nullptr;
-int(__stdcall* UnregisterConsoleProgramServer)(char*) = nullptr;
+char(__thiscall* ConsolePrint)(void*, unsigned int, int, const char*) = nullptr;
 
 // =======================
 // ConsoleEnabled
 // =======================
 
-static bool __cdecl EndScene_Hook()
+// Presents the frame once all the rendering of the frame is done, the console is drawn there once per frame
+static int __fastcall PresentFrame_Hook(void* thisPtr, int)
 {
-    Console::OnEndScene();
-    return EndScene();
+    Console::OnPresent();
+    return PresentFrame(thisPtr);
 }
 
 static bool __fastcall ResetDevice_Hook(DWORD* thisPtr, int, void* a2, unsigned char a3)
@@ -33,9 +32,13 @@ static bool __fastcall ResetDevice_Hook(DWORD* thisPtr, int, void* a2, unsigned 
 
 static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
+    // Toggle key, Tab completion and scrolling keys
+    if (Console::HandleKeyMessage(Msg, wParam, lParam))
+        return 0;
+
     if (g_State.isConsoleOpen)
     {
-        ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam);
+        Console::ForwardInput(hWnd, Msg, wParam, lParam);
 
         switch (Msg)
         {
@@ -62,111 +65,16 @@ static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
     return result;
 }
 
-static int __cdecl ConsoleOutput_Hook(int a1, int a2, char* Source)
+// Receives every console line (CPrint, engine messages, variable queries...) with its color
+static char __fastcall ConsolePrint_Hook(void* thisPtr, int, unsigned int color, int filterLevel, const char* pMsg)
 {
-    if (Source && Source[0])
+    // Lines above the console filter level are dropped by the engine
+    if (pMsg && pMsg[0] && filterLevel <= *(int*)((BYTE*)thisPtr + 0x228))
     {
-        Console::AddOutput(Source);
+        Console::AddOutput(pMsg, color);
     }
 
-    return ConsoleOutput(a1, a2, Source);
-}
-
-static char __cdecl SetCvarString_Hook(int a1, const char* name, char* value)
-{
-    if (name && name[0] && value)
-    {
-        std::string strValue = value;
-        CvarType type = CvarType::String;
-
-        float floatVal;
-        if (IsNumericFloat(value, &floatVal))
-        {
-            strValue = FormatFloat(floatVal);
-            type = CvarType::Float;
-        }
-
-        auto it = FindCvarCaseInsensitive(std::string(name));
-        if (it != g_dynamicCvars.end())
-        {
-            it->second = { strValue, a1, type };
-        }
-        else
-        {
-            g_dynamicCvars[name] = { strValue, a1, type };
-        }
-    }
-
-    return SetCvarString(a1, name, value);
-}
-
-static char __cdecl SetCvarFloat_Hook(int a1, const char* name, int valueInt)
-{
-    if (name && name[0])
-    {
-        float value = *(float*)&valueInt;
-        std::string formatted = FormatFloat(value);
-
-        auto it = FindCvarCaseInsensitive(std::string(name));
-        if (it != g_dynamicCvars.end())
-        {
-            it->second = { formatted, a1, CvarType::Float };
-        }
-        else
-        {
-            g_dynamicCvars[name] = { formatted, a1, CvarType::Float };
-        }
-    }
-
-    return SetCvarFloat(a1, name, valueInt);
-}
-
-static int __stdcall RegisterConsoleProgramClient_Hook(char* name, int funcPtr)
-{
-    int result = RegisterConsoleProgramClient(name, funcPtr);
-
-    if (result == 0 && name && name[0])
-    {
-        g_consolePrograms.insert(name);
-    }
-
-    return result;
-}
-
-static int __stdcall RegisterConsoleProgramServer_Hook(char* name, int funcPtr)
-{
-    int result = RegisterConsoleProgramServer(name, funcPtr);
-
-    if (result == 0 && name && name[0])
-    {
-        g_consolePrograms.insert(name);
-    }
-
-    return result;
-}
-
-static int __stdcall UnregisterConsoleProgramClient_Hook(char* name)
-{
-    int result = UnregisterConsoleProgramClient(name);
-
-    if (result == 0 && name && name[0])
-    {
-        g_consolePrograms.erase(name);
-    }
-
-    return result;
-}
-
-static int __stdcall UnregisterConsoleProgramServer_Hook(char* name)
-{
-    int result = UnregisterConsoleProgramServer(name);
-
-    if (result == 0 && name && name[0])
-    {
-        g_consolePrograms.erase(name);
-    }
-
-    return result;
+    return ConsolePrint(thisPtr, color, filterLevel, pMsg);
 }
 
 static void InitConsole(LPCSTR title)
@@ -182,53 +90,59 @@ static void InitConsole(LPCSTR title)
     oCvarListHead = GetAddress(Addr::Console_CvarListHead),
     oCvarArrayStart = GetAddress(Addr::Console_CvarArrayStart),
     oCvarArrayEnd = GetAddress(Addr::Console_CvarArrayEnd),
-    oCmdArrayStart = GetAddress(Addr::Console_CmdArrayStart),
-    oCmdArrayEnd = GetAddress(Addr::Console_CmdArrayEnd),
     oVtableFloat = GetAddress(Addr::Console_VtableFloat),
     oVtableInt = GetAddress(Addr::Console_VtableInt),
-    oEndScene = GetAddress(Addr::Console_EndScene),
+    oPresent = GetAddress(Addr::Console_Present),
     oResetDevice = GetAddress(Addr::Console_ResetDevice),
     oWindowProc = GetAddress(Addr::Console_WindowProc),
-    oConsoleOutput = GetAddress(Addr::Console_ConsoleOutput),
-    oSetCvarString = GetAddress(Addr::Console_SetCvarString),
-    oSetCvarFloat = GetAddress(Addr::Console_SetCvarFloat),
-    oRegClient = GetAddress(Addr::Console_RegClient),
-    oRegServer = GetAddress(Addr::Console_RegServer),
-    oUnregClient = GetAddress(Addr::Console_UnregClient),
-    oUnregServer = GetAddress(Addr::Console_UnregServer),
-    oRunCmd = GetAddress(Addr::Console_RunCmd),
-    oDebugLevel = GetAddress(Addr::Console_DebugLevel);
+    oConsolePrint = GetAddress(Addr::Console_Print),
+    oClientManager = GetAddress(Addr::Console_ClientManager),
+    oServerManager = GetAddress(Addr::Console_ServerManager),
+    oExecuteCommand = GetAddress(Addr::Console_ExecuteCommand),
+    oDebugLevel = GetAddress(Addr::Console_DebugLevel),
+    oGetEngineVars = GetAddress(Addr::Console_GetEngineVars),
+    oGetNumEngineVars = GetAddress(Addr::Console_GetNumEngineVars);
 
-    Console::Init(oInit, g_State.hWnd, title, HighResolutionScaling, LogOutputToFile);
+    ConsoleSettings settings;
+    settings.highResScaling = HighResolutionScaling;
+    settings.logging = LogOutputToFile;
+    settings.toggleKey = ConsoleKey;
+    settings.bufferLen = ConsoleBufferLen;
+    settings.historyLen = ConsoleHistoryLen;
+    settings.alpha = ConsoleAlpha;
+    settings.position = MoveConsole;
+
+    Console::Init(oInit, g_State.hWnd, title, settings);
 
     ConsoleAddresses addresses = {};
     addresses.cursorLockAddr = oCursorLock;
     addresses.cvarListHead = oCvarListHead;
     addresses.cvarArrayStart = oCvarArrayStart;
     addresses.cvarArrayEnd = oCvarArrayEnd;
-    addresses.cmdArrayStart = oCmdArrayStart;
-    addresses.cmdArrayEnd = oCmdArrayEnd;
     addresses.cvarVtableFloat = oVtableFloat;
     addresses.cvarVtableInt = oVtableInt;
+    addresses.clientManager = oClientManager;
+    addresses.serverManager = oServerManager;
+
+    // The engine variable table is read now, before the config files change the values, for the defaults
+    if (oGetEngineVars && oGetNumEngineVars)
+    {
+        addresses.engineVarTable = (DWORD)reinterpret_cast<void*(__cdecl*)()>(oGetEngineVars)();
+        addresses.engineVarCount = reinterpret_cast<int(__cdecl*)()>(oGetNumEngineVars)();
+    }
     Console::InitAddresses(addresses);
 
-    HookHelper::ApplyHook((void*)oEndScene, &EndScene_Hook, (LPVOID*)&EndScene);
+    HookHelper::ApplyHook((void*)oPresent, &PresentFrame_Hook, (LPVOID*)&PresentFrame);
     HookHelper::ApplyHook((void*)oResetDevice, &ResetDevice_Hook, (LPVOID*)&ResetDevice);
     HookHelper::ApplyHook((void*)oWindowProc, &WindowProc_Hook, (LPVOID*)&WindowProc);
-    HookHelper::ApplyHook((void*)oConsoleOutput, &ConsoleOutput_Hook, (LPVOID*)&ConsoleOutput);
+    HookHelper::ApplyHook((void*)oConsolePrint, &ConsolePrint_Hook, (LPVOID*)&ConsolePrint);
 
-    HookHelper::ApplyHook((void*)oSetCvarString, &SetCvarString_Hook, (LPVOID*)&SetCvarString);
-    HookHelper::ApplyHook((void*)oSetCvarFloat, &SetCvarFloat_Hook, (LPVOID*)&SetCvarFloat);
-
-    HookHelper::ApplyHook((void*)oRegClient, &RegisterConsoleProgramClient_Hook, (LPVOID*)&RegisterConsoleProgramClient);
-    HookHelper::ApplyHook((void*)oRegServer, &RegisterConsoleProgramServer_Hook, (LPVOID*)&RegisterConsoleProgramServer);
-    HookHelper::ApplyHook((void*)oUnregClient, &UnregisterConsoleProgramClient_Hook, (LPVOID*)&UnregisterConsoleProgramClient);
-    HookHelper::ApplyHook((void*)oUnregServer, &UnregisterConsoleProgramServer_Hook, (LPVOID*)&UnregisterConsoleProgramServer);
-
-    RunConsoleCommand = reinterpret_cast<decltype(RunConsoleCommand)>(oRunCmd);
+    ExecuteConsoleCommand = reinterpret_cast<decltype(ExecuteConsoleCommand)>(oExecuteCommand);
 
     if (DebugLevel != 0)
     {
         MemoryHelper::WriteMemory<int>(oDebugLevel, DebugLevel, false);
     }
+
+    ApplyClassTicksHook();
 }

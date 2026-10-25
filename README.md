@@ -316,10 +316,12 @@ Removes battery limit and hides HUD indicator.
 Enable with `InfiniteFlashlight = 1`.
 
 ## Developer Console
-Restores the in-game developer console with a reimplemented frontend using [ImGui](https://github.com/ocornut/imgui), providing access to engine commands and logging messages. Toggle with the Home key.
+Restores the in-game developer console with a reimplemented frontend using [ImGui](https://github.com/ocornut/imgui), providing access to engine commands, variables and logging messages. Toggle with the Home key, configurable with `ConsoleKey`.
 
 - `ConsoleEnabled`: Set to `1` to enable the console.
+- `ConsoleKey`: Key that toggles the console, as a decimal [virtual-key code](https://learn.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes) (`36` = Home).
 - `DebugLevel`: Controls the verbosity of debug messages (0–15).
+- `ConsoleBufferLen`, `ConsoleHistoryLen`, `ConsoleAlpha`, `MoveConsole`: Default values of the console settings.
 - `LogOutputToFile`: Set to `1` to log all console output to a timestamped text file.
 
 <div align="center">

@@ -81,7 +81,12 @@ static void ReadConfig()
 
     // Console
     ConsoleEnabled = IniHelper::ReadInteger("Console", "ConsoleEnabled", 0) == 1;
+    ConsoleKey = IniHelper::ReadInteger("Console", "ConsoleKey", VK_HOME);
     DebugLevel = IniHelper::ReadInteger("Console", "DebugLevel", 0);
+    ConsoleBufferLen = IniHelper::ReadInteger("Console", "ConsoleBufferLen", 500);
+    ConsoleHistoryLen = IniHelper::ReadInteger("Console", "ConsoleHistoryLen", 20);
+    ConsoleAlpha = IniHelper::ReadFloat("Console", "ConsoleAlpha", 1.0f);
+    MoveConsole = IniHelper::ReadString("Console", "MoveConsole", "Top");
     HighResolutionScaling = IniHelper::ReadInteger("Console", "HighResolutionScaling", 1) == 1;
     LogOutputToFile = IniHelper::ReadInteger("Console", "LogOutputToFile", 0) == 1;
 

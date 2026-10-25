@@ -450,14 +450,70 @@ static void ApplyWeaponFixesClientPatch()
 
 static void ApplyConsoleClientPatch()
 {
-	if (!ConsoleEnabled) return;
+	if (!ConsoleEnabled || g_State.CurrentFEARGame == FEARMP) return;
 
 	DWORD addr = ScanModuleSignature(g_State.GameClient, "E8 ?? ?? ?? ?? 8A 4C 24 04 88 48 4C C2 04 00 CC", "SetInputState");
+	DWORD addr_ClearAllCommands = ScanModuleSignature(g_State.GameClient, "51 56 8B F1 8B 56 38 8B 4E 40 33 C0 85 D2 C6 44 24 07 01", "ClearAllCommands");
 
 	if (addr != 0)
 	{
+		if (addr_ClearAllCommands != 0)
+		{
+			GetBindMgr = reinterpret_cast<decltype(GetBindMgr)>(MemoryHelper::ResolveRelativeAddress(addr, 0x1));
+			BindMgrClearAllCommands = reinterpret_cast<decltype(BindMgrClearAllCommands)>(addr_ClearAllCommands);
+		}
+
 		HookHelper::ApplyHook((void*)addr, &SetInputState_Hook, (LPVOID*)&SetInputState);
+		Console::SetStateCallback(&OnConsoleStateChanged);
 	}
+}
+
+static void ApplyConsoleDebugToolsClientPatch()
+{
+	if (!ConsoleEnabled || g_State.CurrentFEARGame == FEARMP) return;
+
+	DWORD addr_PlayerCamera = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? D9 44 24 20 8B 48 28 8B 40 28 83 C1 10", "DebugTools_PlayerCamera");
+	DWORD addr_UpdateRenderLevel = ScanModuleSignature(g_State.GameClient, "A0 ?? ?? ?? ?? 84 C0 56 8B F1 74 09 8B 06 6A 00 FF 50", "DebugTools_UpdateRenderLevel");
+	DWORD addr_MarkFXName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 68 ?? ?? ?? ?? 56 68 ?? ?? ?? ?? 57 E8 ?? ?? ?? ?? 85 C0 74 ?? 80 38 00 74 ?? 8B 8C 24", "DebugTools_MarkFXName");
+	DWORD addr_Perturb = ScanModuleSignature(g_State.GameClient, "8B CE E8 ?? ?? ?? ?? D9 5C 24 08 8B CE E8 ?? ?? ?? ?? D9 5C 24 10 8B CE E8 ?? ?? ?? ?? D9 5C 24 14 D9 44 24 08 8B 44 24 08 D8 5C 24 10 89 46 04", "DebugTools_Perturb");
+	DWORD addr_WorldRender = ScanModuleSignature(g_State.GameClient, "FF 50 ?? A1 ?? ?? ?? ?? 83 C4 0C 8D 4C 24 ?? 51 8D 54 24 ?? 40 52 8B CD A3", "DebugTools_WorldRender");
+
+	if (addr_PlayerCamera != 0)
+	{
+		DebugTools::playerMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_PlayerCamera + 0x1);
+	}
+
+	if (addr_WorldRender != 0)
+	{
+		DebugTools::cameraFovMember = MemoryHelper::ReadMemory<uint8_t>(addr_WorldRender + 0x2);
+		DebugTools::renderCountAddr = MemoryHelper::ReadMemory<DWORD>(addr_WorldRender + 0x4);
+	}
+
+	if (addr_UpdateRenderLevel != 0)
+	{
+		DebugTools::screenShotModeFlag = reinterpret_cast<uint8_t*>(MemoryHelper::ReadMemory<DWORD>(addr_UpdateRenderLevel + 0x1));
+		HookHelper::ApplyHook((void*)addr_UpdateRenderLevel, &UpdateRenderLevel_Hook, (LPVOID*)&UpdateRenderLevel);
+	}
+
+	if (addr_MarkFXName != 0)
+	{
+		GetMarkFXName = reinterpret_cast<decltype(GetMarkFXName)>(MemoryHelper::ResolveRelativeAddress(addr_MarkFXName, 0x13));
+		MemoryHelper::MakeCALL(addr_MarkFXName + 0x12, reinterpret_cast<uintptr_t>(&GetMarkFXName_Hook));
+	}
+
+	if (addr_Perturb != 0)
+	{
+		CalculateMovementPerturb = reinterpret_cast<decltype(CalculateMovementPerturb)>(MemoryHelper::ResolveRelativeAddress(addr_Perturb, 0x3));
+		CalculateFiringPerturb = reinterpret_cast<decltype(CalculateFiringPerturb)>(MemoryHelper::ResolveRelativeAddress(addr_Perturb, 0xE));
+		CalculateTurningPerturb = reinterpret_cast<decltype(CalculateTurningPerturb)>(MemoryHelper::ResolveRelativeAddress(addr_Perturb, 0x19));
+		MemoryHelper::MakeCALL(addr_Perturb + 0x2, reinterpret_cast<uintptr_t>(&CalculateMovementPerturb_Hook));
+		MemoryHelper::MakeCALL(addr_Perturb + 0xD, reinterpret_cast<uintptr_t>(&CalculateFiringPerturb_Hook));
+		MemoryHelper::MakeCALL(addr_Perturb + 0x18, reinterpret_cast<uintptr_t>(&CalculateTurningPerturb_Hook));
+	}
+
+	Console::AddUpdateCallback(&DebugTools::Update);
+	Console::AddOverlay(&DebugTools::IsLineViewActive, &DebugTools::RenderLineView);
+	Console::AddOverlay(&DebugTools::IsPerturbPanelActive, &DebugTools::RenderPerturbPanel);
 }
 
 static void ApplyClientFXHook()
@@ -584,6 +640,7 @@ void ApplyClientPatch()
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyWeaponFixesClientPatch();
 	ApplyConsoleClientPatch();
+	ApplyConsoleDebugToolsClientPatch();
 	ApplyClientFXHook();
 	ApplyDisableHipFireAccuracyPenalty();
 	ApplyGameDatabaseHook();

@@ -5,6 +5,7 @@
 #include "../../Controller/ScreenJoystickHook.hpp"
 #include "../../ClientFX/ClientFX.hpp"
 #include "../../Server/Server.hpp"
+#include "ConsoleMgr.hpp"
 
 static ULONGLONG lastCursorStateChangeTime = 0;
 static ULONGLONG cursorActivityStartTime = 0;
@@ -23,7 +24,6 @@ static bool isAiming = false;
 static bool isDoingMeleeAttack = false;
 static bool isTakingDamage = false;
 static bool isFallDamage = false;
-static bool wasConsoleOpened = false;
 
 // =======================
 // SDLGamepadSupport
@@ -844,23 +844,16 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 
 static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
-	// Block input to game UI when console is visible
+	// Toggle key, first in the chain so its character never reaches the game UI
+	if (ConsoleEnabled && Console::HandleKeyMessage(Msg, wParam, lParam))
+		return 0;
+
+	// Block input to game UI when console is visible, the game input itself is disabled from the main loop
 	if (g_State.isConsoleOpen)
 	{
-		if (!wasConsoleOpened)
-		{
-			SetInputState(false);
-			wasConsoleOpened = true;
-		}
-
-		if (Msg == WM_MOUSEWHEEL)
-		{
-			ImGui_ImplWin32_WndProcHandler(hWnd, Msg, wParam, lParam);
-			return 0;
-		}
-
 		switch (Msg)
 		{
+			// The game handles these without passing them down, ImGui gets them here instead
 			case WM_MOUSEMOVE:
 			case WM_LBUTTONDOWN:
 			case WM_LBUTTONUP:
@@ -871,13 +864,17 @@ static int __stdcall HookedWindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, L
 			case WM_MBUTTONDOWN:
 			case WM_MBUTTONUP:
 			case WM_MBUTTONDBLCLK:
+			case WM_MOUSEWHEEL:
+			case WM_CHAR:
+				Console::ForwardInput(hWnd, Msg, wParam, lParam);
 				return 0;
+
+			// ImGui cursor shapes (text input, resize)
+			case WM_SETCURSOR:
+				if (Console::ForwardInput(hWnd, Msg, wParam, lParam))
+					return 1;
+				break;
 		}
-	}
-	else if (wasConsoleOpened)
-	{
-		SetInputState(!g_State.wasInputDisabled);
-		wasConsoleOpened = false;
 	}
 
 	if (SDLGamepadSupport)
