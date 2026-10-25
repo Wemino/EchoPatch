@@ -251,6 +251,9 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
 {
     HRESULT hr = D3D9_SetTexture(device, Stage, pTexture);
 
+    if (Stage >= std::size(g_State.stageIsDirty))
+        return hr;
+
     bool isSharp = pTexture && std::binary_search(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), pTexture);
 
     if (isSharp)
@@ -281,4 +284,3 @@ static void ApplyReducedMipMapBias()
     HookHelper::ApplyHook((void*)GetAddress(Addr::DestroyTextureWrapper), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateTextureWrapper), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
 }
-
