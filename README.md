@@ -172,6 +172,10 @@ The behavior of this option can be edited by setting `CheckLAAPatch` in the `[Fi
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
 
+With `SavePersistentWorldState`, the blood stains, bullet holes, debris, shell casings and the blood on the bodies are also saved in a `.pws` file next to each save file and restored when the save is loaded.
+
+The number of shell casings and bullet holes kept in the world can be raised with `MaxShellCasings` and `ExtraBulletHoles` in `EchoPatch.ini`.
+
 ## Supersampling (SSAA)
 Renders the 3D scene at a higher internal resolution and downscales it to the display resolution, providing high-quality anti-aliasing.  
 Unlike the in-game FSAA option, which cannot be combined with soft shadows, SSAA is fully compatible with them, allowing both to be enabled at the same time.

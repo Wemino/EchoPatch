@@ -67,9 +67,19 @@ namespace EngineInterface
     constexpr DWORD Message_AddRef = 0x04;
     constexpr DWORD Message_Release = 0x08;
     constexpr DWORD Message_Read = 0x1C;
+    constexpr DWORD Message_Size = 0x20;
     constexpr DWORD Message_WriteBits = 0x24;
     constexpr DWORD Message_WriteData = 0x2C;
     constexpr DWORD Message_WriteString = 0x38;
+    constexpr DWORD Message_ReadData = 0x44;
+
+    // Database
+    constexpr DWORD Database_GetCategory = 0x1C;
+    constexpr DWORD Database_GetCategoryParent = 0x28;
+    constexpr DWORD Database_GetCategoryName = 0x30;
+    constexpr DWORD Database_GetRecord = 0x38;
+    constexpr DWORD Database_GetRecordParent = 0x44;
+    constexpr DWORD Database_GetRecordName = 0x4C;
 
     // Renderer
     constexpr DWORD Renderer_WorldToScreen = 0x34;

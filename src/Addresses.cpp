@@ -28,6 +28,9 @@ enum class Addr
 	FileSeekEnd,
 	FileTell,
 	FileClose,
+	FileGetSize,
+	FileIsEOF,
+	FileDestructor,
 
 	// FixNvidiaShadowCorruption
 	DrawMeshBatch,
@@ -149,6 +152,9 @@ namespace
 		/* FileSeekEnd                      */ {  0x1C6E0,  0x1C800,  0x29790,  0x29970 },
 		/* FileTell                         */ {  0x1C700,  0x1C820,  0x297B0,  0x29990 },
 		/* FileClose                        */ {  0x1C7A0,  0x1C8C0,  0x29850,  0x29A30 },
+		/* FileGetSize                      */ {  0x1C750,  0x1C870,  0x29800,  0x299E0 },
+		/* FileIsEOF                        */ {  0x1C850,  0x1C970,  0x29930,  0x29B10 },
+		/* FileDestructor                   */ {  0x1C7D0,  0x1C8F0,  0x298B0,  0x29A90 },
 
 		// FixNvidiaShadowCorruption
 		/* DrawMeshBatch                    */ { 0x1123C0, 0x1124E0, 0x1B5BB0, 0x1B7120 },

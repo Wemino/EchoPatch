@@ -31,10 +31,29 @@ bool(__thiscall* FileSeek)(DWORD*, LARGE_INTEGER) = nullptr;
 bool(__thiscall* FileSeekEnd)(DWORD*) = nullptr;
 bool(__thiscall* FileTell)(DWORD*, DWORD*) = nullptr;
 bool(__thiscall* FileClose)(DWORD*) = nullptr;
+bool(__thiscall* FileGetSize)(DWORD*, DWORD*) = nullptr;
+bool(__thiscall* FileIsEOF)(DWORD*, bool*) = nullptr;
+DWORD*(__thiscall* FileDestructor)(DWORD*, char) = nullptr;
 
 // =========================
 // OptimizeSaveSpeed
 // =========================
+
+static bool FlushSaveBuffer(DWORD* thisp)
+{
+    bool result = true;
+
+    if (!saveBuffer.flushed && saveBuffer.size > 0)
+    {
+        saveBuffer.flushed = true;
+
+        LARGE_INTEGER zero = { 0 };
+        result = FileSeek(thisp, zero) && FileWrite(thisp, saveBuffer.buffer.data(), (DWORD)saveBuffer.size) && SetEndOfFile(saveBuffer.handle);
+    }
+
+    saveBuffer.Reset();
+    return result;
+}
 
 static bool __fastcall FileWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD nNumberOfBytesToWrite)
 {
@@ -65,9 +84,15 @@ static bool __fastcall FileWrite_Hook(DWORD* thisp, int, LPCVOID lpBuffer, DWORD
 
 static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char a3)
 {
+    // Reopening closes the previous file without 'FileClose'
+    if (saveBuffer.IsActive() && saveBuffer.handle == reinterpret_cast<HANDLE>(thisp[1]))
+    {
+        FlushSaveBuffer(thisp);
+    }
+
     bool result = FileOpen(thisp, lpFileName, a3);
 
-    if (result && lpFileName)
+    if (result && lpFileName && !a3)
     {
         HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
@@ -86,7 +111,7 @@ static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char 
                 saveBuffer.position = 0;
                 saveBuffer.size = 0;
                 saveBuffer.flushed = false;
-                saveBuffer.buffer.resize(6 * 1024 * 1024);
+                saveBuffer.buffer.reserve(6 * 1024 * 1024);
             }
         }
     }
@@ -137,26 +162,54 @@ static bool __fastcall FileTell_Hook(DWORD* thisp, int, DWORD* a2)
     return FileTell(thisp, a2);
 }
 
+static bool __fastcall FileGetSize_Hook(DWORD* thisp, int, DWORD* a2)
+{
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+
+    if (saveBuffer.handle == h && !saveBuffer.flushed)
+    {
+        a2[0] = (DWORD)saveBuffer.size;
+        a2[1] = (DWORD)(saveBuffer.size >> 32);
+        return true;
+    }
+
+    return FileGetSize(thisp, a2);
+}
+
+static bool __fastcall FileIsEOF_Hook(DWORD* thisp, int, bool* a2)
+{
+    HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
+
+    if (saveBuffer.handle == h && !saveBuffer.flushed)
+    {
+        *a2 = saveBuffer.position == saveBuffer.size;
+        return true;
+    }
+
+    return FileIsEOF(thisp, a2);
+}
+
 static bool __fastcall FileClose_Hook(DWORD* thisp, int)
 {
     HANDLE h = reinterpret_cast<HANDLE>(thisp[1]);
 
     if (saveBuffer.handle == h)
     {
-        if (!saveBuffer.flushed && saveBuffer.size > 0)
-        {
-            saveBuffer.flushed = true;
-
-            LARGE_INTEGER zero = { 0 };
-            FileSeek(thisp, zero);
-            FileWrite(thisp, saveBuffer.buffer.data(), (DWORD)saveBuffer.size);
-            SetEndOfFile(h);
-        }
-
-        saveBuffer.Reset();
+        bool flushed = FlushSaveBuffer(thisp);
+        return FileClose(thisp) && flushed;
     }
 
     return FileClose(thisp);
+}
+
+static DWORD* __fastcall FileDestructor_Hook(DWORD* thisp, int, char flags)
+{
+    if (saveBuffer.IsActive() && saveBuffer.handle == reinterpret_cast<HANDLE>(thisp[1]))
+    {
+        FlushSaveBuffer(thisp);
+    }
+
+    return FileDestructor(thisp, flags);
 }
 
 static void ApplyOptimizeSaveSpeed()
@@ -171,4 +224,7 @@ static void ApplyOptimizeSaveSpeed()
     HookHelper::ApplyHook((void*)GetAddress(Addr::FileSeekEnd), &FileSeekEnd_Hook, (LPVOID*)&FileSeekEnd, checkRegion);
     HookHelper::ApplyHook((void*)GetAddress(Addr::FileTell), &FileTell_Hook, (LPVOID*)&FileTell, checkRegion);
     HookHelper::ApplyHook((void*)GetAddress(Addr::FileClose), &FileClose_Hook, (LPVOID*)&FileClose, checkRegion);
+    HookHelper::ApplyHook((void*)GetAddress(Addr::FileGetSize), &FileGetSize_Hook, (LPVOID*)&FileGetSize, checkRegion);
+    HookHelper::ApplyHook((void*)GetAddress(Addr::FileIsEOF), &FileIsEOF_Hook, (LPVOID*)&FileIsEOF, checkRegion);
+    HookHelper::ApplyHook((void*)GetAddress(Addr::FileDestructor), &FileDestructor_Hook, (LPVOID*)&FileDestructor, checkRegion);
 }

@@ -38,6 +38,9 @@ static void ReadConfig()
     SSAAScale = IniHelper::ReadFloat("Graphics", "SSAAScale", 1.0f);
     ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
     EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
+    SavePersistentWorldState = IniHelper::ReadInteger("Graphics", "SavePersistentWorldState", 1) == 1;
+    MaxShellCasings = IniHelper::ReadInteger("Graphics", "MaxShellCasings", 200);
+    ExtraBulletHoles = IniHelper::ReadInteger("Graphics", "ExtraBulletHoles", 0);
 
     // Display
     CustomFOV = IniHelper::ReadFloat("Display", "CustomFOV", 0.0f);

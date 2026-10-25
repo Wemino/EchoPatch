@@ -54,6 +54,15 @@ void(__thiscall* Camera_UpdateRenderTarget)(int) = nullptr;
 // EnablePersistentWorldState
 float(__stdcall* GetShatterLifetime)(int) = nullptr;
 int(__stdcall* CreateFX)(char*, int, int) = nullptr;
+void(__thiscall* ModelDecalMgrSave)(int, int*, int) = nullptr;
+void(__thiscall* ModelDecalMgrCleanDecalList)(int) = nullptr;
+
+// SavePersistentWorldState
+void(__thiscall* BuildClientSaveMsg)(int, int*, int) = nullptr;
+bool(__thiscall* CreateClientFX)(int, int, void*, bool, bool) = nullptr;
+int(__thiscall* CreateSFX)(int, uint8_t, void*, int, int) = nullptr;
+void(__thiscall* ModelDecalMgrLoad)(int, DWORD, int) = nullptr;
+int(__cdecl* GetModelDecalCategory)() = nullptr;
 
 // HUDScaling
 void(__thiscall* HUDTerminate)(int) = nullptr;
@@ -133,7 +142,7 @@ int(__thiscall* HUDWeaponListUpdateTriggerNames)(int) = nullptr;
 int(__thiscall* HUDGrenadeListUpdateTriggerNames)(int) = nullptr;
 void(__thiscall* SliderSetSliderPos)(int, int) = nullptr;
 
-// EnableCustomMaxWeaponCapacity & WeaponFixes
+// EnableCustomMaxWeaponCapacity & WeaponFixes & SavePersistentWorldState
 void(__thiscall* OnEnterWorld)(int) = nullptr;
 
 // SDLGamepadSupport & ConsoleEnabled

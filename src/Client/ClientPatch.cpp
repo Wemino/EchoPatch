@@ -137,21 +137,68 @@ static void ApplyPersistentWorldClientPatch()
     DWORD addr_Decal = ScanModuleSignature(g_State.GameClient, "DF E0 F6 C4 01 75 34 DD 44 24", "Decal");
     DWORD addr_FX = ScanModuleSignature(g_State.GameClient, "8B CE FF ?? 04 84 C0 75 ?? 8B ?? 8B CE FF ?? 08 56 E8", "CreateFX", 1);
     DWORD addr_Shatter = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? 00 D9 5C 24 ?? D9", "Shatter");
+    DWORD addr_SFXMgrInit = ScanModuleSignature(g_State.GameClient, "E8 ?? ?? ?? ?? D8 05 ?? ?? ?? ?? E8 ?? ?? ?? ?? EB ?? 0F B6 C3 8B 04 85", "SFXMgrInit");
+    DWORD addr_ShellCasingSFX = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 53 53 8D 44 24 ?? 50 6A ?? 81 C1 ?? ?? 00 00 E8", "ShellCasingSFX");
     addr_Shatter = MemoryHelper::ResolveRelativeAddress(addr_Shatter, 0x3);
 
     if (addr_ShellCasing == 0 ||
         addr_DecalSaving == 0 ||
         addr_Decal == 0 ||
         addr_FX == 0 ||
-        addr_Shatter == 0) {
+        addr_Shatter == 0 ||
+        addr_SFXMgrInit == 0 ||
+        addr_ShellCasingSFX == 0) {
         return;
     }
 
+    DWORD addr_DecalMgrSave = MemoryHelper::ResolveRelativeAddress(addr_DecalSaving, 0x18);
+    ModelDecalMgrCleanDecalList = reinterpret_cast<decltype(ModelDecalMgrCleanDecalList)>(MemoryHelper::ResolveRelativeAddress(addr_DecalMgrSave, 0x95));
+
     MemoryHelper::MakeNOP(addr_ShellCasing + 0x6, 4);
-    MemoryHelper::MakeNOP(addr_DecalSaving + 0xF, 13);
     MemoryHelper::WriteMemory<uint8_t>(addr_Decal + 0x5, 0xEB);
+    HookHelper::ApplyHook((void*)addr_DecalMgrSave, &ModelDecalMgrSave_Hook, (LPVOID*)&ModelDecalMgrSave);
     HookHelper::ApplyHook((void*)addr_Shatter, &GetShatterLifetime_Hook, (LPVOID*)&GetShatterLifetime);
     HookHelper::ApplyHook((void*)addr_FX, &CreateFX_Hook, (LPVOID*)&CreateFX);
+
+    // Shell casings and bullet holes limits, used when the lists are created
+    shellCasingSFXId = MemoryHelper::ReadMemory<uint8_t>(addr_ShellCasingSFX + 0xE);
+    bulletHoleCount = 1.0f + std::max(ExtraBulletHoles, 0);
+    MemoryHelper::WriteMemory<DWORD>(MemoryHelper::ReadMemory<DWORD>(addr_SFXMgrInit + 0x18) + shellCasingSFXId * 4, std::max(MaxShellCasings, 1));
+    MemoryHelper::WriteMemory<DWORD>(addr_SFXMgrInit + 0x7, (DWORD)&bulletHoleCount);
+}
+
+static void ApplySavePersistentWorldStateClientPatch()
+{
+    if (!SavePersistentWorldState || !CreateFX || g_State.CurrentFEARGame == FEARMP)
+    {
+        SavePersistentWorldState = false;
+        return;
+    }
+
+    DWORD addr_BuildClientSaveMsg = ScanModuleSignature(g_State.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "BuildClientSaveMsg");
+    DWORD addr_SimulationFXMgr = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 00 6A 01 8D 44 24 34 50 6A 00 81 C1 ?? ?? 00 00 E8 ?? ?? ?? ?? 81 C4 F0 00 00 00 C3", "SimulationFXMgr");
+    DWORD addr_ShellCasingSFX = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 53 53 8D 44 24 ?? 50 6A ?? 81 C1 ?? ?? 00 00 E8", "ShellCasingSFX");
+
+    if (addr_BuildClientSaveMsg == 0 ||
+        addr_SimulationFXMgr == 0 ||
+        addr_ShellCasingSFX == 0) {
+        SavePersistentWorldState = false;
+        return;
+    }
+
+    DWORD addr_DecalMgrSave = MemoryHelper::ResolveRelativeAddress(addr_BuildClientSaveMsg, 0x18);
+
+    pGameClientShellAddr = MemoryHelper::ReadMemory<DWORD>(addr_SimulationFXMgr + 0x2);
+    simulationFXMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_SimulationFXMgr + 0x13);
+    sfxMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_ShellCasingSFX + 0x11);
+    modelDecalMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_BuildClientSaveMsg + 0x11);
+    pLTDatabaseAddr = MemoryHelper::ReadMemory<DWORD>(addr_DecalMgrSave + 0x61);
+    CreateClientFX = reinterpret_cast<decltype(CreateClientFX)>(MemoryHelper::ResolveRelativeAddress(addr_SimulationFXMgr, 0x18));
+    CreateSFX = reinterpret_cast<decltype(CreateSFX)>(MemoryHelper::ResolveRelativeAddress(addr_ShellCasingSFX, 0x16));
+    ModelDecalMgrLoad = reinterpret_cast<decltype(ModelDecalMgrLoad)>(MemoryHelper::ResolveRelativeAddress(addr_BuildClientSaveMsg, 0x8A));
+    GetModelDecalCategory = reinterpret_cast<decltype(GetModelDecalCategory)>(MemoryHelper::ResolveRelativeAddress(addr_DecalMgrSave, 0x58));
+
+    HookHelper::ApplyHook((void*)(addr_BuildClientSaveMsg - 0x40), &BuildClientSaveMsg_Hook, (LPVOID*)&BuildClientSaveMsg);
 }
 
 static void ApplyInfiniteFlashlightClientPatch()
@@ -589,7 +636,7 @@ static void ApplyClientPatchSet1()
 
 static void ApplyClientPatchSet2()
 {
-    if (!WeaponFixes && !EnableCustomMaxWeaponCapacity) return;
+    if (!WeaponFixes && !EnableCustomMaxWeaponCapacity && !SavePersistentWorldState) return;
 
     DWORD addr_OnEnterWorld = ScanModuleSignature(g_State.GameClient, "8B F1 E8 ?? ?? ?? ?? DD 05 ?? ?? ?? ?? 8B 96", "OnEnterWorld", 1);
 
@@ -630,6 +677,7 @@ void ApplyClientPatch()
 	ApplySkipSplashScreenClientPatch();
 	ApplyDisableLetterboxClientPatch();
 	ApplyPersistentWorldClientPatch();
+	ApplySavePersistentWorldStateClientPatch();
 	ApplyInfiniteFlashlightClientPatch();
 	ApplyControllerClientPatch();
 	ApplyHUDScalingClientPatch();

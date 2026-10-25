@@ -15,13 +15,19 @@ static uint8_t __fastcall GetWeaponCapacity_Hook(int thisPtr, int)
 	return MaxWeaponCapacity;
 }
 
-// ============================================
-//  EnableCustomMaxWeaponCapacity & WeaponFixes
-// ============================================
+// =====================================================================
+//  EnableCustomMaxWeaponCapacity & WeaponFixes & SavePersistentWorldState
+// =====================================================================
 
 static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 {
 	OnEnterWorld(thisPtr);
+
+	// Restore the persistent world state of the loaded save
+	if (SavePersistentWorldState)
+	{
+		RestorePersistentWorldState();
+	}
 
 	// Set the flag to allow aiming (can be 0 if loading a save during a cutscene)
 	if (WeaponFixes && g_State.pAimMgr != 0)

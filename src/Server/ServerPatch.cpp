@@ -5,6 +5,7 @@
 void ApplyServerPatch()
 {
     ApplyPersistentWorldServerPatch();
+    ApplySavePersistentWorldStateServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyHighFPSFixesServerPatch();
     ApplyControllerServerPatch();

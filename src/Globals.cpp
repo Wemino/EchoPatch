@@ -149,6 +149,11 @@ struct GlobalState
 	bool appliedCustomMaxWeaponCapacity = false;
 
 	// ======================
+	// Persistent World State
+	// ======================
+	std::string loadedSaveFilePath;
+
+	// ======================
 	// Weapon/Animation
 	// ======================
 	BYTE* pAimMgr = 0;
@@ -238,6 +243,9 @@ bool NoLODBias = false;
 float SSAAScale = 0;
 bool ReducedMipMapBias = false;
 bool EnablePersistentWorldState = false;
+bool SavePersistentWorldState = false;
+int MaxShellCasings = 0;
+int ExtraBulletHoles = 0;
 
 // Display
 float CustomFOV = 0;

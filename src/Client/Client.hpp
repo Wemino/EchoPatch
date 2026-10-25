@@ -10,3 +10,6 @@ extern bool (__thiscall* OnCommandOn)(int, int);
 extern bool (__thiscall* OnCommandOff)(int, int);
 extern void (__thiscall* SetCurrentType)(int, int);
 extern void(__thiscall* UseCursor)(int, bool, bool);
+
+// Used by the server save hook
+void WritePersistentWorldStateFile(const std::string& savePath);
