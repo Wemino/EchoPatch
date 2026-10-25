@@ -122,6 +122,9 @@
     <ClInclude Include="..\src\ClientFX\Controller\Controller.cpp">
       <Filter>ClientFX\Controller</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\ClientFX\Fixes\FixTranslucentRenderingFX.cpp">
+      <Filter>ClientFX\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\ClientFX\Fixes\HighFPSFixes.cpp">
       <Filter>ClientFX\Fixes</Filter>
     </ClInclude>
@@ -174,6 +177,9 @@
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\FixKeyboardInputLanguage.cpp">
+      <Filter>Engine\Fixes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Engine\Fixes\FixTranslucentRendering.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\FixNvidiaShadowCorruption.cpp">

@@ -95,6 +95,23 @@ Addresses several weapon-related issues:
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
+## Translucent Rendering Fixes
+- **Glass Lighting**: Blood and smoke behind a glass no longer look too bright when lit by the flashlight.
+- **Smoke & Decals**: Blood marks no longer show through the smoke in front of them, and decals on walls and floors are lit correctly.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/TranslucentRendering_Off.png"></td>
+      <td width="50%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/TranslucentRendering_On.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Vanilla</td>
+      <td align="center">Fixed Translucent Rendering</td>
+    </tr>
+  </table>
+</div>
+
 ## Controller Support
 
 Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.

@@ -152,6 +152,7 @@
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFXPatch.cpp" />
     <ClInclude Include="..\src\ClientFX\Controller\Controller.cpp" />
+    <ClInclude Include="..\src\ClientFX\Fixes\FixTranslucentRenderingFX.cpp" />
     <ClInclude Include="..\src\ClientFX\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Controller\Controller.cpp" />
     <ClInclude Include="..\src\Controller\Controller.hpp" />
@@ -170,6 +171,7 @@
     <ClInclude Include="..\src\Engine\Fixes\FixAspectRatioBlur.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixDirectInputFps.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixKeyboardInputLanguage.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\FixTranslucentRendering.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixNvidiaShadowCorruption.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixScriptedAnimationCrash.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />

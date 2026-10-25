@@ -6,4 +6,5 @@ void ApplyClientFXPatch()
 {
     ApplyHighFPSFixesClientFXPatch();
     ApplyControllerClientFXPatch();
+    ApplyFixTranslucentRenderingClientFXPatch();
 }

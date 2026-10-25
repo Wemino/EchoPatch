@@ -28,6 +28,7 @@ static void ReadConfig()
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
     FixSoundWrapperLoading = IniHelper::ReadInteger("Fixes", "FixSoundWrapperLoading", 1) == 1;
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
+    FixTranslucentRendering = IniHelper::ReadInteger("Fixes", "FixTranslucentRendering", 1) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
@@ -267,6 +268,7 @@ static void Init()
     ApplyHavokPhysicsFix();
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();
+    ApplyFixTranslucentRendering();
     ApplyFixAspectRatioBlur();
     ApplyFastVRAMDetection();
     ApplyFixKeyboardInputLanguage();

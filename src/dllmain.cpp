@@ -16,6 +16,7 @@
 #include "Engine/Fixes/OptimizeSaveSpeed.cpp"
 #include "Engine/Graphics/SSAAScale.cpp"
 #include "Engine/Fixes/FixNvidiaShadowCorruption.cpp"
+#include "Engine/Fixes/FixTranslucentRendering.cpp"
 #include "Engine/Misc/DeviceCreationHook.cpp"
 #include "Engine/Fixes/FixScriptedAnimationCrash.cpp"
 #include "Engine/Console/EngineInterfaces.cpp"
@@ -37,6 +38,7 @@
 
 #include "ClientFX/Fixes/HighFPSFixes.cpp"
 #include "ClientFX/Controller/Controller.cpp"
+#include "ClientFX/Fixes/FixTranslucentRenderingFX.cpp"
 #include "ClientFX/ClientFXPatch.cpp"
 
 #include "Client/Client.cpp"

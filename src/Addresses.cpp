@@ -47,6 +47,14 @@ enum class Addr
 	// FixScriptedAnimationCrash
 	GetSocketTransform,
 
+	// FixTranslucentRendering
+	BeginTechnique,
+	LightPasses,
+	BlackLightPass,
+	RenderListIsEmpty,
+	RenderListClear,
+	ComputeSortKeys,
+
 	// FixKeyboardInputLanguage
 	GetDeviceObjectName,
 	GetDeviceObjectDesc,
@@ -170,6 +178,14 @@ namespace
 
 		// FixScriptedAnimationCrash
 		/* GetSocketTransform               */ {  0x36F10,      0x0,      0x0,      0x0 },
+
+		// FixTranslucentRendering
+		/* BeginTechnique                   */ { 0x103E40, 0x103F60, 0x19F2C0, 0x1A08F0 },
+		/* LightPasses                      */ { 0x117700, 0x117820, 0x1BCAC0, 0x1BE560 },
+		/* BlackLightPass                   */ { 0x117100, 0x117220, 0x1BC3B0, 0x1BDE50 },
+		/* RenderListIsEmpty                */ { 0x117C20, 0x117D40, 0x1BCFF0, 0x1BEA90 },
+		/* RenderListClear                  */ { 0x10FF00, 0x110020, 0x1B0DF0, 0x1B2370 },
+		/* ComputeSortKeys                  */ { 0x10EA20, 0x10EB40, 0x1AF640, 0x1B0BB0 },
 
 		// FixKeyboardInputLanguage
 		/* GetDeviceObjectName              */ {  0x815A0,  0x816C0,  0xB52D0,  0xB6350 },

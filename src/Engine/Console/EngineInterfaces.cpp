@@ -17,6 +17,7 @@ namespace EngineInterface
         // Client and server
         GetObjectRotation,
         GetObjectPos,
+        SetObjectPos,
         RegisterConsoleProgram,
         GetConsoleVariable,
         GetConsoleVariableFloat,
@@ -26,6 +27,7 @@ namespace EngineInterface
 
         // Client
         GetRenderer,
+        GetCustomRender,
         SendToServer,
 
         // Server
@@ -41,6 +43,7 @@ namespace EngineInterface
     {
         /* GetObjectRotation          */ {  0x18,  0x18,  0x18,  0x18 },
         /* GetObjectPos               */ {  0x20,  0x20,  0x20,  0x20 },
+        /* SetObjectPos               */ {  0x24,  0x24,  0x24,  0x24 },
         /* RegisterConsoleProgram     */ {  0x9C,  0x9C,  0x9C,  0x9C },
         /* GetConsoleVariable         */ { 0x10C, 0x10C, 0x10C, 0x110 },
         /* GetConsoleVariableFloat    */ { 0x114, 0x114, 0x114, 0x118 },
@@ -48,6 +51,7 @@ namespace EngineInterface
         /* GetConsoleVariableString   */ { 0x11C, 0x11C, 0x11C, 0x120 },
         /* GetSourceWorldOffset       */ { 0x134, 0x134, 0x134, 0x138 },
         /* GetRenderer                */ { 0x16C, 0x16C, 0x16C, 0x170 },
+        /* GetCustomRender            */ { 0x170, 0x170, 0x170, 0x174 },
         /* SendToServer               */ { 0x1B4, 0x1B4, 0x1B4, 0x1B8 },
         /* GetClientObject            */ { 0x188, 0x188, 0x188, 0x18C },
         /* GetObjectName              */ { 0x1BC, 0x1BC, 0x1BC, 0x1C0 },
@@ -84,6 +88,9 @@ namespace EngineInterface
     // Renderer
     constexpr DWORD Renderer_WorldToScreen = 0x34;
     constexpr DWORD Renderer_MakeCubicEnvMap = 0x58;
+
+    // Custom render
+    constexpr DWORD CustomRender_SetVisBoundingSphere = 0x0C;
 
     // Same layout as the engine vector and quaternion
     struct Vector3
