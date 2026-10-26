@@ -63,6 +63,9 @@ bool(__thiscall* CreateClientFX)(int, int, void*, bool, bool) = nullptr;
 int(__thiscall* CreateSFX)(int, uint8_t, void*, int, int) = nullptr;
 void(__thiscall* ModelDecalMgrLoad)(int, DWORD, int) = nullptr;
 int(__cdecl* GetModelDecalCategory)() = nullptr;
+void(__thiscall* ModelDecalMgrUpdate)(int) = nullptr;
+void(__thiscall* ModelDecalMgrAddDecal)(int, DWORD, uint32_t, void*) = nullptr;
+bool(__thiscall* CreateShatterEffect)(int, uint32_t, const float*, const float*, const float*, DWORD) = nullptr;
 
 // HUDScaling
 void(__thiscall* HUDTerminate)(int) = nullptr;

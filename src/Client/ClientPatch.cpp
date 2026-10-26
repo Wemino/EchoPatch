@@ -178,27 +178,42 @@ static void ApplySavePersistentWorldStateClientPatch()
     DWORD addr_BuildClientSaveMsg = ScanModuleSignature(g_State.GameClient, "FF 52 0C ?? 8D ?? ?? ?? 00 00 E8 ?? ?? ?? FF 8B", "BuildClientSaveMsg");
     DWORD addr_SimulationFXMgr = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 00 6A 01 8D 44 24 34 50 6A 00 81 C1 ?? ?? 00 00 E8 ?? ?? ?? ?? 81 C4 F0 00 00 00 C3", "SimulationFXMgr");
     DWORD addr_ShellCasingSFX = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 53 53 8D 44 24 ?? 50 6A ?? 81 C1 ?? ?? 00 00 E8", "ShellCasingSFX");
+    DWORD addr_ModelDecalMgrUpdate = ScanModuleSignature(g_State.GameClient, "8B 11 FF 92 ?? ?? 00 00 8B 44 24 ?? 85 C0 74 ?? DD 05 ?? ?? ?? ?? 8D 4E 1C 51 DD 5F 48 8B 56 18 52 50 8B CF E8", "ModelDecalMgrUpdate");
+    DWORD addr_ShatterWorldModel = ScanModuleSignature(g_State.GameClient, "53 8D 8F ?? ?? 00 00 E8 ?? ?? ?? ?? 5F 5E 5D 5B 83 C4 50 C2 04 00", "ShatterWorldModel");
+    DWORD addr_ShatterRand = ScanModuleSignature(g_State.GameClient, "BF 20 00 00 00 FF 15 ?? ?? ?? ?? 2B FB 47 33 D2 F7 F7", "ShatterRand");
 
     if (addr_BuildClientSaveMsg == 0 ||
         addr_SimulationFXMgr == 0 ||
-        addr_ShellCasingSFX == 0) {
+        addr_ShellCasingSFX == 0 ||
+        addr_ModelDecalMgrUpdate == 0 ||
+        addr_ShatterWorldModel == 0 ||
+        addr_ShatterRand == 0) {
         SavePersistentWorldState = false;
         return;
     }
 
     DWORD addr_DecalMgrSave = MemoryHelper::ResolveRelativeAddress(addr_BuildClientSaveMsg, 0x18);
+    DWORD addr_DecalMgrAddDecal = MemoryHelper::ResolveRelativeAddress(addr_ModelDecalMgrUpdate, 0x25);
+    DWORD addr_CreateShatterEffect = MemoryHelper::ResolveRelativeAddress(addr_ShatterWorldModel, 0x8);
 
     pGameClientShellAddr = MemoryHelper::ReadMemory<DWORD>(addr_SimulationFXMgr + 0x2);
     simulationFXMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_SimulationFXMgr + 0x13);
     sfxMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_ShellCasingSFX + 0x11);
     modelDecalMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_BuildClientSaveMsg + 0x11);
+    shatterEffectMgrOffset = MemoryHelper::ReadMemory<DWORD>(addr_ShatterWorldModel + 0x3);
+    findObjectsInBoxOffset = MemoryHelper::ReadMemory<DWORD>(addr_ModelDecalMgrUpdate + 0x4);
+    randImportAddr = MemoryHelper::ReadMemory<DWORD>(addr_ShatterRand + 0x7);
     pLTDatabaseAddr = MemoryHelper::ReadMemory<DWORD>(addr_DecalMgrSave + 0x61);
+    pPhysicsLTAddr = MemoryHelper::ReadMemory<DWORD>(addr_DecalMgrSave + 0x107);
     CreateClientFX = reinterpret_cast<decltype(CreateClientFX)>(MemoryHelper::ResolveRelativeAddress(addr_SimulationFXMgr, 0x18));
     CreateSFX = reinterpret_cast<decltype(CreateSFX)>(MemoryHelper::ResolveRelativeAddress(addr_ShellCasingSFX, 0x16));
     ModelDecalMgrLoad = reinterpret_cast<decltype(ModelDecalMgrLoad)>(MemoryHelper::ResolveRelativeAddress(addr_BuildClientSaveMsg, 0x8A));
     GetModelDecalCategory = reinterpret_cast<decltype(GetModelDecalCategory)>(MemoryHelper::ResolveRelativeAddress(addr_DecalMgrSave, 0x58));
 
     HookHelper::ApplyHook((void*)(addr_BuildClientSaveMsg - 0x40), &BuildClientSaveMsg_Hook, (LPVOID*)&BuildClientSaveMsg);
+    HookHelper::ApplyHook((void*)(addr_ModelDecalMgrUpdate - 0x141), &ModelDecalMgrUpdate_Hook, (LPVOID*)&ModelDecalMgrUpdate);
+    HookHelper::ApplyHook((void*)addr_DecalMgrAddDecal, &ModelDecalMgrAddDecal_Hook, (LPVOID*)&ModelDecalMgrAddDecal);
+    HookHelper::ApplyHook((void*)addr_CreateShatterEffect, &CreateShatterEffect_Hook, (LPVOID*)&CreateShatterEffect);
 }
 
 static void ApplyInfiniteFlashlightClientPatch()
@@ -565,7 +580,7 @@ static void ApplyConsoleDebugToolsClientPatch()
 
 static void ApplyClientFXHook()
 {
-	if (!HighFPSFixes && !SDLGamepadSupport) return;
+	if (!HighFPSFixes && !SDLGamepadSupport && !FixTranslucentRendering && !SavePersistentWorldState) return;
 
     DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 20 56 57 8B F1 E8 ?? ?? ?? ?? 8A 44 24 30", "LoadFxDll");
 

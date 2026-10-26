@@ -48,12 +48,14 @@ enum class Addr
 	GetSocketTransform,
 
 	// FixTranslucentRendering
-	BeginTechnique,
 	LightPasses,
 	BlackLightPass,
 	RenderListIsEmpty,
 	RenderListClear,
 	ComputeSortKeys,
+	RenderSortedList,
+	LightTranslucentObjects,
+	LightTranslucentDirectional,
 
 	// FixKeyboardInputLanguage
 	GetDeviceObjectName,
@@ -180,12 +182,14 @@ namespace
 		/* GetSocketTransform               */ {  0x36F10,      0x0,      0x0,      0x0 },
 
 		// FixTranslucentRendering
-		/* BeginTechnique                   */ { 0x103E40, 0x103F60, 0x19F2C0, 0x1A08F0 },
 		/* LightPasses                      */ { 0x117700, 0x117820, 0x1BCAC0, 0x1BE560 },
 		/* BlackLightPass                   */ { 0x117100, 0x117220, 0x1BC3B0, 0x1BDE50 },
 		/* RenderListIsEmpty                */ { 0x117C20, 0x117D40, 0x1BCFF0, 0x1BEA90 },
 		/* RenderListClear                  */ { 0x10FF00, 0x110020, 0x1B0DF0, 0x1B2370 },
 		/* ComputeSortKeys                  */ { 0x10EA20, 0x10EB40, 0x1AF640, 0x1B0BB0 },
+		/* RenderSortedList                 */ { 0x10FFF0, 0x110110, 0x1B0EE0, 0x1B2460 },
+		/* LightTranslucentObjects          */ { 0x116EA0, 0x116FC0, 0x1BC150, 0x1BDBF0 },
+		/* LightTranslucentDirectional      */ { 0x117010, 0x117130, 0x1BC2C0, 0x1BDD60 },
 
 		// FixKeyboardInputLanguage
 		/* GetDeviceObjectName              */ {  0x815A0,  0x816C0,  0xB52D0,  0xB6350 },

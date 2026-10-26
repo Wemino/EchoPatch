@@ -26,6 +26,8 @@ namespace EngineInterface
         GetSourceWorldOffset,
 
         // Client
+        GetModelLT,
+        PhysicsSim,
         GetRenderer,
         GetCustomRender,
         SendToServer,
@@ -50,6 +52,8 @@ namespace EngineInterface
         /* SetConsoleVariableFloat    */ { 0x118, 0x118, 0x118, 0x11C },
         /* GetConsoleVariableString   */ { 0x11C, 0x11C, 0x11C, 0x120 },
         /* GetSourceWorldOffset       */ { 0x134, 0x134, 0x134, 0x138 },
+        /* GetModelLT                 */ {  0x44,  0x44,  0x44,  0x44 },
+        /* PhysicsSim                 */ {  0x58,  0x58,  0x58,  0x58 },
         /* GetRenderer                */ { 0x16C, 0x16C, 0x16C, 0x170 },
         /* GetCustomRender            */ { 0x170, 0x170, 0x170, 0x174 },
         /* SendToServer               */ { 0x1B4, 0x1B4, 0x1B4, 0x1B8 },
@@ -84,6 +88,33 @@ namespace EngineInterface
     constexpr DWORD Database_GetRecord = 0x38;
     constexpr DWORD Database_GetRecordParent = 0x44;
     constexpr DWORD Database_GetRecordName = 0x4C;
+
+    // Model
+    constexpr DWORD Model_GetNode = 0x2C;
+    constexpr DWORD Model_GetNodeName = 0x30;
+
+    // Physics
+    constexpr DWORD Physics_IsWorldObject = 0x04;
+    constexpr DWORD Physics_GetObjectDims = 0x20;
+
+    // Physics simulation
+    constexpr DWORD PhysicsSim_CreateSphereShape = 0x0C;
+    constexpr DWORD PhysicsSim_CreateBoxShape = 0x10;
+    constexpr DWORD PhysicsSim_CreateCapsuleShape = 0x14;
+    constexpr DWORD PhysicsSim_ReleaseShape = 0x2C;
+    constexpr DWORD PhysicsSim_TraverseShapeHierarchy = 0x38;
+    constexpr DWORD PhysicsSim_CreateRigidBody = 0x3C;
+    constexpr DWORD PhysicsSim_ReleaseRigidBody = 0x44;
+    constexpr DWORD PhysicsSim_GetRigidBodyShape = 0x48;
+    constexpr DWORD PhysicsSim_GetRigidBodyTransform = 0x5C;
+    constexpr DWORD PhysicsSim_GetRigidBodyCollisionInfo = 0x74;
+    constexpr DWORD PhysicsSim_GetRigidBodyFriction = 0x8C;
+    constexpr DWORD PhysicsSim_GetRigidBodyCOR = 0x94;
+    constexpr DWORD PhysicsSim_SetRigidBodyVelocity = 0x98;
+    constexpr DWORD PhysicsSim_GetRigidBodyVelocity = 0x9C;
+    constexpr DWORD PhysicsSim_SetRigidBodyAngularVelocity = 0xA0;
+    constexpr DWORD PhysicsSim_GetRigidBodyAngularVelocity = 0xA4;
+    constexpr DWORD PhysicsSim_GetUniqueSystemGroup = 0x150;
 
     // Renderer
     constexpr DWORD Renderer_WorldToScreen = 0x34;

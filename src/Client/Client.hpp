@@ -13,3 +13,7 @@ extern void(__thiscall* UseCursor)(int, bool, bool);
 
 // Used by the server save hook
 void WritePersistentWorldStateFile(const std::string& savePath);
+
+// Used by the ClientFX decal hook
+bool GetPersistentDecalScale(int decal, float& scale);
+void SetPersistentDecalWorldModel(int decal);
