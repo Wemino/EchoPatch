@@ -257,7 +257,7 @@ static void Init()
     // Install the crash handler
     if (EnableCrashHandler)
     {
-        CrashHandler::Install();
+        CrashHandler::Install(true, true);
     }
 
     // Get the handle of the client as soon as it is loaded

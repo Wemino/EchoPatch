@@ -42,6 +42,10 @@ namespace CrashHandler
 	static ModuleEntry g_modules[512];
 	static int g_moduleCount = 0;
 
+	static BOOLEAN(WINAPI* g_dllShutdownInProgress)() = nullptr;
+	static void* g_filterPatchTarget = nullptr;
+	static unsigned char g_filterPatchBackup[5] = {};
+
 	static void WriteStr(HANDLE file, const char* text)
 	{
 		DWORD bw;
@@ -567,9 +571,10 @@ namespace CrashHandler
 		mei.ClientPointers = FALSE;
 
 		MINIDUMP_TYPE dumpType = (MINIDUMP_TYPE)(
+			MiniDumpWithPrivateReadWriteMemory |
 			MiniDumpWithDataSegs |
+			MiniDumpWithFullMemoryInfo |
 			MiniDumpWithHandleData |
-			MiniDumpWithIndirectlyReferencedMemory |
 			MiniDumpWithUnloadedModules |
 			MiniDumpWithThreadInfo);
 
@@ -681,10 +686,26 @@ namespace CrashHandler
 		return 0;
 	}
 
+	static bool IsProcessExiting()
+	{
+		return g_dllShutdownInProgress && g_dllShutdownInProgress();
+	}
+
+	static bool OwnsLoaderLock()
+	{
+		RTL_CRITICAL_SECTION* loaderLock = *(RTL_CRITICAL_SECTION**)(__readfsdword(0x30) + 0xA0);
+		return loaderLock && (DWORD)(DWORD_PTR)loaderLock->OwningThread == GetCurrentThreadId();
+	}
+
 	static void HandleCrash(EXCEPTION_POINTERS* ep, const char* sourceTag)
 	{
 		if (InterlockedExchange(&g_reportWritten, 1) != 0)
 		{
+			if (g_terminateOnCrash && GetCurrentThreadId() == g_writerThreadId)
+			{
+				TerminateProcess(GetCurrentProcess(), ep->ExceptionRecord->ExceptionCode);
+			}
+
 			Sleep(INFINITE);
 			return;
 		}
@@ -694,7 +715,7 @@ namespace CrashHandler
 		g_crashThreadId = GetCurrentThreadId();
 		g_crashStackBase = __readfsdword(0x04);
 
-		HANDLE thread = CreateThread(nullptr, 0, WriterThread, nullptr, 0, nullptr);
+		HANDLE thread = OwnsLoaderLock() ? nullptr : CreateThread(nullptr, 0, WriterThread, nullptr, 0, nullptr);
 		if (thread)
 		{
 			CloseHandle(thread);
@@ -721,7 +742,7 @@ namespace CrashHandler
 			return EXCEPTION_CONTINUE_SEARCH;
 		}
 
-		if (IsDebuggerPresent())
+		if (IsDebuggerPresent() || IsProcessExiting())
 		{
 			return EXCEPTION_CONTINUE_SEARCH;
 		}
@@ -736,6 +757,11 @@ namespace CrashHandler
 		if (IsDebuggerPresent())
 		{
 			return g_previousFilter ? g_previousFilter(ep) : EXCEPTION_CONTINUE_SEARCH;
+		}
+
+		if (IsProcessExiting())
+		{
+			return EXCEPTION_CONTINUE_SEARCH;
 		}
 
 		HandleCrash(ep, "Unhandled");
@@ -769,6 +795,8 @@ namespace CrashHandler
 		DWORD oldProtect;
 		if (VirtualProtect(target, sizeof(patch), PAGE_EXECUTE_READWRITE, &oldProtect))
 		{
+			memcpy(g_filterPatchBackup, target, sizeof(g_filterPatchBackup));
+			g_filterPatchTarget = target;
 			memcpy(target, patch, sizeof(patch));
 			VirtualProtect(target, sizeof(patch), oldProtect, &oldProtect);
 			FlushInstructionCache(GetCurrentProcess(), target, sizeof(patch));
@@ -815,6 +843,8 @@ namespace CrashHandler
 
 		GuardThreadStack();
 
+		g_dllShutdownInProgress = reinterpret_cast<decltype(g_dllShutdownInProgress)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlDllShutdownInProgress"));
+
 		SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_NO_PROMPTS | SYMOPT_FAIL_CRITICAL_ERRORS);
 		SymInitialize(GetCurrentProcess(), nullptr, TRUE);
 
@@ -830,6 +860,15 @@ namespace CrashHandler
 
 	static void Uninstall()
 	{
+		DWORD oldProtect;
+		if (g_filterPatchTarget && VirtualProtect(g_filterPatchTarget, sizeof(g_filterPatchBackup), PAGE_EXECUTE_READWRITE, &oldProtect))
+		{
+			memcpy(g_filterPatchTarget, g_filterPatchBackup, sizeof(g_filterPatchBackup));
+			VirtualProtect(g_filterPatchTarget, sizeof(g_filterPatchBackup), oldProtect, &oldProtect);
+			FlushInstructionCache(GetCurrentProcess(), g_filterPatchTarget, sizeof(g_filterPatchBackup));
+			g_filterPatchTarget = nullptr;
+		}
+
 		if (g_vectoredHandler)
 		{
 			RemoveVectoredExceptionHandler(g_vectoredHandler);

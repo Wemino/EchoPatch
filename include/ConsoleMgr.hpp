@@ -2423,8 +2423,13 @@ inline void ShutdownImGui()
 inline void CheckDevice()
 {
     IDirect3DDevice9* pDevice = GetDevice();
+
     if (!pDevice)
+    {
+        ShutdownImGui();
+        g_pLastKnownDevice = nullptr;
         return;
+    }
 
     if (pDevice != g_pLastKnownDevice)
     {
@@ -3878,6 +3883,13 @@ namespace Console
             g_cursorShownByUs = false;
             ShowConsoleCursor();
         }
+    }
+
+    inline void OnWindowDestroyed()
+    {
+        HideConsoleCursor();
+        ShutdownImGui();
+        g_pLastKnownDevice = nullptr;
     }
 
     inline void OnPresent()

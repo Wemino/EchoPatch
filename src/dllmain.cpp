@@ -110,9 +110,19 @@ void OnProcessDetach()
 {
     MH_Uninitialize();
 
+    if (ConsoleEnabled)
+    {
+        Console::Shutdown();
+    }
+
     if (SDLGamepadSupport)
     {
         ShutdownSDLGamepad();
+    }
+
+    if (EnableCrashHandler)
+    {
+        CrashHandler::Uninstall();
     }
 }
 

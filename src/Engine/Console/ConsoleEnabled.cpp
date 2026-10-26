@@ -55,6 +55,11 @@ static int __stdcall WindowProc_Hook(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM 
         }
     }
 
+    if (Msg == WM_DESTROY && hWnd == g_State.hWnd)
+    {
+        Console::OnWindowDestroyed();
+    }
+
     int result = WindowProc(hWnd, Msg, wParam, lParam);
 
     if (Msg == WM_ACTIVATEAPP && wParam && g_State.isConsoleOpen)
