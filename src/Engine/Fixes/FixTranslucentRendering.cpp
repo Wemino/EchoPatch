@@ -14,10 +14,6 @@ constexpr int TechniqueDirectional = 6;
 // Each group of glass costs a light pass, more groups are lit together
 constexpr size_t MaxGlassGroups = 4;
 
-// Sort key offsets, overlapping decals by render layer and decals in front of the glass they are on
-constexpr float DecalLayerOffset = 1e-6f;
-constexpr float GlassDecalOffset = 1e-5f;
-
 struct TechniqueDesc
 {
     const char* name;
@@ -131,6 +127,18 @@ static float DistanceToBoundsSqr(const float* point, const float* min, const flo
     return distance;
 }
 
+static float FarthestDistanceToBoundsSqr(const float* point, const float* min, const float* max)
+{
+    float distance = 0.0f;
+    for (int i = 0; i < 3; i++)
+    {
+        float delta = std::max(fabsf(point[i] - min[i]), fabsf(point[i] - max[i]));
+        distance += delta * delta;
+    }
+
+    return distance;
+}
+
 // Visibility box of a custom render object, its box or sphere is relative to the position
 static void GetCustomRenderBox(int object, float* min, float* max)
 {
@@ -234,6 +242,17 @@ static bool GetGlassDistance(int object, const DecalSort& decal, float& distance
 static size_t CountTranslucentKeys(float min, float max)
 {
     return std::upper_bound(translucentKeys.begin(), translucentKeys.end(), max) - std::upper_bound(translucentKeys.begin(), translucentKeys.end(), min);
+}
+
+// Drawn right after the ones at the same distance, one float closer per step
+static float GetNearerKey(float key, int steps)
+{
+    for (int i = 0; i < steps; i++)
+    {
+        key = std::nextafter(key, -FLT_MAX);
+    }
+
+    return key;
 }
 
 static bool IsGlassInGroup(int object)
@@ -402,7 +421,7 @@ static void SortOverlappingDecals()
     // Still in front of the glass they are on
     for (size_t i = 0; i < count; i++)
     {
-        *(float*)(decalSorts[i].entry + 0x18) = std::min(decalClusterKeys[FindDecalCluster((int)i)], decalSorts[i].maxKey) * (1.0f - decalSorts[i].layer * DecalLayerOffset);
+        *(float*)(decalSorts[i].entry + 0x18) = GetNearerKey(std::min(decalClusterKeys[FindDecalCluster((int)i)], decalSorts[i].maxKey), decalSorts[i].layer);
     }
 }
 
@@ -539,22 +558,35 @@ static int __fastcall ComputeSortKeys_Hook(int list, int, float* cameraPos, int 
             continue;
         }
 
+        if (*(uint8_t*)(object + 0x57) == 2)
+        {
+            float min[3], max[3];
+            if (GetObjectBounds(object, min, max))
+            {
+                *(float*)(entry + 0x18) = FarthestDistanceToBoundsSqr(cameraPos, min, max);
+            }
+
+            continue;
+        }
+
         // Custom render objects not drawn in view space
         if (*(uint8_t*)(object + 0x57) != 6 || *(uint8_t*)(object + 0xF4) == 2)
             continue;
 
-        // Decals use their center, the rest their closest point so the smoke around the camera is drawn last
+        // Decals lie on surfaces too and use their farthest point, the rest their closest point so the smoke around the camera is drawn last
         if (renderLayer >= 2 && renderLayer <= 4)
         {
             DecalSort decal{ entry, renderLayer - 2 };
             decal.radius = GetCustomRenderSphere(object, decal.center);
             decal.maxKey = FLT_MAX;
-            *(float*)(entry + 0x18) = DistanceToBoundsSqr(cameraPos, decal.center, decal.center);
 
-            // On a glass, drawn over its light
+            float distance = sqrtf(DistanceToBoundsSqr(cameraPos, decal.center, decal.center)) + decal.radius;
+            *(float*)(entry + 0x18) = distance * distance;
+
+            // On a glass, drawn right after its light
             float glassDistance = 0.0f;
             if (*(uint8_t*)(object + 0xF4) == 0 && GetGlassDistance(object, decal, glassDistance))
-                decal.maxKey = glassDistance * (1.0f - GlassDecalOffset);
+                decal.maxKey = GetNearerKey(glassDistance, 1);
 
             decalSorts.push_back(decal);
         }
