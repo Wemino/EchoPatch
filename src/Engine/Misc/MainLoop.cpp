@@ -33,6 +33,11 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
         g_State.isConsoleOpen = Console::Update();
     }
 
+    if (KeepRendererOnFocusLoss)
+    {
+        RecoverLostDevice();
+    }
+
     if (HighFPSFixes)
     {
         if (auto* pTimingStruct = *reinterpret_cast<void**>(thisPtr + 0x5D0))
@@ -59,7 +64,7 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
 static void HookMainLoop()
 {
     isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled) return;
+    if (!isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled && !KeepRendererOnFocusLoss) return;
 
     fpsLimiter.SetTargetFps(MaxFPS);
     QueryPerformanceFrequency(&performanceFrequency);

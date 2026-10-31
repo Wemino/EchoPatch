@@ -106,6 +106,14 @@ enum class Addr
 	// DeviceCreationHook
 	CreateAndInitializeDevice,
 
+	// KeepRendererOnFocusLoss
+	FocusLostTermRenderer,
+	FocusGainedInitRenderer,
+	RendererActive,
+
+	// HardwareVertexProcessing
+	DeviceBehaviorFlags,
+
 	// ConsoleEnabled
 	Console_Init,
 	Console_CursorLock,
@@ -239,6 +247,14 @@ namespace
 
 		// DeviceCreationHook
 		/* CreateAndInitializeDevice        */ {  0xF91E0,  0xF9300, 0x18F930, 0x190F60 },
+
+		// KeepRendererOnFocusLoss
+		/* FocusLostTermRenderer            */ {  0x7DB50,  0x7DC70,  0xAF7E0,  0xB0840 },
+		/* FocusGainedInitRenderer          */ {  0x7DAA0,  0x7DBC0,  0xAF730,  0xB0790 },
+		/* RendererActive                   */ { 0x175D3C, 0x175D3C, 0x219E04, 0x21BE3C },
+
+		// HardwareVertexProcessing
+		/* DeviceBehaviorFlags              */ {  0xF9222,  0xF9342, 0x18F972, 0x190FA2 },
 
 		// ConsoleEnabled
 		/* Console_Init                     */ { 0x176FF0,      0x0, 0x21BFD0, 0x21E010 },

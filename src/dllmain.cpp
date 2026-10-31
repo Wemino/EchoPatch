@@ -2,6 +2,7 @@
 #include "Addresses.cpp"
 
 #include "Engine/Display/FixWindow.cpp"
+#include "Engine/Display/WindowStylePerMode.cpp"
 #include "Engine/Extra/SaveFolderRedirect.cpp"
 #include "Engine/Graphics/ReducedMipMapBias.cpp"
 #include "Engine/Misc/ClientHook.cpp"
@@ -9,6 +10,7 @@
 #include "Engine/Fixes/FixKeyboardInputLanguage.cpp"
 #include "Engine/Fixes/FixAspectRatioBlur.cpp"
 #include "Engine/Fixes/HavokPhysicsFix.cpp"
+#include "Engine/Fixes/KeepRendererOnFocusLoss.cpp"
 #include "Engine/Graphics/DynamicVsync.cpp"
 #include "Engine/Misc/MainLoop.cpp"
 #include "Engine/Display/AutoResolution.cpp"
@@ -23,6 +25,7 @@
 #include "Engine/Console/ClassTicks.cpp"
 #include "Engine/Console/ConsoleEnabled.cpp"
 #include "Engine/Fixes/FastVRAMDetection.cpp"
+#include "Engine/Fixes/HardwareVertexProcessing.cpp"
 #include "Engine/Fixes/FixDirectInputFps.cpp"
 #include "Engine/Extra/DisablePunkBuster.cpp"
 #include "Engine/Fixes/DisableJoystick.cpp"

@@ -29,6 +29,8 @@ static void ReadConfig()
     FixSoundWrapperLoading = IniHelper::ReadInteger("Fixes", "FixSoundWrapperLoading", 1) == 1;
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
     FixTranslucentRendering = IniHelper::ReadInteger("Fixes", "FixTranslucentRendering", 1) == 1;
+    KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;
+    HardwareVertexProcessing = IniHelper::ReadInteger("Fixes", "HardwareVertexProcessing", 1) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
@@ -52,6 +54,7 @@ static void ReadConfig()
     DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
     ForceWindowed = IniHelper::ReadInteger("Display", "ForceWindowed", 0) == 1;
     FixWindowStyle = IniHelper::ReadInteger("Display", "FixWindowStyle", 1) == 1;
+    WindowStylePerMode = IniHelper::ReadInteger("Display", "WindowStylePerMode", 1) == 1;
 
     // Controller
     MouseAimMultiplier = IniHelper::ReadFloat("Controller", "MouseAimMultiplier", 1.0f);
@@ -274,6 +277,8 @@ static void Init()
     ApplyFixKeyboardInputLanguage();
     ApplyFixScriptedAnimationCrash();
     ApplyFixWindow();
+    ApplyKeepRendererOnFocusLoss();
+    ApplyHardwareVertexProcessing();
 
     // Display
     ApplyAutoResolution();

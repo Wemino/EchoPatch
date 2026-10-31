@@ -234,6 +234,8 @@ bool WeaponFixes = false;
 bool FixSoundWrapperLoading = false;
 bool FixScriptedAnimationCrash = false;
 bool FixTranslucentRendering = false;
+bool KeepRendererOnFocusLoss = false;
+bool HardwareVertexProcessing = false;
 int CheckLAAPatch = 0;
 
 // Graphics
@@ -257,6 +259,7 @@ int AutoResolution = 0;
 bool DisableLetterbox = false;
 bool ForceWindowed = false;
 bool FixWindowStyle = false;
+bool WindowStylePerMode = false;
 
 // Controller
 float MouseAimMultiplier = 0.0f;

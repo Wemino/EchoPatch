@@ -164,6 +164,7 @@
     <ClInclude Include="..\src\Engine\Console\EngineInterfaces.cpp" />
     <ClInclude Include="..\src\Engine\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Engine\Display\FixWindow.cpp" />
+    <ClInclude Include="..\src\Engine\Display\WindowStylePerMode.cpp" />
     <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp" />
     <ClInclude Include="..\src\Engine\Extra\SaveFolderRedirect.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\DisableJoystick.cpp" />
@@ -174,7 +175,9 @@
     <ClInclude Include="..\src\Engine\Fixes\FixTranslucentRendering.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixNvidiaShadowCorruption.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixScriptedAnimationCrash.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\HardwareVertexProcessing.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\KeepRendererOnFocusLoss.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp" />
