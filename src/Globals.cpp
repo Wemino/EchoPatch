@@ -126,6 +126,15 @@ struct GlobalState
 	bool isInCameraUpdateRenderTarget = false;
 
 	// ======================
+	// SSAA
+	// ======================
+	int ssaaRenderTarget = 0;
+	int ssaaWidth = 0;
+	int ssaaHeight = 0;
+	int cameraRenderTargetOffset = 0;
+	bool isRenderingSSAAScene = false;
+
+	// ======================
 	// Controller State
 	// ======================
 	int pUseCursor = 0;
@@ -185,6 +194,7 @@ struct GlobalState
 	// ======================
 	std::vector<void*> sharpTextures;
 	bool stageIsDirty[16] = { false };
+	float stageBias[16] = { 0.0f };
 
 	// ======================
 	// HUD Data

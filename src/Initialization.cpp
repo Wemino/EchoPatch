@@ -38,7 +38,7 @@ static void ReadConfig()
     DynamicVsync = IniHelper::ReadInteger("Graphics", "DynamicVsync", 1) == 1;
     HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
     NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
-    SSAAScale = IniHelper::ReadFloat("Graphics", "SSAAScale", 1.0f);
+    SSAAScale = std::min(IniHelper::ReadFloat("Graphics", "SSAAScale", 1.0f), 4.0f);
     ReducedMipMapBias = IniHelper::ReadInteger("Graphics", "ReducedMipMapBias", 1) == 1;
     EnablePersistentWorldState = IniHelper::ReadInteger("Graphics", "EnablePersistentWorldState", 1) == 1;
     SavePersistentWorldState = IniHelper::ReadInteger("Graphics", "SavePersistentWorldState", 1) == 1;

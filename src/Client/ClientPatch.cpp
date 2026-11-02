@@ -406,6 +406,7 @@ static void ApplySSAAScaleClientPatch()
 
 	HookHelper::ApplyHook((void*)addr_Camera_UpdateRenderTarget, &Camera_UpdateRenderTarget_Hook, (LPVOID*)&Camera_UpdateRenderTarget);
 	MemoryHelper::MakeNOP(addr_Camera_UpdateRenderTarget + 0x32, 0x6);
+	g_State.cameraRenderTargetOffset = MemoryHelper::ReadMemory<int>(addr_Camera_UpdateRenderTarget + 0x74);
 }
 
 static void ApplySetWeaponCapacityClientPatch()

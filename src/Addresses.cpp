@@ -65,8 +65,8 @@ enum class Addr
 	DisableNoWinKey,
 
 	// SSAAScale
-	SSAALinearFilter,
 	CreateRenderTarget,
+	StretchRect,
 
 	// ReducedMipMapBias
 	MipMapBias,
@@ -207,8 +207,8 @@ namespace
 		/* DisableNoWinKey                  */ {  0x81B4B,  0x81C6B,  0xB58CB,  0xB68FB },
 
 		// SSAAScale
-		/* SSAALinearFilter                 */ {  0xF4C28,  0xF4D48, 0x18A108, 0x18B638 },
 		/* CreateRenderTarget               */ {  0xF3F10,  0xF4030, 0x189350, 0x18A880 },
+		/* StretchRect                      */ {  0xF48B0,  0xF49D0, 0x189D90, 0x18B2C0 },
 
 		// ReducedMipMapBias
 		/* MipMapBias                       */ { 0x16D5C4, 0x16D5C4, 0x212B94, 0x212B94 },

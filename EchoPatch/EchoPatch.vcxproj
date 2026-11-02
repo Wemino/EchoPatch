@@ -181,6 +181,7 @@
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp" />
+    <ClInclude Include="..\src\Engine\Graphics\SSAAResolve.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\SSAAScale.cpp" />
     <ClInclude Include="..\src\Engine\Misc\ClientHook.cpp" />
     <ClInclude Include="..\src\Engine\Misc\ConsoleVariableHook.cpp" />
@@ -211,6 +212,7 @@
     <ClInclude Include="..\src\Shaders\screeneffect_bleach_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\screeneffect_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp" />
+    <ClInclude Include="..\src\Shaders\ssaa_resolve_cso.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

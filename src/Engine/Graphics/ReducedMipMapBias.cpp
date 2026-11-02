@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <cmath>
+
 #include "../../Globals.cpp"
 #include "../../Addresses.cpp"
 
@@ -258,11 +260,14 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
 
     if (isSharp)
     {
-        if (!g_State.stageIsDirty[Stage])
+        static const float ssaaBiasOffset = SSAAScale > 1.0f ? std::log2(SSAAScale) : 0.0f;
+        float sharpBias = g_State.isRenderingSSAAScene ? std::min(-1.5f + ssaaBiasOffset, 0.0f) : -1.5f;
+
+        if (!g_State.stageIsDirty[Stage] || g_State.stageBias[Stage] != sharpBias)
         {
-            float sharpBias = -1.5f;
             device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&sharpBias));
             g_State.stageIsDirty[Stage] = true;
+            g_State.stageBias[Stage] = sharpBias;
         }
     }
     else if (g_State.stageIsDirty[Stage])

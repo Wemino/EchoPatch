@@ -2,6 +2,7 @@
 
 #include "../../Globals.cpp"
 #include "../../Addresses.cpp"
+#include "SSAAResolve.cpp"
 
 int(__thiscall* InitializePresentationParameters)(DWORD*, DWORD*, unsigned __int8) = nullptr;
 
@@ -17,6 +18,12 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
         UpdateWindowStyle(g_State.hWnd, a2[0], a2[1], a3 != 0);
     }
 
+    // The SSAA resolve resources can't outlive the device or survive a reset
+    if (SSAAScale != 1.0f)
+    {
+        ReleaseSSAAResolve();
+    }
+
     int res = InitializePresentationParameters(thisPtr, a2, a3);
 
     if (DynamicVsync)
@@ -29,7 +36,7 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
 
 static void HookVSyncOverride()
 {
-    if (!DynamicVsync && !WindowStylePerMode) return;
+    if (!DynamicVsync && !WindowStylePerMode && SSAAScale == 1.0f) return;
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::InitializePresentationParameters), &InitializePresentationParameters_Hook, (LPVOID*)&InitializePresentationParameters, g_State.CurrentFEARGame == FEAR);
 }

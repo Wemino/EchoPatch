@@ -209,6 +209,9 @@
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp">
       <Filter>Engine\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Graphics\SSAAResolve.cpp">
+      <Filter>Engine\Graphics</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Graphics\SSAAScale.cpp">
       <Filter>Engine\Graphics</Filter>
     </ClInclude>
@@ -291,6 +294,9 @@
       <Filter>Shaders</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp">
+      <Filter>Shaders</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Shaders\ssaa_resolve_cso.hpp">
       <Filter>Shaders</Filter>
     </ClInclude>
   </ItemGroup>
