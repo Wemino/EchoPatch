@@ -1655,6 +1655,12 @@ static void ProcessSDLEvents()
                 break;
         }
     }
+
+    // SDL hang workaround
+    if (g_State.hWnd && !IsWindow(g_State.hWnd))
+    {
+        PostQuitMessage(0);
+    }
 }
 
 // ==========================================================
