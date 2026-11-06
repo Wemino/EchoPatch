@@ -17,7 +17,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > [!WARNING]
 > The GOG version defaults to a 60 FPS cap.  
 > To unlock higher framerates, modify the `dxwrapper.ini` file by setting `LimitPerFrameFPS` from **60** to **0**.  
-> This change enables compatibility with the `HighFPSFixes` optimizations, ensuring smooth performance at framerates up to 300 FPS.
+> This change enables compatibility with the `HighFPSFixes` optimizations.
 
 > [!WARNING]
 > **Windows Defender Controlled Folder Access** (rare): If saves or settings are not persisting, Windows Defender may be blocking access to the save folder. Go to **Windows Defender > Controlled Folder Access > Add an allowed app** and add the game executable.
@@ -49,7 +49,7 @@ Modernizes F.E.A.R. and its expansions with HUD scaling, high-framerate optimiza
 > **Note**: The base resolution (1024×768) is used as the reference for scaling, ensuring the HUD retains its original proportions and appearance on all higher resolutions.
 
 ## High FPS Fixes
-Resolves multiple issues at high framerates, designed and optimized for smooth gameplay at up to 300 FPS (particularly when using Slow-Mo):
+Resolves multiple issues at high framerates (particularly when using Slow-Mo):
 - Havok ragdoll physics instability.
 - Water physics instability.
 - Excessive water splash effect repetitions.
