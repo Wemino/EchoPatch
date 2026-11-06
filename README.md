@@ -83,8 +83,6 @@ This issue appeared in Nvidia drivers released after 2015 and persists in modern
 
 ## Framerate Limiter
 Adds an **FPS Limit** setting to Options → Display.  
-- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): The maximum framerate used when VSync is enabled, changed by the FPS Limit setting. The default value of `-1` uses the refresh rate of the monitor the closest to 240 Hz.  
-- **FPS Limit** (`FPSLimitMenuOption` in `EchoPatch.ini`): Set to `0` to remove the setting from the menu.
 
 <div align="center">
   <table>
