@@ -4,9 +4,8 @@
 #include "../../Addresses.cpp"
 #include "ConsoleMgr.hpp"
 #include "../../Controller/Controller.hpp"
+#include "../Graphics/MaxFPS.cpp"
 
-static FpsLimiter fpsLimiter{ 300.0f };
-static bool isUsingFpsLimiter = false;
 static LARGE_INTEGER performanceFrequency{};
 static LARGE_INTEGER lastFrameCounter{};
 
@@ -63,10 +62,6 @@ static int __fastcall MainGameLoop_Hook(int thisPtr, int)
 
 static void HookMainLoop()
 {
-    isUsingFpsLimiter = MaxFPS != 0 && !g_State.useVsyncOverride;
-    if (!isUsingFpsLimiter && !SDLGamepadSupport && !HighFPSFixes && !ConsoleEnabled && !KeepRendererOnFocusLoss) return;
-
-    fpsLimiter.SetTargetFps(MaxFPS);
     QueryPerformanceFrequency(&performanceFrequency);
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::MainGameLoop), &MainGameLoop_Hook, (LPVOID*)&MainGameLoop, g_State.CurrentFEARGame == FEAR);

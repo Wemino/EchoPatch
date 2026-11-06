@@ -82,9 +82,20 @@ Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs
 This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers. The engine draws its world geometry with vertex indices too large for these drivers, the fix moves that offset to where they handle it.
 
 ## Framerate Limiter
-Prevents the game from running too fast by capping the maximum framerate.  
-- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): Set the maximum framerate. A value of `0` disables the limiter, any other value enables it. The default value of `300` is recommended, as minor glitches may occur at uncapped framerates.  
-- **Dynamic VSync** (`DynamicVsync` in `EchoPatch.ini`): When enabled (`1`), VSync synchronizes frame updates to your monitor's refresh rate, reducing screen tearing. VSync will only be enabled if your monitor's refresh rate is lower than `MaxFPS`, otherwise it remains off. Set to `0` to disable. 
+Adds an **FPS Limit** setting to Options → Display.  
+- **MaxFPS** (`MaxFPS` in `EchoPatch.ini`): The maximum framerate used when VSync is enabled, changed by the FPS Limit setting. The default value of `-1` uses the refresh rate of the monitor the closest to 240 Hz.  
+- **FPS Limit** (`FPSLimitMenuOption` in `EchoPatch.ini`): Set to `0` to remove the setting from the menu.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="75%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/FPSLimitMenu.png"></td>
+    </tr>
+    <tr>
+      <td align="center">Display Options Menu</td>
+    </tr>
+  </table>
+</div>
 
 ## Weapon Fixes
 Addresses several weapon-related issues:

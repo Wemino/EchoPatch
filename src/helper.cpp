@@ -820,6 +820,7 @@ namespace HashHelper
 		static constexpr uint32_t AdditionalFloat = FNV1a("AdditionalFloat");
 		static constexpr uint32_t AdditionalInt = FNV1a("AdditionalInt");
 		static constexpr uint32_t TextSize = FNV1a("TextSize");
+		static constexpr uint32_t FrameRect = FNV1a("FrameRect");
 	};
 
 	// Precomputed string hashes
@@ -856,6 +857,9 @@ namespace HashHelper
 		static constexpr uint32_t IDS_HELP_BINDING_HOLD = FNV1a("IDS_HELP_BINDING_HOLD");
 		static constexpr uint32_t IDS_HELP_HOLD_DURATION = FNV1a("IDS_HELP_HOLD_DURATION");
 		static constexpr uint32_t IDS_HELP_RESTORE_BINDINGS = FNV1a("IDS_HELP_RESTORE_BINDINGS");
+
+		static constexpr uint32_t IDS_HELP_VSYNC = FNV1a("IDS_HELP_VSYNC");
+		static constexpr uint32_t IDS_HELP_FPS_LIMIT = FNV1a("IDS_HELP_FPS_LIMIT");
 	};
 
 	// Console variable name hashes

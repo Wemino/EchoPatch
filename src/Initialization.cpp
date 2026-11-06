@@ -34,8 +34,8 @@ static void ReadConfig()
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
-    MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", 300.0f);
-    DynamicVsync = IniHelper::ReadInteger("Graphics", "DynamicVsync", 1) == 1;
+    MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", -1.0f);
+    FPSLimitMenuOption = IniHelper::ReadInteger("Graphics", "FPSLimitMenuOption", 1) == 1;
     HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
     NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;
     SSAAScale = std::min(IniHelper::ReadFloat("Graphics", "SSAAScale", 1.0f), 4.0f);
@@ -113,13 +113,6 @@ static void ReadConfig()
         auto [screenWidth, screenHeight] = SystemHelper::GetScreenResolution();
         g_State.screenWidth = screenWidth;
         g_State.screenHeight = screenHeight;
-    }
-
-    // Use VSync?
-    if (DynamicVsync)
-    {
-        DWORD displayFrequency = SystemHelper::GetCurrentDisplayFrequency();
-        g_State.useVsyncOverride = (MaxFPS >= displayFrequency || MaxFPS == 0.0f);
     }
 
     // Check if we should skip everything directly
@@ -289,7 +282,7 @@ static void Init()
 
     // Misc
     HookMainLoop();
-    HookVSyncOverride();
+    HookPresentationParameters();
     ApplySkipIntroHook();
     ApplyConsoleVariableHook();
     ApplySaveFolderRedirect();

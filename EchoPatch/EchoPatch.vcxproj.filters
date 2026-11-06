@@ -110,8 +110,14 @@
     <ClInclude Include="..\src\Client\Graphics\HighResolutionReflections.cpp">
       <Filter>Client\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Graphics\ScreenDisplayHook.hpp">
+      <Filter>Client\Graphics</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Graphics\SSAAScale.cpp">
       <Filter>Client\Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Client\ScreenHelper.hpp">
+      <Filter>Client</Filter>
     </ClInclude>
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp">
       <Filter>ClientFX</Filter>
@@ -203,7 +209,7 @@
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp">
+    <ClInclude Include="..\src\Engine\Graphics\MaxFPS.cpp">
       <Filter>Engine\Graphics</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp">

@@ -70,7 +70,16 @@ struct GlobalState
 	int currentHeight = 0;
 	int screenWidth = 0;
 	int screenHeight = 0;
-	bool useVsyncOverride = false;
+
+	// ======================
+	// MaxFPS
+	// ======================
+	UINT displayAdapter = 0;
+	UINT displayWidth = 0;
+	UINT displayHeight = 0;
+	UINT refreshRate = 0;
+	bool isWindowed = false;
+	bool isVsyncEnabled = false;
 
 	// ======================
 	// HUD Scaling
@@ -250,7 +259,7 @@ int CheckLAAPatch = 0;
 
 // Graphics
 float MaxFPS = 0;
-bool DynamicVsync = false;
+bool FPSLimitMenuOption = false;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
 float SSAAScale = 0;

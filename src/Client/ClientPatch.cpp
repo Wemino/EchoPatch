@@ -3,6 +3,7 @@
 #include "../Globals.cpp"
 #include "../Controller/Controller.hpp"
 #include "../Controller/ScreenJoystickHook.hpp"
+#include "Graphics/ScreenDisplayHook.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
 
@@ -258,7 +259,6 @@ static void ApplyControllerClientPatch()
     DWORD addr_HUDSwapUpdateTriggerName = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 6A 57 E8 ?? ?? ?? ?? 50 B9", "HUDSwapUpdateTriggerName");
     DWORD addr_GetZoomMag = ScanModuleSignature(g_State.GameClient, "C7 44 24 30 00 00 00 00 8B 4D 28 57 E8", "GetZoomMag");
 	DWORD addr_CycleCtrlSetSelIndex = ScanModuleSignature(g_State.GameClient, "53 8A 5C 24 08 80 FB FE 77 26 8B 91 E4 00 00 00", "CycleCtrlSetSelIndex");
-    DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
     DWORD addr_PerformanceScreenId = ScanModuleSignature(g_State.GameClient, "8B C8 E8 ?? ?? ?? ?? 8B 4E 0C 8B 01 6A ?? FF 50 6C 85 C0 74 0A 8B 10 8B C8 FF 92 88 00 00 00 8B 4E 0C 8B 01 6A", "PerformanceScreenId");
     addr_GetZoomMag = MemoryHelper::ResolveRelativeAddress(addr_GetZoomMag, 0xD);
 
@@ -275,7 +275,6 @@ static void ApplyControllerClientPatch()
         addr_HUDSwapUpdateTriggerName == 0 ||
         addr_GetZoomMag == 0 ||
 		addr_CycleCtrlSetSelIndex == 0 ||
-        addr_DEditLoadModule == 0 ||
         addr_PerformanceScreenId == 0) {
         return;
     }
@@ -292,7 +291,6 @@ static void ApplyControllerClientPatch()
     HookHelper::ApplyHook((void*)addr_SetCurrentType, &SetCurrentType_Hook, (LPVOID*)&SetCurrentType);
     HookHelper::ApplyHook((void*)addr_GetZoomMag, &GetZoomMag_Hook, (LPVOID*)&GetZoomMag);
 	HookHelper::ApplyHook((void*)addr_CycleCtrlSetSelIndex, &CycleCtrlSetSelIndex_Hook, (LPVOID*)&CycleCtrlSetSelIndex);
-    HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
 	OnCommandOn = reinterpret_cast<decltype(OnCommandOn)>(addr_OnCommandOn);
 	OnCommandOff = reinterpret_cast<decltype(OnCommandOff)>(addr_OnCommandOff);
 	HUDSwapUpdateTriggerName = reinterpret_cast<decltype(HUDSwapUpdateTriggerName)>(addr_HUDSwapUpdateTriggerName);
@@ -407,6 +405,13 @@ static void ApplySSAAScaleClientPatch()
 	HookHelper::ApplyHook((void*)addr_Camera_UpdateRenderTarget, &Camera_UpdateRenderTarget_Hook, (LPVOID*)&Camera_UpdateRenderTarget);
 	MemoryHelper::MakeNOP(addr_Camera_UpdateRenderTarget + 0x32, 0x6);
 	g_State.cameraRenderTargetOffset = MemoryHelper::ReadMemory<int>(addr_Camera_UpdateRenderTarget + 0x74);
+}
+
+static void ApplyFPSLimitMenuOptionClientPatch()
+{
+	if (!FPSLimitMenuOption) return;
+
+	ScreenDisplayHook::InstallHook();
 }
 
 static void ApplySetWeaponCapacityClientPatch()
@@ -684,6 +689,18 @@ static void ApplyClientPatchSet3()
 	HookHelper::ApplyHook((void*)addr_MsgBoxHide, &MsgBoxHide_Hook, (LPVOID*)&MsgBoxHide);
 }
 
+static void ApplyClientPatchSet4()
+{
+	if (!SDLGamepadSupport && !FPSLimitMenuOption) return;
+
+	DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
+
+	if (addr_DEditLoadModule != 0)
+	{
+		HookHelper::ApplyHook((void*)(addr_DEditLoadModule - 0xA), &DEditLoadModule_Hook, (LPVOID*)&DEditLoadModule);
+	}
+}
+
 
 void ApplyClientPatch()
 {
@@ -698,6 +715,7 @@ void ApplyClientPatch()
 	ApplyControllerClientPatch();
 	ApplyHUDScalingClientPatch();
 	ApplySSAAScaleClientPatch();
+	ApplyFPSLimitMenuOptionClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientPatch();
@@ -711,4 +729,5 @@ void ApplyClientPatch()
 	ApplyClientPatchSet1();
 	ApplyClientPatchSet2();
 	ApplyClientPatchSet3();
+	ApplyClientPatchSet4();
 }

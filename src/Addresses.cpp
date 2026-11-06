@@ -90,8 +90,9 @@ enum class Addr
 	// MainLoop
 	MainGameLoop,
 
-	// DynamicVsync
+	// MaxFPS
 	InitializePresentationParameters,
+	Direct3D,
 
 	// DisablePunkBuster
 	PunkBusterRet,
@@ -232,8 +233,9 @@ namespace
 		// MainLoop
 		/* MainGameLoop                     */ {   0xFB20,   0xFC30,  0x19100,  0x192B0 },
 
-		// DynamicVsync
+		// MaxFPS
 		/* InitializePresentationParameters */ {  0xF8B80,  0xF8CA0, 0x18F2B0, 0x1908D0 },
+		/* Direct3D                         */ { 0x177190, 0x177190, 0x21C170, 0x21E1D0 },
 
 		// DisablePunkBuster
 		/* PunkBusterRet                    */ { 0x139B60, 0x139C80, 0x17CDB0, 0x17E2E0 },

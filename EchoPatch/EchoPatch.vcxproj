@@ -148,7 +148,9 @@
     <ClInclude Include="..\src\Client\Fixes\WeaponFixes.cpp" />
     <ClInclude Include="..\src\Client\Graphics\EnablePersistentWorldState.cpp" />
     <ClInclude Include="..\src\Client\Graphics\HighResolutionReflections.cpp" />
+    <ClInclude Include="..\src\Client\Graphics\ScreenDisplayHook.hpp" />
     <ClInclude Include="..\src\Client\Graphics\SSAAScale.cpp" />
+    <ClInclude Include="..\src\Client\ScreenHelper.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFXPatch.cpp" />
     <ClInclude Include="..\src\ClientFX\Controller\Controller.cpp" />
@@ -179,7 +181,7 @@
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\KeepRendererOnFocusLoss.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
-    <ClInclude Include="..\src\Engine\Graphics\DynamicVsync.cpp" />
+    <ClInclude Include="..\src\Engine\Graphics\MaxFPS.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\SSAAResolve.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\SSAAScale.cpp" />

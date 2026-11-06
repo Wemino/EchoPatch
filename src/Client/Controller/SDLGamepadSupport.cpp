@@ -698,85 +698,6 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 	turretPrevDamageState = newDamageState;
 }
 
-static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
-{
-	const uint32_t strHash = HashHelper::FNV1aRuntime(String);
-
-	switch (strHash)
-	{
-		case HashHelper::StringHashes::IDS_CONTROLLER_SENSITIVITY:			return L"Controller Sensitivity";
-		case HashHelper::StringHashes::IDS_EDGE_ACCELERATION:				return L"Edge Acceleration";
-		case HashHelper::StringHashes::IDS_GYRO_SENSITIVITY:				return L"Gyro Sensitivity";
-		case HashHelper::StringHashes::IDS_GYRO_SMOOTHING:					return L"Gyro Smoothing";
-		case HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY:		return L"Adjust the sensitivity of the analog sticks.";
-		case HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION:			return L"Adjust the turn rate multiplier when the stick is pushed to the edge.";
-		case HashHelper::StringHashes::IDS_HELP_RUMBLE:						return L"Enable or disable controller vibration feedback.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED:				return L"Enable or disable gyroscope aiming.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_TYPE:					return L"Choose when gyro aiming is active.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_PERSISTENCE_ENABLED:   return L"Automatically save and load gyro calibration data upon reconnection.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:			return L"Adjust the sensitivity of the gyroscope.";
-		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:				return L"Adjust smoothing applied to gyroscope input.";
-		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:					return L"Enable or disable touchpad functionality.";
-		case HashHelper::StringHashes::IDS_HOLD_DURATION:					return L"Hold Duration";
-		case HashHelper::StringHashes::IDS_HELP_BUTTON_MAPPING:				return L"Change the actions assigned to the controller buttons.";
-		case HashHelper::StringHashes::IDS_HELP_BINDINGS_FACE:				return L"Change the actions assigned to the face buttons.";
-		case HashHelper::StringHashes::IDS_HELP_BINDINGS_SHOULDERS:			return L"Change the actions assigned to the shoulder buttons and triggers.";
-		case HashHelper::StringHashes::IDS_HELP_BINDINGS_DPAD:				return L"Change the actions assigned to the directional pad.";
-		case HashHelper::StringHashes::IDS_HELP_BINDINGS_STICKS:			return L"Change the actions assigned to the stick buttons and menu buttons.";
-		case HashHelper::StringHashes::IDS_HELP_BINDINGS_EXTRA:				return L"Change the actions assigned to the share/capture button and the back paddles.";
-		case HashHelper::StringHashes::IDS_HELP_BINDING_PRESS:				return L"Action performed when the button is pressed.";
-		case HashHelper::StringHashes::IDS_HELP_BINDING_HOLD:				return L"Action performed when the button is held. A button with a hold action performs its press action on release.";
-		case HashHelper::StringHashes::IDS_HELP_HOLD_DURATION:				return L"How long a button must be held to perform its hold action. Applies to every button.";
-		case HashHelper::StringHashes::IDS_HELP_RESTORE_BINDINGS:			return L"Restore the default controller button mapping.";
-
-		case HashHelper::StringHashes::IDS_QUICKSAVE:
-			if (ShouldShowControllerPrompts())
-			{
-				return L"Quick save";
-			}
-			break;
-
-		case HashHelper::StringHashes::ScreenFailure_PressAnyKey:
-			if (ShouldShowControllerPrompts())
-			{
-				switch (GetGamepadStyle())
-				{
-					case GamepadStyle::PlayStation:
-						return L"Press Circle to return to the main menu.\nPress any other button to continue.";
-					case GamepadStyle::Nintendo:
-						return L"Press B to return to the main menu.\nPress any other button to continue.";
-					case GamepadStyle::Xbox:
-					default:
-						return L"Press B to return to the main menu.\nPress any other button to continue.";
-				}
-			}
-			break;
-		}
-
-	return LoadGameString(ptr, String);
-}
-
-static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
-{
-	// Load StringEditRuntime.dll
-	bool res = DEditLoadModule(pszProjectPath);
-
-	// Get and hook 'LoadString'
-	DWORD addr = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
-
-	if (addr != 0)
-	{
-		int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(addr + 0x8);
-		int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
-		int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
-		int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
-
-		HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
-	}
-
-	return res;
-}
-
 // =====================================
 //  SDLGamepadSupport & HUDScaling
 // =====================================
@@ -916,4 +837,88 @@ static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
 {
 	MsgBoxHide(thisPtr, a2);
 	g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
+}
+
+// ============================================
+//  SDLGamepadSupport & FPSLimitMenuOption
+// ============================================
+
+static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
+{
+	const uint32_t strHash = HashHelper::FNV1aRuntime(String);
+
+	switch (strHash)
+	{
+		case HashHelper::StringHashes::IDS_CONTROLLER_SENSITIVITY:			return L"Controller Sensitivity";
+		case HashHelper::StringHashes::IDS_EDGE_ACCELERATION:				return L"Edge Acceleration";
+		case HashHelper::StringHashes::IDS_GYRO_SENSITIVITY:				return L"Gyro Sensitivity";
+		case HashHelper::StringHashes::IDS_GYRO_SMOOTHING:					return L"Gyro Smoothing";
+		case HashHelper::StringHashes::IDS_HELP_CONTROLLER_SENSITIVITY:		return L"Adjust the sensitivity of the analog sticks.";
+		case HashHelper::StringHashes::IDS_HELP_EDGE_ACCELERATION:			return L"Adjust the turn rate multiplier when the stick is pushed to the edge.";
+		case HashHelper::StringHashes::IDS_HELP_RUMBLE:						return L"Enable or disable controller vibration feedback.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_ENABLED:				return L"Enable or disable gyroscope aiming.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_TYPE:					return L"Choose when gyro aiming is active.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_PERSISTENCE_ENABLED:   return L"Automatically save and load gyro calibration data upon reconnection.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SENSITIVITY:			return L"Adjust the sensitivity of the gyroscope.";
+		case HashHelper::StringHashes::IDS_HELP_GYRO_SMOOTHING:				return L"Adjust smoothing applied to gyroscope input.";
+		case HashHelper::StringHashes::IDS_HELP_TOUCHPAD:					return L"Enable or disable touchpad functionality.";
+		case HashHelper::StringHashes::IDS_HOLD_DURATION:					return L"Hold Duration";
+		case HashHelper::StringHashes::IDS_HELP_BUTTON_MAPPING:				return L"Change the actions assigned to the controller buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_FACE:				return L"Change the actions assigned to the face buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_SHOULDERS:			return L"Change the actions assigned to the shoulder buttons and triggers.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_DPAD:				return L"Change the actions assigned to the directional pad.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_STICKS:			return L"Change the actions assigned to the stick buttons and menu buttons.";
+		case HashHelper::StringHashes::IDS_HELP_BINDINGS_EXTRA:				return L"Change the actions assigned to the share/capture button and the back paddles.";
+		case HashHelper::StringHashes::IDS_HELP_BINDING_PRESS:				return L"Action performed when the button is pressed.";
+		case HashHelper::StringHashes::IDS_HELP_BINDING_HOLD:				return L"Action performed when the button is held. A button with a hold action performs its press action on release.";
+		case HashHelper::StringHashes::IDS_HELP_HOLD_DURATION:				return L"How long a button must be held to perform its hold action. Applies to every button.";
+		case HashHelper::StringHashes::IDS_HELP_RESTORE_BINDINGS:			return L"Restore the default controller button mapping.";
+		case HashHelper::StringHashes::IDS_HELP_FPS_LIMIT:					return L"Maximum framerate when V Sync is on.";
+
+		case HashHelper::StringHashes::IDS_QUICKSAVE:
+			if (ShouldShowControllerPrompts())
+			{
+				return L"Quick save";
+			}
+			break;
+
+		case HashHelper::StringHashes::ScreenFailure_PressAnyKey:
+			if (ShouldShowControllerPrompts())
+			{
+				switch (GetGamepadStyle())
+				{
+					case GamepadStyle::PlayStation:
+						return L"Press Circle to return to the main menu.\nPress any other button to continue.";
+					case GamepadStyle::Nintendo:
+						return L"Press B to return to the main menu.\nPress any other button to continue.";
+					case GamepadStyle::Xbox:
+					default:
+						return L"Press B to return to the main menu.\nPress any other button to continue.";
+				}
+			}
+			break;
+		}
+
+	return LoadGameString(ptr, String);
+}
+
+static bool __stdcall DEditLoadModule_Hook(const char* pszProjectPath)
+{
+	// Load StringEditRuntime.dll
+	bool res = DEditLoadModule(pszProjectPath);
+
+	// Get and hook 'LoadString'
+	DWORD addr = ScanModuleSignature(g_State.GameClient, "8B 4C 24 18 03 C1 8B 0D ?? ?? ?? ?? 03 F7 85 C9", "LoadString", -1, false);
+
+	if (addr != 0)
+	{
+		int StringEditRuntimePtr = MemoryHelper::ReadMemory<int>(addr + 0x8);
+		int StringEditRuntime = MemoryHelper::ReadMemory<int>(StringEditRuntimePtr);
+		int vTable = MemoryHelper::ReadMemory<int>(StringEditRuntime);
+		int pLoadString = MemoryHelper::ReadMemory<int>(vTable + 0x1C);
+
+		HookHelper::ApplyHook((void*)pLoadString, &LoadGameString_Hook, (LPVOID*)&LoadGameString);
+	}
+
+	return res;
 }

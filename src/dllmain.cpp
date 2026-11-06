@@ -11,7 +11,7 @@
 #include "Engine/Fixes/FixAspectRatioBlur.cpp"
 #include "Engine/Fixes/HavokPhysicsFix.cpp"
 #include "Engine/Fixes/KeepRendererOnFocusLoss.cpp"
-#include "Engine/Graphics/DynamicVsync.cpp"
+#include "Engine/Graphics/MaxFPS.cpp"
 #include "Engine/Misc/MainLoop.cpp"
 #include "Engine/Display/AutoResolution.cpp"
 #include "Engine/SkipIntro/SkipIntro.cpp"

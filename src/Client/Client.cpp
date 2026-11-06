@@ -119,8 +119,6 @@ bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
 bool(__thiscall* HandleFallLand)(DWORD*, float, int) = nullptr;
 void(__thiscall* CTurretFX_SetDamageState)(DWORD*) = nullptr;
 void(__thiscall* CycleCtrlSetSelIndex)(int, unsigned __int8) = nullptr;
-const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
-bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
 
 // ConsoleEnabled
 void(__stdcall* SetInputState)(bool) = nullptr;
@@ -153,3 +151,7 @@ static int(__stdcall* HookedWindowProc)(HWND, UINT, WPARAM, LPARAM) = nullptr;
 bool(__thiscall* ChangeState)(int, int, int) = nullptr;
 void(__thiscall* MsgBoxShow)(int, const wchar_t*, int, int, bool) = nullptr;
 void(__thiscall* MsgBoxHide)(int, int) = nullptr;
+
+// SDLGamepadSupport & FPSLimitMenuOption
+const wchar_t* (__stdcall* LoadGameString)(int, char*) = nullptr;
+bool(__stdcall* DEditLoadModule)(const char*) = nullptr;
