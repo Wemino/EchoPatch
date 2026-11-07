@@ -167,6 +167,7 @@
     <ClInclude Include="..\src\Engine\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Engine\Display\FixWindow.cpp" />
     <ClInclude Include="..\src\Engine\Display\WindowStylePerMode.cpp" />
+    <ClInclude Include="..\src\Engine\Extra\ASILoader.cpp" />
     <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp" />
     <ClInclude Include="..\src\Engine\Extra\SaveFolderRedirect.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\DisableJoystick.cpp" />

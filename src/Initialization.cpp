@@ -105,6 +105,7 @@ static void ReadConfig()
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
     EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;
+    LoadASIPlugins = IniHelper::ReadInteger("Extra", "LoadASIPlugins", 1) == 1;
     ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
     // Get screen resolution
@@ -290,6 +291,7 @@ static void Init()
     ApplyForceRenderMode();
     ApplyDisableJoystick();
     ApplyDeviceCreationHook();
+    ApplyASILoader();
 }
 
 static HWND WINAPI CreateWindowExA_Hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpWindowName, DWORD dwStyle, int X, int Y, int nWidth, int nHeight, HWND hWndParent, HMENU hMenu, HINSTANCE hInstance, LPVOID lpParam)

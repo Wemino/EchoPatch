@@ -28,6 +28,7 @@
 #include "Engine/Fixes/HardwareVertexProcessing.cpp"
 #include "Engine/Fixes/FixDirectInputFps.cpp"
 #include "Engine/Extra/DisablePunkBuster.cpp"
+#include "Engine/Extra/ASILoader.cpp"
 #include "Engine/Fixes/DisableJoystick.cpp"
 
 #include "Controller/Controller.cpp"
@@ -100,7 +101,10 @@ bool OnProcessAttach(HMODULE hModule)
             return false;
     }
 
-    if (!SystemHelper::IsUALPresent())
+    g_State.isUALPresent = SystemHelper::IsUALPresent();
+
+    // Skip wrapper initialization when loaded as .asi
+    if (!g_State.isUALPresent)
     {
         SystemHelper::LoadProxyLibrary();
     }

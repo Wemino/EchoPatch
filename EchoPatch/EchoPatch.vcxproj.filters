@@ -167,6 +167,9 @@
     <ClInclude Include="..\src\Engine\Display\WindowStylePerMode.cpp">
       <Filter>Engine\Display</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Extra\ASILoader.cpp">
+      <Filter>Engine\Extra</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp">
       <Filter>Engine\Extra</Filter>
     </ClInclude>

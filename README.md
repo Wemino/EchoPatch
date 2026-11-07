@@ -380,8 +380,9 @@ Enable with `EnableCustomMaxWeaponCapacity = 1`.
 Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
 This prevents the game from loading unused background components.
 
-## dinput8 Chaining Support
-Chains another `dinput8.dll` by loading `dinput8_hook.dll` for mod compatibility.
+## ASI Plugin Loading
+Loads `.asi` plugins from a `plugins` folder next to the game.  
+Extraction Point and Perseus Mandate use the same `plugins` folder, next to `FEAR.exe`.
 
 ## Configuration
 All features can be customized via the `EchoPatch.ini` file. Each setting includes detailed comments explaining its function and acceptable values. The patch uses sensible defaults that work for most users, but allows fine-tuning of every aspect.

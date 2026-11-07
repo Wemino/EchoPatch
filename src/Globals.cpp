@@ -62,6 +62,11 @@ struct GlobalState
 	bool IsExpansion() const { return CurrentFEARGame == FEARXP || CurrentFEARGame == FEARXP2; }
 
 	// ======================
+	// ASI Loader
+	// ======================
+	bool isUALPresent = false;
+
+	// ======================
 	// Window/Display
 	// ======================
 	HWND hWnd = 0;
@@ -391,6 +396,7 @@ bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
 bool EnableCrashHandler = false;
+bool LoadASIPlugins = false;
 bool ShowErrors = false;
 
 // Accessor for signature scanning
