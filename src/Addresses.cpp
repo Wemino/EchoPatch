@@ -115,6 +115,9 @@ enum class Addr
 	// HardwareVertexProcessing
 	DeviceBehaviorFlags,
 
+	// FixHardwareCursor
+	LoadCursorBitmapResource,
+
 	// ConsoleEnabled
 	Console_Init,
 	Console_CursorLock,
@@ -257,6 +260,9 @@ namespace
 
 		// HardwareVertexProcessing
 		/* DeviceBehaviorFlags              */ {  0xF9222,  0xF9342, 0x18F972, 0x190FA2 },
+
+		// FixHardwareCursor
+		/* LoadCursorBitmapResource         */ {  0x84260,  0x84380,  0xB8B60,  0xB9BB0 },
 
 		// ConsoleEnabled
 		/* Console_Init                     */ { 0x176FF0,      0x0, 0x21BFD0, 0x21E010 },

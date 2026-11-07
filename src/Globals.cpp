@@ -260,6 +260,7 @@ bool FixScriptedAnimationCrash = false;
 bool FixTranslucentRendering = false;
 bool KeepRendererOnFocusLoss = false;
 bool HardwareVertexProcessing = false;
+bool FixHardwareCursor = false;
 int CheckLAAPatch = 0;
 
 // Graphics

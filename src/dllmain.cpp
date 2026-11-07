@@ -26,6 +26,7 @@
 #include "Engine/Console/ConsoleEnabled.cpp"
 #include "Engine/Fixes/FastVRAMDetection.cpp"
 #include "Engine/Fixes/HardwareVertexProcessing.cpp"
+#include "Engine/Fixes/FixHardwareCursor.cpp"
 #include "Engine/Fixes/FixDirectInputFps.cpp"
 #include "Engine/Extra/DisablePunkBuster.cpp"
 #include "Engine/Extra/ASILoader.cpp"

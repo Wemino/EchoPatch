@@ -31,6 +31,7 @@ static void ReadConfig()
     FixTranslucentRendering = IniHelper::ReadInteger("Fixes", "FixTranslucentRendering", 1) == 1;
     KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;
     HardwareVertexProcessing = IniHelper::ReadInteger("Fixes", "HardwareVertexProcessing", 1) == 1;
+    FixHardwareCursor = IniHelper::ReadInteger("Fixes", "FixHardwareCursor", 1) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
@@ -273,6 +274,7 @@ static void Init()
     ApplyFixWindow();
     ApplyKeepRendererOnFocusLoss();
     ApplyHardwareVertexProcessing();
+    ApplyFixHardwareCursor();
 
     // Display
     ApplyAutoResolution();

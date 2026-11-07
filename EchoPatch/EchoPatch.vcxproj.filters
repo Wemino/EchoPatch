@@ -203,6 +203,9 @@
     <ClInclude Include="..\src\Engine\Fixes\HardwareVertexProcessing.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Fixes\FixHardwareCursor.cpp">
+      <Filter>Engine\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
