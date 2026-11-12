@@ -69,6 +69,11 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
             hookedSetTextureAddr = newSetTextureAddr;
             hookedDevice = device;
         }
+
+        if (ReduceTextureMemory)
+        {
+            HookTextureDeviceMethods(vtable);
+        }
     }
 
     return result;
@@ -76,7 +81,7 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
 
 static void ApplyDeviceCreationHook()
 {
-    if (!ReducedMipMapBias && !FastVRAMDetection) return;
+    if (!ReducedMipMapBias && !FastVRAMDetection && !ReduceTextureMemory) return;
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateAndInitializeDevice), &CreateAndInitializeDevice_Hook, (LPVOID*)&CreateAndInitializeDevice, g_State.CurrentFEARGame == FEAR);
 }

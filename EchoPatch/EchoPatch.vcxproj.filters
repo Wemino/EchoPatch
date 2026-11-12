@@ -176,6 +176,9 @@
     <ClInclude Include="..\src\Engine\Extra\SaveFolderRedirect.cpp">
       <Filter>Engine\Extra</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Fixes\CacheShaderValidation.cpp">
+      <Filter>Engine\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Fixes\DisableJoystick.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
@@ -215,6 +218,9 @@
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp">
       <Filter>Engine\Fixes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Engine\Fixes\ReduceTextureMemory.cpp">
+      <Filter>Engine\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Engine\Graphics\MaxFPS.cpp">
       <Filter>Engine\Graphics</Filter>
     </ClInclude>
@@ -237,6 +243,9 @@
       <Filter>Engine\Misc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\Misc\MainLoop.cpp">
+      <Filter>Engine\Misc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Engine\Misc\TextureWrapperHook.cpp">
       <Filter>Engine\Misc</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Engine\SkipIntro\SkipIntro.cpp">

@@ -7,6 +7,8 @@
 
 static bool isLoadingWorld = false;
 
+static std::vector<uint32_t> sharpTexturePaths;
+
 namespace TextureHelper
 {
 	inline bool StartsWithI(const char* path, const char* prefix)
@@ -188,8 +190,6 @@ namespace TextureHelper
 }
 
 HRESULT(WINAPI* D3D9_SetTexture)(IDirect3DDevice9*, DWORD, IDirect3DBaseTexture9*) = nullptr;
-int(__stdcall* CreateTextureWrapper)(DWORD*, int, int) = nullptr;
-int(__thiscall* DestroyTextureWrapper)(int*, int*) = nullptr;
 int(__thiscall* LoadWorld)(BYTE*, int, int) = nullptr;
 
 // ===========================
@@ -204,49 +204,38 @@ static int __fastcall LoadWorld_Hook(BYTE* thisPtr, int, int a2, int a3)
     return result;
 }
 
-static int __stdcall CreateTextureWrapper_Hook(DWORD* a1, int a2, int a3)
+static bool IsSharpTexturePath(const char* path)
 {
-    int result = CreateTextureWrapper(a1, a2, a3);
-
-    if (isLoadingWorld && result && a3)
-    {
-        const char* path = reinterpret_cast<const char*>(a3);
-
-        if (TextureHelper::ShouldKeepSharp(path))
-        {
-            void* d3dTexture = *reinterpret_cast<void**>(result);
-
-            if (d3dTexture)
-            {
-                auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
-                if (it == g_State.sharpTextures.end() || *it != d3dTexture)
-                {
-                    g_State.sharpTextures.insert(it, d3dTexture);
-                }
-            }
-        }
-    }
-
-    return result;
+    return std::binary_search(sharpTexturePaths.begin(), sharpTexturePaths.end(), HashHelper::FNV1aRuntime(path));
 }
 
-static int __fastcall DestroyTextureWrapper_Hook(int* thisPtr, int, int* a2)
+static void MarkSharpTexture(void* d3dTexture, const char* path)
 {
-    if (a2)
-    {
-        void* d3dTexture = reinterpret_cast<void*>(*a2);
+    if (!d3dTexture) return;
 
-        if (d3dTexture)
-        {
-            auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
-            if (it != g_State.sharpTextures.end() && *it == d3dTexture)
-            {
-                g_State.sharpTextures.erase(it);
-            }
-        }
+    auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
+    if (it == g_State.sharpTextures.end() || *it != d3dTexture)
+    {
+        g_State.sharpTextures.insert(it, d3dTexture);
     }
 
-    return DestroyTextureWrapper(thisPtr, a2);
+    uint32_t pathHash = HashHelper::FNV1aRuntime(path);
+    auto itPath = std::lower_bound(sharpTexturePaths.begin(), sharpTexturePaths.end(), pathHash);
+    if (itPath == sharpTexturePaths.end() || *itPath != pathHash)
+    {
+        sharpTexturePaths.insert(itPath, pathHash);
+    }
+}
+
+static void UnmarkSharpTexture(void* d3dTexture)
+{
+    if (!d3dTexture) return;
+
+    auto it = std::lower_bound(g_State.sharpTextures.begin(), g_State.sharpTextures.end(), d3dTexture);
+    if (it != g_State.sharpTextures.end() && *it == d3dTexture)
+    {
+        g_State.sharpTextures.erase(it);
+    }
 }
 
 static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDirect3DBaseTexture9* pTexture)
@@ -286,6 +275,4 @@ static void ApplyReducedMipMapBias()
 
     MemoryHelper::WriteMemory<float>(GetAddress(Addr::MipMapBias), -0.5f, false);
     HookHelper::ApplyHook((void*)GetAddress(Addr::LoadWorld), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
-    HookHelper::ApplyHook((void*)GetAddress(Addr::DestroyTextureWrapper), &DestroyTextureWrapper_Hook, (LPVOID*)&DestroyTextureWrapper);
-    HookHelper::ApplyHook((void*)GetAddress(Addr::CreateTextureWrapper), &CreateTextureWrapper_Hook, (LPVOID*)&CreateTextureWrapper);
 }

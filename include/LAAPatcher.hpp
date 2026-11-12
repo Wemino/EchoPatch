@@ -12,8 +12,13 @@ namespace fs = std::filesystem;
 
 namespace LAAPatcher
 {
+	constexpr uintptr_t STEAM_IMAGE_BASE = 0x400000;
+	constexpr size_t STEAM_FILE_SIZE = 0x1E3000;
+	constexpr size_t STEAM_TEXT_OFFSET = 0x1000;
+	constexpr size_t STEAM_TEXT_ENCRYPTED_SIZE = 0x14AFF0;
+	constexpr size_t STEAM_KEY_OFFSET = 0x1E20A8;
+	constexpr size_t STEAM_IV_OFFSET = 0x1E1BB4;
 	constexpr DWORD STEAM_ENTRY_POINT = 0x13E428;
-	constexpr uint32_t STEAM_TEXT_HASH = 0x96EC25CA;
 	constexpr uint32_t STEAM_PATCHED_HASH = 0x8786B8E8;
 
 	constexpr wchar_t RESTART_ENV_VAR[] = L"ECHOPATCH_LAA_RESTART";
@@ -57,20 +62,6 @@ namespace LAAPatcher
 	// Validation Helpers
 	// ========================
 
-	template<typename T>
-	bool ValidateEqual(T actual, T expected, const char* fieldName, char* outError, size_t errorSize)
-	{
-		if (actual == expected)
-			return true;
-
-		if constexpr (sizeof(T) <= 2)
-			sprintf_s(outError, errorSize, "Validation failed: %s mismatch (actual=0x%04X, expected=0x%04X).", fieldName, actual, expected);
-		else
-			sprintf_s(outError, errorSize, "Validation failed: %s mismatch (actual=0x%08X, expected=0x%08X).", fieldName, actual, expected);
-
-		return false;
-	}
-
 	inline bool CheckBounds(size_t offset, size_t size, size_t bufferSize, const char* context, char* outError, size_t errorSize)
 	{
 		if (offset <= bufferSize && size <= bufferSize - offset)
@@ -83,12 +74,6 @@ namespace LAAPatcher
 	inline bool SectionNameEquals(const IMAGE_SECTION_HEADER& section, const char* name)
 	{
 		return strncmp(reinterpret_cast<const char*>(section.Name), name, IMAGE_SIZEOF_SHORT_NAME) == 0;
-	}
-
-	inline void GetSectionName(const IMAGE_SECTION_HEADER& section, char* outName)
-	{
-		memcpy(outName, section.Name, IMAGE_SIZEOF_SHORT_NAME);
-		outName[IMAGE_SIZEOF_SHORT_NAME] = '\0';
 	}
 
 	// ========================
@@ -271,200 +256,193 @@ namespace LAAPatcher
 		return h1;
 	}
 
-	// ========================
-	// Validation
-	// ========================
-
-	inline bool ValidatePatchedFile(const fs::path& origPath, const fs::path& patchPath, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize, uint32_t expectedTextHash, uint32_t expectedFileHash)
+	class AES256
 	{
-		char error[512];
-		std::vector<uint8_t> origData, patchData;
-
-		if (!ReadFile(origPath, origData))
+	public:
+		explicit AES256(const uint8_t* key)
 		{
-			sprintf_s(error, "Validation failed: Could not read original file.\nPath: %s", PathToString(origPath).c_str());
-			ShowError(error);
-			return false;
-		}
-
-		if (!ReadFile(patchPath, patchData))
-		{
-			sprintf_s(error, "Validation failed: Could not read patched file.\nPath: %s", PathToString(patchPath).c_str());
-			ShowError(error);
-			return false;
-		}
-
-		if (origData.empty())
-		{
-			ShowError("Validation failed: Original file is empty.");
-			return false;
-		}
-
-		if (patchData.empty())
-		{
-			ShowError("Validation failed: Patched file is empty.");
-			return false;
-		}
-
-		PEFile origPE(origData);
-		PEFile patchPE(patchData);
-
-		if (!origPE.Validate(error, sizeof(error)))
-		{
-			ShowError(error);
-			return false;
-		}
-
-		if (!patchPE.Validate(error, sizeof(error)))
-		{
-			ShowError(error);
-			return false;
-		}
-
-		if (!hasBindSection)
-		{
-			if (origData.size() != patchData.size())
+			uint8_t p = 1, q = 1;
+			do
 			{
-				sprintf_s(error, "Validation failed: File size changed when it shouldn't have (original=%zu, patched=%zu).", origData.size(), patchData.size());
-				ShowError(error);
-				return false;
+				p ^= (p << 1) ^ ((p & 0x80) ? 0x1B : 0);
+				q ^= q << 1;
+				q ^= q << 2;
+				q ^= q << 4;
+				q ^= (q & 0x80) ? 0x09 : 0;
+
+				uint8_t value = q ^ RotateLeft(q, 1) ^ RotateLeft(q, 2) ^ RotateLeft(q, 3) ^ RotateLeft(q, 4) ^ 0x63;
+				m_sbox[p] = value;
+				m_inverseSbox[value] = p;
+			} while (p != 1);
+
+			m_sbox[0] = 0x63;
+			m_inverseSbox[0x63] = 0;
+
+			for (int i = 0; i < 256; i++)
+			{
+				m_multiply[0][i] = Multiply(static_cast<uint8_t>(i), 14);
+				m_multiply[1][i] = Multiply(static_cast<uint8_t>(i), 11);
+				m_multiply[2][i] = Multiply(static_cast<uint8_t>(i), 13);
+				m_multiply[3][i] = Multiply(static_cast<uint8_t>(i), 9);
 			}
 
-			origPE.EnableLAA();
-			origPE.ClearChecksum();
-			patchPE.ClearChecksum();
+			memcpy(m_roundKeys, key, 32);
 
-			if (memcmp(origData.data(), patchData.data(), origData.size()) != 0)
+			uint8_t roundConstant = 1;
+			for (int i = 32; i < 15 * 16; i += 4)
 			{
-				ShowError("Validation failed: File differs in more than just LAA flag and checksum.");
-				return false;
-			}
+				uint8_t word[4];
+				memcpy(word, m_roundKeys + i - 4, 4);
 
-			return true;
-		}
-
-		if (!CheckBounds(textSectionFileOffset, textSectionFileSize, patchData.size(), ".text section", error, sizeof(error)))
-		{
-			ShowError(error);
-			return false;
-		}
-
-		uint32_t patchTextHash = MurmurHash3(patchData.data() + textSectionFileOffset, textSectionFileSize);
-		if (patchTextHash != expectedTextHash)
-		{
-			sprintf_s(error, "Validation failed: .text section hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\nThis may indicate a different game version or corrupted executable.", expectedTextHash, patchTextHash);
-			ShowError(error);
-			return false;
-		}
-
-		uint32_t patchFileHash = MurmurHash3(patchData.data(), patchData.size());
-		if (patchFileHash != expectedFileHash)
-		{
-			sprintf_s(error, "Validation failed: Patched file hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\nThis may indicate a different game version or corrupted executable.", expectedFileHash, patchFileHash);
-			ShowError(error);
-			return false;
-		}
-
-		if (memcmp(origData.data(), patchData.data(), sizeof(IMAGE_DOS_HEADER)) != 0)
-		{
-			ShowError("Validation failed: DOS header unexpectedly changed.");
-			return false;
-		}
-
-		auto* origNt = origPE.NtHeaders();
-		auto* patchNt = patchPE.NtHeaders();
-
-		if (!ValidateEqual(origNt->Signature, patchNt->Signature, "PE signature", error, sizeof(error)) ||
-			!ValidateEqual(origNt->FileHeader.Machine, patchNt->FileHeader.Machine, "Machine type", error, sizeof(error)) ||
-			!ValidateEqual(origNt->FileHeader.TimeDateStamp, patchNt->FileHeader.TimeDateStamp, "TimeDateStamp", error, sizeof(error)) ||
-			!ValidateEqual(origNt->FileHeader.SizeOfOptionalHeader, patchNt->FileHeader.SizeOfOptionalHeader, "SizeOfOptionalHeader", error, sizeof(error)) ||
-			!ValidateEqual(origNt->OptionalHeader.Magic, patchNt->OptionalHeader.Magic, "OptionalHeader Magic", error, sizeof(error)) ||
-			!ValidateEqual(origNt->OptionalHeader.SizeOfCode, patchNt->OptionalHeader.SizeOfCode, "SizeOfCode", error, sizeof(error)) ||
-			!ValidateEqual(origNt->OptionalHeader.ImageBase, patchNt->OptionalHeader.ImageBase, "ImageBase", error, sizeof(error)))
-		{
-			ShowError(error);
-			return false;
-		}
-
-		auto* origSections = origPE.Sections();
-		auto* patchSections = patchPE.Sections();
-
-		for (WORD i = 0; i < origPE.SectionCount(); i++)
-		{
-			char sectionName[IMAGE_SIZEOF_SHORT_NAME + 1];
-			GetSectionName(origSections[i], sectionName);
-
-			if (strcmp(sectionName, ".text") == 0 || strcmp(sectionName, ".bind") == 0)
-				continue;
-
-			bool found = false;
-			for (WORD j = 0; j < patchPE.SectionCount(); j++)
-			{
-				if (!SectionNameEquals(patchSections[j], sectionName))
-					continue;
-
-				char fieldName[64];
-
-				sprintf_s(fieldName, "Section '%s' VirtualAddress", sectionName);
-				if (!ValidateEqual(origSections[i].VirtualAddress, patchSections[j].VirtualAddress, fieldName, error, sizeof(error)))
+				if (i % 32 == 0)
 				{
-					ShowError(error);
-					return false;
+					uint8_t first = word[0];
+					word[0] = m_sbox[word[1]] ^ roundConstant;
+					word[1] = m_sbox[word[2]];
+					word[2] = m_sbox[word[3]];
+					word[3] = m_sbox[first];
+					roundConstant = Multiply(roundConstant, 2);
+				}
+				else if (i % 32 == 16)
+				{
+					for (uint8_t& value : word)
+					{
+						value = m_sbox[value];
+					}
 				}
 
-				sprintf_s(fieldName, "Section '%s' VirtualSize", sectionName);
-				if (!ValidateEqual(origSections[i].Misc.VirtualSize, patchSections[j].Misc.VirtualSize, fieldName, error, sizeof(error)))
+				for (int j = 0; j < 4; j++)
 				{
-					ShowError(error);
-					return false;
+					m_roundKeys[i + j] = m_roundKeys[i - 32 + j] ^ word[j];
 				}
-
-				sprintf_s(fieldName, "Section '%s' Characteristics", sectionName);
-				if (!ValidateEqual(origSections[i].Characteristics, patchSections[j].Characteristics, fieldName, error, sizeof(error)))
-				{
-					ShowError(error);
-					return false;
-				}
-
-				DWORD origOffset = origSections[i].PointerToRawData;
-				DWORD patchOffset = patchSections[j].PointerToRawData;
-				DWORD size = std::min<DWORD>(origSections[i].SizeOfRawData, patchSections[j].SizeOfRawData);
-
-				char boundsContext[64];
-				sprintf_s(boundsContext, "Section '%s' in original", sectionName);
-				if (!CheckBounds(origOffset, size, origData.size(), boundsContext, error, sizeof(error)))
-				{
-					ShowError(error);
-					return false;
-				}
-
-				sprintf_s(boundsContext, "Section '%s' in patched", sectionName);
-				if (!CheckBounds(patchOffset, size, patchData.size(), boundsContext, error, sizeof(error)))
-				{
-					ShowError(error);
-					return false;
-				}
-
-				if (memcmp(origData.data() + origOffset, patchData.data() + patchOffset, size) != 0)
-				{
-					sprintf_s(error, "Validation failed: Section '%s' data changed unexpectedly.", sectionName);
-					ShowError(error);
-					return false;
-				}
-
-				found = true;
-				break;
-			}
-
-			if (!found)
-			{
-				sprintf_s(error, "Validation failed: Section '%s' missing in patched file.", sectionName);
-				ShowError(error);
-				return false;
 			}
 		}
 
-		return true;
+		void DecryptBlock(const uint8_t* in, uint8_t* out) const
+		{
+			uint8_t state[16], shifted[16];
+
+			for (int i = 0; i < 16; i++)
+			{
+				state[i] = in[i] ^ m_roundKeys[14 * 16 + i];
+			}
+
+			for (int round = 13; ; round--)
+			{
+				// InvShiftRows, InvSubBytes and AddRoundKey
+				for (int i = 0; i < 16; i++)
+				{
+					shifted[i] = m_inverseSbox[state[(i - 4 * (i % 4)) & 15]] ^ m_roundKeys[round * 16 + i];
+				}
+
+				if (round == 0)
+					break;
+
+				// InvMixColumns
+				for (int i = 0; i < 16; i++)
+				{
+					int column = i & ~3;
+					state[i] = m_multiply[0][shifted[i]] ^ m_multiply[1][shifted[column + ((i + 1) & 3)]] ^ m_multiply[2][shifted[column + ((i + 2) & 3)]] ^ m_multiply[3][shifted[column + ((i + 3) & 3)]];
+				}
+			}
+
+			memcpy(out, shifted, 16);
+		}
+
+	private:
+		static uint8_t RotateLeft(uint8_t value, int count) { return static_cast<uint8_t>((value << count) | (value >> (8 - count))); }
+
+		// Multiplication in GF(2^8)
+		static uint8_t Multiply(uint8_t a, uint8_t b)
+		{
+			uint8_t result = 0;
+
+			for (; b; b >>= 1)
+			{
+				if (b & 1)
+					result ^= a;
+
+				a = static_cast<uint8_t>((a << 1) ^ ((a & 0x80) ? 0x1B : 0));
+			}
+
+			return result;
+		}
+
+		uint8_t m_sbox[256];
+		uint8_t m_inverseSbox[256];
+		uint8_t m_multiply[4][256];
+		uint8_t m_roundKeys[15 * 16];
+	};
+
+	inline void ReadSteamStubData(const std::vector<uint8_t>& buffer, size_t offset, uint8_t* outData, size_t size)
+	{
+		for (size_t i = 0; i < size; i += 4)
+		{
+			uint32_t value, previous;
+			memcpy(&value, buffer.data() + offset + i, sizeof(uint32_t));
+			memcpy(&previous, buffer.data() + offset + i - 4, sizeof(uint32_t));
+
+			value ^= previous;
+			memcpy(outData + i, &value, sizeof(uint32_t));
+		}
+	}
+
+	inline bool HasSteamStub(HMODULE hModule)
+	{
+		auto* dos = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
+		auto* nt = reinterpret_cast<PIMAGE_NT_HEADERS>(reinterpret_cast<uint8_t*>(hModule) + dos->e_lfanew);
+
+		return SectionNameEquals(IMAGE_FIRST_SECTION(nt)[nt->FileHeader.NumberOfSections - 1], ".bind");
+	}
+
+	inline bool IsSteamStubBroken(HMODULE hModule)
+	{
+		return HasSteamStub(hModule) && reinterpret_cast<uintptr_t>(hModule) != STEAM_IMAGE_BASE;
+	}
+
+	inline bool RemoveSteamStub(PEFile& pe)
+	{
+		std::vector<uint8_t>& buffer = pe.Buffer();
+		IMAGE_SECTION_HEADER* bindSection = pe.FindSection(".bind");
+
+		if (buffer.size() != STEAM_FILE_SIZE || !bindSection || bindSection->PointerToRawData > buffer.size())
+			return false;
+
+		uint8_t key[32], iv[32];
+		ReadSteamStubData(buffer, STEAM_KEY_OFFSET, key, sizeof(key));
+		ReadSteamStubData(buffer, STEAM_IV_OFFSET, iv, sizeof(iv));
+
+		AES256 aes(key);
+		uint8_t* text = buffer.data() + STEAM_TEXT_OFFSET;
+
+		std::vector<uint8_t> encrypted(16 + STEAM_TEXT_ENCRYPTED_SIZE);
+		memcpy(encrypted.data(), iv + 16, 16);
+		memcpy(encrypted.data() + 16, text, STEAM_TEXT_ENCRYPTED_SIZE);
+		aes.DecryptBlock(iv, iv);
+
+		const uint8_t* previous = iv;
+		for (size_t i = 0; i < STEAM_TEXT_ENCRYPTED_SIZE; i += 16)
+		{
+			aes.DecryptBlock(encrypted.data() + i, text + i);
+
+			for (int j = 0; j < 16; j++)
+			{
+				text[i + j] ^= previous[j];
+			}
+
+			previous = encrypted.data() + i;
+		}
+
+		memset(buffer.data() + sizeof(IMAGE_DOS_HEADER), 0, pe.DosHeader()->e_lfanew - sizeof(IMAGE_DOS_HEADER));
+
+		pe.NtHeaders()->OptionalHeader.AddressOfEntryPoint = STEAM_ENTRY_POINT;
+		pe.NtHeaders()->OptionalHeader.SizeOfImage = bindSection->VirtualAddress;
+		pe.NtHeaders()->FileHeader.NumberOfSections--;
+
+		buffer.resize(bindSection->PointerToRawData);
+		memset(bindSection, 0, sizeof(IMAGE_SECTION_HEADER));
+
+		return MurmurHash3(buffer.data(), buffer.size()) == STEAM_PATCHED_HASH;
 	}
 
 	// ========================
@@ -472,7 +450,7 @@ namespace LAAPatcher
 	// ========================
 
 	// Writes the patched file next to the executable, validates it, then swaps them (the original is kept as a backup)
-	inline bool ReplaceExecutable(const fs::path& exePath, const std::vector<uint8_t>& buffer, bool hasBindSection, DWORD textSectionFileOffset, DWORD textSectionFileSize)
+	inline bool ReplaceExecutable(const fs::path& exePath, const std::vector<uint8_t>& buffer)
 	{
 		char error[512];
 		std::error_code ec;
@@ -525,17 +503,11 @@ namespace LAAPatcher
 			CloseHandle(hNewFile);
 		}
 
-		auto writtenSize = fs::file_size(newPath, ec);
-		if (ec || writtenSize != buffer.size())
+		std::vector<uint8_t> writtenData;
+		if (!ReadFile(newPath, writtenData) || writtenData != buffer)
 		{
-			sprintf_s(error, "Written file size mismatch (expected=%zu, actual=%zu).\nPath: %s", buffer.size(), static_cast<size_t>(writtenSize), PathToString(newPath).c_str());
+			sprintf_s(error, "Validation failed: Patched file was not written correctly.\nPath: %s", PathToString(newPath).c_str());
 			ShowError(error);
-			fs::remove(newPath, ec);
-			return false;
-		}
-
-		if (!ValidatePatchedFile(exePath, newPath, hasBindSection, textSectionFileOffset, textSectionFileSize, STEAM_TEXT_HASH, STEAM_PATCHED_HASH))
-		{
 			fs::remove(newPath, ec);
 			return false;
 		}
@@ -638,6 +610,13 @@ namespace LAAPatcher
 	// Main Patching Logic
 	// ========================
 
+	// Also the case without the LAA flag when it is forced for every game (Proton)
+	inline bool HasLargeAddressSpace()
+	{
+		MEMORYSTATUSEX status = { sizeof(status) };
+		return GlobalMemoryStatusEx(&status) && status.ullTotalVirtual > 0x80000000;
+	}
+
 	inline void PatchExpansion(const fs::path& exePath)
 	{
 		char error[512];
@@ -667,7 +646,7 @@ namespace LAAPatcher
 		pe.EnableLAA();
 		pe.ClearChecksum();
 
-		ReplaceExecutable(exePath, buffer, false, 0, 0);
+		ReplaceExecutable(exePath, buffer);
 	}
 
 	// Reference: https://github.com/nipkownix/re4_tweaks/blob/master/dllmain/LAApatch.cpp
@@ -680,6 +659,13 @@ namespace LAAPatcher
 			ShowError("PerformLAAPatch called with NULL module handle.");
 			return PatchResult::Failed;
 		}
+
+		bool hasSteamStub = HasSteamStub(hModule);
+		bool isSteamStubBroken = IsSteamStubBroken(hModule);
+
+		// Nothing to gain from the patch when the game can already use 4GB of memory
+		if (HasLargeAddressSpace() && !isSteamStubBroken)
+			return PatchResult::Patched;
 
 		wchar_t modulePathRaw[MAX_PATH];
 		DWORD pathLen = GetModuleFileNameW(hModule, modulePathRaw, MAX_PATH);
@@ -741,115 +727,44 @@ namespace LAAPatcher
 			return PatchResult::Failed;
 		}
 
-		bool isLAA = pe.IsLAAEnabled();
-		auto bindSectionIndex = pe.FindSectionIndex(".bind");
-		auto* textSection = pe.FindSection(".text");
-
-		DWORD textSectionVA = textSection ? textSection->VirtualAddress : 0;
-		DWORD textSectionFileOffset = textSection ? textSection->PointerToRawData : 0;
-		DWORD textSectionFileSize = textSection ? textSection->SizeOfRawData : 0;
-
-		if (isLAA && !bindSectionIndex)
+		if (pe.IsLAAEnabled() && !hasSteamStub)
 			return PatchResult::Patched;
 
-		// Check the decrypted code in memory before asking anything
-		if (bindSectionIndex)
+		pe.EnableLAA();
+		pe.ClearChecksum();
+
+		// Check that the Steam DRM can be removed before asking anything
+		if (hasSteamStub && !RemoveSteamStub(pe))
 		{
-			uint32_t textHash = MurmurHash3(reinterpret_cast<const uint8_t*>(hModule) + textSectionVA, textSectionFileSize);
-			if (textHash != STEAM_TEXT_HASH)
-			{
-				sprintf_s(error, "LAA Patch failed: .text section hash mismatch.\n\nExpected: 0x%08X\nGot: 0x%08X\n\n"
-					"This may indicate a different game version, or another mod modifying the game code.\n\n"
-					"You can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini", STEAM_TEXT_HASH, textHash);
-				ShowError(error);
-				return PatchResult::Failed;
-			}
+			ShowError("LAA Patch failed: The Steam DRM could not be removed.\n\n"
+				"This may indicate a different game version or a modified executable.\n\n"
+				"You can disable this check by setting CheckLAAPatch=0 in EchoPatch.ini");
+			return PatchResult::Failed;
 		}
 
 		if (showConfirmation)
 		{
+			const char* title = "4GB/Large Address Aware patch missing!";
 			std::string msg = "Your game executable is missing the 4GB/LAA patch. "
 				"This allows the game to use 4GB of memory instead of 2GB, which prevents crashes when loading levels.\n\n"
 				"EchoPatch will patch " + PathToString(exeName) + (patchExpansions ? " (and the expansions, if installed)" : "") + " and create a backup.\n\n"
 				"Apply patch and restart the game?\n\n"
 				"(Selecting No disables this check, it can be enabled again by setting CheckLAAPatch=1 in the [Fixes] section of EchoPatch.ini)";
 
-			if (MessageBoxA(NULL, msg.c_str(), "4GB/Large Address Aware patch missing!", MB_YESNO | MB_ICONEXCLAMATION) != IDYES)
+			if (isSteamStubBroken)
+			{
+				title = "The game cannot start!";
+				msg = "The game cannot start because the Steam DRM does not support its executable being relocated by Windows (Mandatory ASLR).\n\n"
+					"EchoPatch will remove the Steam DRM from " + PathToString(exeName) + ", apply the 4GB/LAA patch" + (patchExpansions ? " (also to the expansions, if installed)" : "") + " and create a backup.\n\n"
+					"Apply patch and restart the game?\n\n"
+					"(Selecting No closes the game, the other solution is to turn off \"Force randomization for images (Mandatory ASLR)\" for " + PathToString(exeName) + " in the Windows exploit protection settings)";
+			}
+
+			if (MessageBoxA(NULL, msg.c_str(), title, MB_YESNO | MB_ICONEXCLAMATION) != IDYES)
 				return PatchResult::Declined;
 		}
 
-		LONG storedElfanew = pe.DosHeader()->e_lfanew;
-
-		pe.EnableLAA();
-		pe.ClearChecksum();
-
-		if (bindSectionIndex && textSectionFileOffset > 0)
-		{
-			WORD bindIdx = *bindSectionIndex;
-			auto* sections = pe.Sections();
-
-			if (!CheckBounds(textSectionFileOffset, textSectionFileSize, buffer.size(), ".text section", error, sizeof(error)))
-			{
-				ShowError(error);
-				return PatchResult::Failed;
-			}
-
-			DWORD bindOffset = sections[bindIdx].PointerToRawData;
-			DWORD bindSize = sections[bindIdx].SizeOfRawData;
-
-			if (!CheckBounds(bindOffset, bindSize, buffer.size(), ".bind section", error, sizeof(error)))
-			{
-				ShowError(error);
-				return PatchResult::Failed;
-			}
-
-			size_t stubSize = storedElfanew - sizeof(IMAGE_DOS_HEADER);
-			if (stubSize > 0)
-			{
-				memset(buffer.data() + sizeof(IMAGE_DOS_HEADER), 0, stubSize);
-			}
-
-			pe.NtHeaders()->OptionalHeader.AddressOfEntryPoint = STEAM_ENTRY_POINT;
-
-			const uint8_t* textInMemory = reinterpret_cast<const uint8_t*>(hModule) + textSectionVA;
-			memcpy(buffer.data() + textSectionFileOffset, textInMemory, textSectionFileSize);
-
-			for (WORD i = 0; i < pe.SectionCount(); i++)
-			{
-				if (sections[i].PointerToRawData > bindOffset)
-					sections[i].PointerToRawData -= bindSize;
-			}
-
-			for (WORD i = bindIdx; i < pe.SectionCount() - 1; i++)
-			{
-				sections[i] = sections[i + 1];
-			}
-
-			pe.NtHeaders()->FileHeader.NumberOfSections--;
-			memset(&sections[pe.SectionCount()], 0, sizeof(IMAGE_SECTION_HEADER));
-
-			DWORD newSizeOfImage = 0;
-			for (WORD i = 0; i < pe.SectionCount(); i++)
-			{
-				DWORD sectionEnd = sections[i].VirtualAddress + sections[i].Misc.VirtualSize;
-				if (sectionEnd > newSizeOfImage)
-				{
-					newSizeOfImage = sectionEnd;
-				}
-			}
-
-			DWORD align = pe.NtHeaders()->OptionalHeader.SectionAlignment;
-			if (align == 0)
-			{
-				ShowError("SectionAlignment is zero, cannot calculate SizeOfImage.");
-				return PatchResult::Failed;
-			}
-			pe.NtHeaders()->OptionalHeader.SizeOfImage = (newSizeOfImage + align - 1) & ~(align - 1);
-
-			buffer.erase(buffer.begin() + bindOffset, buffer.begin() + bindOffset + bindSize);
-		}
-
-		if (!ReplaceExecutable(exePath, buffer, bindSectionIndex.has_value(), textSectionFileOffset, textSectionFileSize))
+		if (!ReplaceExecutable(exePath, buffer))
 			return PatchResult::Failed;
 
 		if (patchExpansions)

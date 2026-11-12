@@ -73,13 +73,22 @@ The game performs hundreds of thousands of individual WriteFile calls per save (
 ## Fast VRAM Detection
 Replaces the slow legacy DxDiag VRAM scan with instant DXGI detection, speeding up startup and performance settings access.
 
+## Shader Validation Cache
+Speeds up level loading by validating each shader technique only once instead of every time its shader is loaded.  
+
+## Reduced Texture Memory
+Reduces memory usage by keeping textures in video memory only.  
+By default, Direct3D also stores a copy of every texture in the game's memory, which is by far its largest allocation with high texture settings.
+
+> **Note**: This feature is experimental and disabled by default, it can be enabled by setting `ReduceTextureMemory` in the `[Fixes]` section of `EchoPatch.ini`.  
+
 ## Input & Frame Drop Fixes
 - **FPS Drop Fix**: Prevents framerate drops by stopping the game from initializing all HID devices as controllers.  
 - **Input Lag Fix**: Disables the `SetWindowsHookEx` call to reduce input lag.
 
 ## Nvidia Rendering Fix
 Resolves rendering issues such as shadow flickering and inversion on Nvidia GPUs.  
-This issue appeared in Nvidia drivers released after 2015 and persists in modern drivers. The engine draws its world geometry with vertex indices too large for these drivers, the fix moves that offset to where they handle it.
+The engine draws its world geometry with vertex indices too large for these drivers, the fix moves that offset to where they handle it.
 
 ## Framerate Limiter
 Adds an **FPS Limit** setting to Options → Display.  
@@ -177,6 +186,8 @@ Removes 4:3 restriction so all widescreen resolutions are available.
 ## LAA Patcher
 Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB), which can resolve loading issues such as the "Disconnected from server" error.  
 The behavior of this option can be edited by setting `CheckLAAPatch` in the `[Fixes]` section of `EchoPatch.ini`.
+
+> **Note**: The patch is not offered when the game can already use 4 GB of memory, which is the case with Proton (Steam Deck/Linux).  
 
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.

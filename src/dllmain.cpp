@@ -5,6 +5,7 @@
 #include "Engine/Display/WindowStylePerMode.cpp"
 #include "Engine/Extra/SaveFolderRedirect.cpp"
 #include "Engine/Graphics/ReducedMipMapBias.cpp"
+#include "Engine/Fixes/ReduceTextureMemory.cpp"
 #include "Engine/Misc/ClientHook.cpp"
 #include "Engine/Misc/ConsoleVariableHook.cpp"
 #include "Engine/Fixes/FixKeyboardInputLanguage.cpp"
@@ -19,6 +20,7 @@
 #include "Engine/Graphics/SSAAScale.cpp"
 #include "Engine/Fixes/FixNvidiaShadowCorruption.cpp"
 #include "Engine/Fixes/FixTranslucentRendering.cpp"
+#include "Engine/Misc/TextureWrapperHook.cpp"
 #include "Engine/Misc/DeviceCreationHook.cpp"
 #include "Engine/Fixes/FixScriptedAnimationCrash.cpp"
 #include "Engine/Console/EngineInterfaces.cpp"
@@ -27,6 +29,7 @@
 #include "Engine/Fixes/FastVRAMDetection.cpp"
 #include "Engine/Fixes/HardwareVertexProcessing.cpp"
 #include "Engine/Fixes/FixHardwareCursor.cpp"
+#include "Engine/Fixes/CacheShaderValidation.cpp"
 #include "Engine/Fixes/FixDirectInputFps.cpp"
 #include "Engine/Extra/DisablePunkBuster.cpp"
 #include "Engine/Extra/ASILoader.cpp"
@@ -100,6 +103,14 @@ bool OnProcessAttach(HMODULE hModule)
         default:
             MessageBoxA(NULL, "This .exe is not supported.", "EchoPatch", MB_ICONERROR);
             return false;
+    }
+
+    // The Steam DRM runs right after this and is removed by the LAA patch, it can't start if Windows relocated the executable
+    if (LAAPatcher::HasSteamStub(GetModuleHandleA(NULL)))
+    {
+        IniHelper::Init(g_State.IsExpansion());
+        CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
+        ApplyLAAPatch();
     }
 
     g_State.isUALPresent = SystemHelper::IsUALPresent();

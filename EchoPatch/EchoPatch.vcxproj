@@ -170,6 +170,7 @@
     <ClInclude Include="..\src\Engine\Extra\ASILoader.cpp" />
     <ClInclude Include="..\src\Engine\Extra\DisablePunkBuster.cpp" />
     <ClInclude Include="..\src\Engine\Extra\SaveFolderRedirect.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\CacheShaderValidation.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\DisableJoystick.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FastVRAMDetection.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixAspectRatioBlur.cpp" />
@@ -183,6 +184,7 @@
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\KeepRendererOnFocusLoss.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\ReduceTextureMemory.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\MaxFPS.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\ReducedMipMapBias.cpp" />
     <ClInclude Include="..\src\Engine\Graphics\SSAAResolve.cpp" />
@@ -191,6 +193,7 @@
     <ClInclude Include="..\src\Engine\Misc\ConsoleVariableHook.cpp" />
     <ClInclude Include="..\src\Engine\Misc\DeviceCreationHook.cpp" />
     <ClInclude Include="..\src\Engine\Misc\MainLoop.cpp" />
+    <ClInclude Include="..\src\Engine\Misc\TextureWrapperHook.cpp" />
     <ClInclude Include="..\src\Engine\SkipIntro\SkipIntro.cpp" />
     <ClInclude Include="..\src\Globals.cpp" />
     <ClInclude Include="..\src\helper.cpp" />

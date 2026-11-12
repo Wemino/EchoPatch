@@ -86,6 +86,7 @@ enum class Addr
 	// AutoResolution
 	ScreenWidth,
 	ScreenHeight,
+	FindRenderMode,
 
 	// MainLoop
 	MainGameLoop,
@@ -117,6 +118,13 @@ enum class Addr
 
 	// FixHardwareCursor
 	LoadCursorBitmapResource,
+
+	// CacheShaderValidation
+	LoadShader,
+	ValidateTechnique,
+
+	// ReduceTextureMemory
+	RebindTextures,
 
 	// ConsoleEnabled
 	Console_Init,
@@ -232,6 +240,7 @@ namespace
 		// AutoResolution
 		/* ScreenWidth                      */ { 0x16ABF4, 0x16ABF4, 0x20EC2C, 0x210C2C },
 		/* ScreenHeight                     */ { 0x16ABF8, 0x16ABF8, 0x20EC30, 0x210C30 },
+		/* FindRenderMode                   */ {  0xF9C50,  0xF9D70, 0x191710, 0x192D40 },
 
 		// MainLoop
 		/* MainGameLoop                     */ {   0xFB20,   0xFC30,  0x19100,  0x192B0 },
@@ -263,6 +272,13 @@ namespace
 
 		// FixHardwareCursor
 		/* LoadCursorBitmapResource         */ {  0x84260,  0x84380,  0xB8B60,  0xB9BB0 },
+
+		// CacheShaderValidation
+		/* LoadShader                       */ { 0x105390, 0x1054B0, 0x1A0BC0, 0x1A21B0 },
+		/* ValidateTechnique                */ { 0x1052A0, 0x1053C0, 0x1A0AD0, 0x1A20C0 },
+
+		// ReduceTextureMemory
+		/* RebindTextures                   */ {  0x16BA0,  0x16CC0,  0x218F0,  0x21AA0 },
 
 		// ConsoleEnabled
 		/* Console_Init                     */ { 0x176FF0,      0x0, 0x21BFD0, 0x21E010 },

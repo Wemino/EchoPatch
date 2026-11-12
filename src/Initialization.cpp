@@ -32,6 +32,8 @@ static void ReadConfig()
     KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;
     HardwareVertexProcessing = IniHelper::ReadInteger("Fixes", "HardwareVertexProcessing", 1) == 1;
     FixHardwareCursor = IniHelper::ReadInteger("Fixes", "FixHardwareCursor", 1) == 1;
+    CacheShaderValidation = IniHelper::ReadInteger("Fixes", "CacheShaderValidation", 1) == 1;
+    ReduceTextureMemory = IniHelper::ReadInteger("Fixes", "ReduceTextureMemory", 0) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);
 
     // Graphics
@@ -224,20 +226,37 @@ static void ReadConfig()
     SetGyroCalibrationPersistence(GyroCalibrationPersistence);
 }
 
+static void ApplyLAAPatch()
+{
+    // The game can't start with a broken Steam DRM, its removal is offered even when the check is disabled
+    bool isSteamStubBroken = LAAPatcher::IsSteamStubBroken(GetModuleHandleA(NULL));
+    if (!CheckLAAPatch && !isSteamStubBroken) return;
+
+    // The expansions are patched together with FEAR.exe
+    LAAPatcher::PatchResult result = LAAPatcher::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2, CheckLAAPatch && g_State.CurrentFEARGame == FEAR);
+
+    // The game was not restarted, close it instead of letting the Steam DRM crash
+    if (isSteamStubBroken)
+    {
+        ExitProcess(0);
+    }
+
+    if (result == LAAPatcher::PatchResult::Declined)
+    {
+        // Don't ask again
+        IniHelper::iniReader["Fixes"]["CheckLAAPatch"] = "0";
+        IniHelper::Save();
+    }
+}
+
 static void Init()
 {
     ReadConfig();
 
     // LAA Patching if needed
-    if (CheckLAAPatch)
+    if (!LAAPatcher::HasSteamStub(GetModuleHandleA(NULL)))
     {
-        // The expansions are patched together with FEAR.exe
-        if (LAAPatcher::PerformLAAPatch(GetModuleHandleA(NULL), CheckLAAPatch != 2, g_State.CurrentFEARGame == FEAR) == LAAPatcher::PatchResult::Declined)
-        {
-            // Don't ask again
-            IniHelper::iniReader["Fixes"]["CheckLAAPatch"] = "0";
-            IniHelper::Save();
-        }
+        ApplyLAAPatch();
     }
 
     // Load SDL
@@ -275,6 +294,8 @@ static void Init()
     ApplyKeepRendererOnFocusLoss();
     ApplyHardwareVertexProcessing();
     ApplyFixHardwareCursor();
+    ApplyCacheShaderValidation();
+    ApplyReduceTextureMemory();
 
     // Display
     ApplyAutoResolution();
@@ -292,6 +313,7 @@ static void Init()
     ApplyDisablePunkBuster();
     ApplyForceRenderMode();
     ApplyDisableJoystick();
+    ApplyTextureWrapperHook();
     ApplyDeviceCreationHook();
     ApplyASILoader();
 }

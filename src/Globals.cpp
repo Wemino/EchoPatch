@@ -261,6 +261,8 @@ bool FixTranslucentRendering = false;
 bool KeepRendererOnFocusLoss = false;
 bool HardwareVertexProcessing = false;
 bool FixHardwareCursor = false;
+bool CacheShaderValidation = false;
+bool ReduceTextureMemory = false;
 int CheckLAAPatch = 0;
 
 // Graphics
