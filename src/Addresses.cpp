@@ -11,6 +11,7 @@ enum class Addr
 	// HavokPhysicsFix
 	PhysicsSimUpdate,
 	PhysicsSimTerm,
+	PhysicsSimStepForward,
 	hkWorldStepDeltaTime,
 	RigidBodyKeyframe,
 	RigidBodySoftKeyframe,
@@ -165,6 +166,7 @@ namespace
 		// HavokPhysicsFix
 		/* PhysicsSimUpdate                 */ {  0x4D100,  0x4D220,  0x6B330,  0x6BFA0 },
 		/* PhysicsSimTerm                   */ {  0x4D2D0,  0x4D3F0,  0x6B600,  0x6C270 },
+		/* PhysicsSimStepForward            */ {  0x2A590,  0x2A6B0,  0x3CE00,  0x3CFE0 },
 		/* hkWorldStepDeltaTime             */ {  0x96F40,  0x97060,  0xDA710,  0xDB780 },
 		/* RigidBodyKeyframe                */ {  0x4B230,  0x4B350,  0x68ED0,  0x69B40 },
 		/* RigidBodySoftKeyframe            */ {  0x3ACE0,  0x3AE00,  0x526A0,  0x53340 },

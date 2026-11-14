@@ -10,6 +10,7 @@
 
 void(__thiscall* PhysicsSimUpdate)(uintptr_t, float, float, unsigned int) = nullptr;
 int(__thiscall* PhysicsSimTerm)(uintptr_t) = nullptr;
+int(__thiscall* PhysicsSimStepForward)(uintptr_t, float, float, unsigned int) = nullptr;
 int(__thiscall* hkWorldStepDeltaTime)(uintptr_t, float) = nullptr;
 uint8_t(__thiscall* RigidBodyKeyframe)(uintptr_t, const float*, float) = nullptr;
 void* RigidBodySoftKeyframe = nullptr;
@@ -105,6 +106,7 @@ struct PhysicsWorld
     int shownBodies = 0;
     bool isUpdating = false;
     bool isStepping = false;
+    bool isSettling = false;
     bool lastUpdateTicked = false;
 };
 
@@ -313,6 +315,7 @@ static EntityMap<SimulatedBody> s_simulatedBodies;
 static EntityMap<KeyframeRequest> s_keyframeRequests;
 static std::vector<uintptr_t> s_keyframedEntities;
 static std::vector<uintptr_t> s_movedOwners;
+static bool s_isSteppingForward = false;
 
 // =========================
 // Havok Helpers
@@ -737,13 +740,15 @@ static void ApplyKeyframeRequests(const PhysicsWorld& physicsWorld, float invDel
         // Made dynamic or keyframed since, by a ragdoll for one
         if (GetMotion(entity) != request.motion) continue;
 
+        float requestInvDeltaTime = invDeltaTime > 0.0f ? invDeltaTime : request.invDeltaTime;
+
         if (request.isSoft)
         {
-            CallSoftKeyframe(entity, &request.position, &request.rotation, invDeltaTime, request.weight, request.maxLinearVelocity, request.maxAngularVelocity);
+            CallSoftKeyframe(entity, &request.position, &request.rotation, requestInvDeltaTime, request.weight, request.maxLinearVelocity, request.maxAngularVelocity);
         }
         else if (GetEntity(request.rigidBody) == entity)
         {
-            RigidBodyKeyframe(request.rigidBody, request.transform, invDeltaTime);
+            RigidBodyKeyframe(request.rigidBody, request.transform, requestInvDeltaTime);
         }
     }
 }
@@ -1048,6 +1053,32 @@ static int StepWorld(const PhysicsWorld& physicsWorld)
 }
 
 // =========================
+// Settling
+// =========================
+
+static void SettleWorld(PhysicsWorld& physicsWorld, uintptr_t sim, float elapsedTime, float targetFrameTime, unsigned int maxSteps)
+{
+    RestoreBodies(physicsWorld);
+
+    ApplyKeyframeRequests(physicsWorld, 0.0f);
+    ClearKeyframeRequests(physicsWorld);
+
+    if (elapsedTime > 0.0f)
+    {
+        maxSteps = std::max(static_cast<unsigned int>(elapsedTime / TARGET_FRAME_TIME + 0.5f), 1u);
+        elapsedTime = TARGET_FRAME_TIME * maxSteps;
+        targetFrameTime = TARGET_FRAME_TIME;
+    }
+
+    physicsWorld.isSettling = true;
+    PhysicsSimUpdate(sim, elapsedTime, targetFrameTime, maxSteps);
+    physicsWorld.isSettling = false;
+
+    physicsWorld.tick++;
+    physicsWorld.lastUpdateTicked = true;
+}
+
+// =========================
 // HavokPhysicsFix
 // =========================
 
@@ -1059,6 +1090,12 @@ static void __fastcall PhysicsSimUpdate_Hook(uintptr_t sim, int, float frameTime
     if (!physicsWorld || physicsWorld->isUpdating)
     {
         PhysicsSimUpdate(sim, frameTime, targetFrameTime, maxSteps);
+        return;
+    }
+
+    if (s_isSteppingForward)
+    {
+        SettleWorld(*physicsWorld, sim, frameTime, targetFrameTime, maxSteps);
         return;
     }
 
@@ -1122,9 +1159,27 @@ static int __fastcall PhysicsSimTerm_Hook(uintptr_t sim, int)
     return PhysicsSimTerm(sim);
 }
 
+static int __fastcall PhysicsSimStepForward_Hook(uintptr_t ltPhysicsSim, int, float elapsedTime, float targetFrameTime, unsigned int maxSteps)
+{
+    s_isSteppingForward = true;
+    int result = PhysicsSimStepForward(ltPhysicsSim, elapsedTime, targetFrameTime, maxSteps);
+    s_isSteppingForward = false;
+
+    return result;
+}
+
 static int __fastcall hkWorldStepDeltaTime_Hook(uintptr_t world, int, float deltaTime)
 {
     PhysicsWorld* physicsWorld = FindPhysicsWorld(world);
+
+    // Forces given during a settling step are for that step
+    if (physicsWorld && physicsWorld->isSettling)
+    {
+        physicsWorld->isStepping = true;
+        int result = hkWorldStepDeltaTime(world, deltaTime);
+        physicsWorld->isStepping = false;
+        return result;
+    }
 
     if (!physicsWorld || !physicsWorld->isUpdating)
     {
@@ -1287,6 +1342,7 @@ static void ApplyHavokPhysicsFix()
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::PhysicsSimUpdate), &PhysicsSimUpdate_Hook, (LPVOID*)&PhysicsSimUpdate, g_State.CurrentFEARGame == FEAR);
     HookHelper::ApplyHook((void*)GetAddress(Addr::PhysicsSimTerm), &PhysicsSimTerm_Hook, (LPVOID*)&PhysicsSimTerm, g_State.CurrentFEARGame == FEAR);
+    HookHelper::ApplyHook((void*)GetAddress(Addr::PhysicsSimStepForward), &PhysicsSimStepForward_Hook, (LPVOID*)&PhysicsSimStepForward, g_State.CurrentFEARGame == FEAR);
     HookHelper::ApplyHook((void*)GetAddress(Addr::hkWorldStepDeltaTime), &hkWorldStepDeltaTime_Hook, (LPVOID*)&hkWorldStepDeltaTime, g_State.CurrentFEARGame == FEAR);
     HookHelper::ApplyHook((void*)GetAddress(Addr::RigidBodyKeyframe), &RigidBodyKeyframe_Hook, (LPVOID*)&RigidBodyKeyframe, g_State.CurrentFEARGame == FEAR);
     HookHelper::ApplyHook((void*)GetAddress(Addr::RigidBodySoftKeyframe), &RigidBodySoftKeyframe_Hook, (LPVOID*)&RigidBodySoftKeyframe, g_State.CurrentFEARGame == FEAR);
