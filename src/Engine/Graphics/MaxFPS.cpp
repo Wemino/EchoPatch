@@ -137,7 +137,7 @@ static int __fastcall InitializePresentationParameters_Hook(DWORD* thisPtr, int,
     }
 
     // The SSAA resolve resources can't outlive the device or survive a reset
-    if (SSAAScale != 1.0f)
+    if (SSAAScale != 1.0f || EchoPatchMenu)
     {
         ReleaseSSAAResolve();
     }

@@ -116,6 +116,9 @@
     <ClInclude Include="..\src\Client\Graphics\SSAAScale.cpp">
       <Filter>Client\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\ScreenEchoPatchHook.hpp">
+      <Filter>Client</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\ScreenHelper.hpp">
       <Filter>Client</Filter>
     </ClInclude>

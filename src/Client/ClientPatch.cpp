@@ -4,6 +4,7 @@
 #include "../Controller/Controller.hpp"
 #include "../Controller/ScreenJoystickHook.hpp"
 #include "Graphics/ScreenDisplayHook.hpp"
+#include "ScreenEchoPatchHook.hpp"
 #include "../ClientFX/ClientFX.hpp"
 #include "../Server/Server.hpp"
 
@@ -119,13 +120,13 @@ static void ApplySkipSplashScreenClientPatch()
 
 static void ApplyDisableLetterboxClientPatch()
 {
-    if (!DisableLetterbox) return;
+    if (!DisableLetterbox && !EchoPatchMenu) return;
 
-    DWORD addr = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
+    g_State.letterboxAddr = ScanModuleSignature(g_State.GameClient, "83 EC 54 53 55 56 57 8B", "DisableLetterbox");
 
-    if (addr != 0)
+    if (g_State.letterboxAddr != 0 && DisableLetterbox)
     {
-        MemoryHelper::WriteMemory<uint8_t>(addr, 0xC3);
+        MemoryHelper::WriteMemory<uint8_t>(g_State.letterboxAddr, 0xC3);
     }
 }
 
@@ -353,7 +354,7 @@ static void ApplyControllerClientPatch()
 
 static void ApplyHUDScalingClientPatch()
 {
-    if (!HUDScaling) return;
+    if (!HUDScaling && !EchoPatchMenu) return;
 
     DWORD addr_HUDTerminate = ScanModuleSignature(g_State.GameClient, "53 56 8B D9 8B B3 7C 04 00 00 8B 83 80 04 00 00 57 33 FF 3B F0", "HUDTerminate");
     DWORD addr_HUDInit = ScanModuleSignature(g_State.GameClient, "8B ?? ?? 8D ?? 78 04 00 00", "HUDInit", 1);
@@ -396,15 +397,18 @@ static void ApplyHUDScalingClientPatch()
 
 static void ApplySSAAScaleClientPatch()
 {
-	if (SSAAScale == 1.0f) return;
+	if (SSAAScale == 1.0f && !EchoPatchMenu) return;
 
 	DWORD addr_Camera_UpdateRenderTarget = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 0D ?? ?? ?? ?? 85 C9 0F 84 E7", "Camera_UpdateRenderTarget");
 
 	if (addr_Camera_UpdateRenderTarget == 0) return;
 
 	HookHelper::ApplyHook((void*)addr_Camera_UpdateRenderTarget, &Camera_UpdateRenderTarget_Hook, (LPVOID*)&Camera_UpdateRenderTarget);
-	MemoryHelper::MakeNOP(addr_Camera_UpdateRenderTarget + 0x32, 0x6);
 	g_State.cameraRenderTargetOffset = MemoryHelper::ReadMemory<int>(addr_Camera_UpdateRenderTarget + 0x74);
+
+	// NOP while SSAAScale isn't 1.0
+	cameraRenderTargetCheckAddr = addr_Camera_UpdateRenderTarget + 0x32;
+	memcpy(cameraRenderTargetCheck, (void*)cameraRenderTargetCheckAddr, sizeof(cameraRenderTargetCheck));
 }
 
 static void ApplyFPSLimitMenuOptionClientPatch()
@@ -412,6 +416,13 @@ static void ApplyFPSLimitMenuOptionClientPatch()
 	if (!FPSLimitMenuOption) return;
 
 	ScreenDisplayHook::InstallHook();
+}
+
+static void ApplyEchoPatchMenuClientPatch()
+{
+	if (!EchoPatchMenu) return;
+
+	ScreenEchoPatchHook::InstallHook();
 }
 
 static void ApplySetWeaponCapacityClientPatch()
@@ -429,13 +440,14 @@ static void ApplySetWeaponCapacityClientPatch()
 
 static void ApplyHighResolutionReflectionsClientPatch()
 {
-    if (!HighResolutionReflections) return;
+    if (!HighResolutionReflections && !EchoPatchMenu) return;
 
-    DWORD addr = ScanModuleSignature(g_State.GameClient, "8B 47 08 89 46 4C 8A 4F 24 88 4E 68 8A 57 25", "RenderTargetGroupFXInit");
+    DWORD addr = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 46 40 84 C0 74 04 32 C0 5E C3 8B CE E8 ?? ?? ?? ?? 39 46 44 74 08 50 8B CE E8", "RenderTargetGroupFXUpdate");
 
     if (addr != 0)
     {
-        HookHelper::ApplyHook((void*)(addr - 0x31), &RenderTargetGroupFXInit_Hook, (LPVOID*)&RenderTargetGroupFXInit);
+        HookHelper::ApplyHook((void*)MemoryHelper::ResolveRelativeAddress(addr, 0x1E), &RenderTargetGroupFXCreateRenderTarget_Hook, (LPVOID*)&RenderTargetGroupFXCreateRenderTarget);
+        HookHelper::ApplyHook((void*)addr, &RenderTargetGroupFXUpdate_Hook, (LPVOID*)&RenderTargetGroupFXUpdate);
     }
 }
 
@@ -610,7 +622,7 @@ static void ApplyDisableHipFireAccuracyPenalty()
 
 static void ApplyGameDatabaseHook()
 {
-    if (!HUDScaling) return;
+    if (!HUDScaling && !EchoPatchMenu) return;
 
     DWORD addr_GameDatabase = ScanModuleSignature(g_State.GameClient, "8B 5E 08 55 E8 ?? ?? ?? FF 8B 0D ?? ?? ?? ?? 8B 39 68 ?? ?? ?? ?? 6A 00 68 ?? ?? ?? ?? 53 FF 57", "HUDScaling_GameDatabase");
 
@@ -629,7 +641,7 @@ static void ApplyGameDatabaseHook()
 
 static void ApplyClientPatchSet1()
 {
-	if (!HUDScaling && !SDLGamepadSupport && SSAAScale == 1.0f) return;
+	if (!HUDScaling && !SDLGamepadSupport && SSAAScale == 1.0f && !EchoPatchMenu) return;
 
 	DWORD addr_HUDWeaponListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 1E 00 00 00", "HUDWeaponListUpdateTriggerNames");
 	DWORD addr_HUDGrenadeListUpdateTriggerNames = ScanModuleSignature(g_State.GameClient, "56 32 DB 89 44 24 0C BE 28 00 00 00", "HUDGrenadeListUpdateTriggerNames");
@@ -691,7 +703,7 @@ static void ApplyClientPatchSet3()
 
 static void ApplyClientPatchSet4()
 {
-	if (!SDLGamepadSupport && !FPSLimitMenuOption) return;
+	if (!SDLGamepadSupport && !FPSLimitMenuOption && !EchoPatchMenu) return;
 
 	DWORD addr_DEditLoadModule = ScanModuleSignature(g_State.GameClient, "83 C4 04 84 C0 75 17 8B 4C 24 04", "DEditLoadModule");
 
@@ -716,6 +728,7 @@ void ApplyClientPatch()
 	ApplyHUDScalingClientPatch();
 	ApplySSAAScaleClientPatch();
 	ApplyFPSLimitMenuOptionClientPatch();
+	ApplyEchoPatchMenuClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyAutoResolutionClientPatch();

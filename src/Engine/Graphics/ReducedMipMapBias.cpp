@@ -249,7 +249,15 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
 
     if (isSharp)
     {
-        static const float ssaaBiasOffset = SSAAScale > 1.0f ? std::log2(SSAAScale) : 0.0f;
+        static float ssaaBiasScale = 0.0f;
+        static float ssaaBiasOffset = 0.0f;
+
+        if (ssaaBiasScale != SSAAScale)
+        {
+            ssaaBiasScale = SSAAScale;
+            ssaaBiasOffset = SSAAScale > 1.0f ? std::log2(SSAAScale) : 0.0f;
+        }
+
         float sharpBias = g_State.isRenderingSSAAScene ? std::min(-1.5f + ssaaBiasOffset, 0.0f) : -1.5f;
 
         if (!g_State.stageIsDirty[Stage] || g_State.stageBias[Stage] != sharpBias)

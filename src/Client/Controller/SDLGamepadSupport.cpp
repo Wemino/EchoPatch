@@ -702,18 +702,17 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 //  SDLGamepadSupport & HUDScaling
 // =====================================
 
-static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
+static float GetMaxHUDCustomScalingFactor()
 {
-	ScreenDimsChanged(thisPtr);
+	float scalingFactor = std::max(1.0f, std::min(g_State.currentWidth / BASE_WIDTH, g_State.currentHeight / BASE_HEIGHT));
 
-	// Get the current resolution
-	g_State.currentWidth = *(DWORD*)(thisPtr + 0x18);
-	g_State.currentHeight = *(DWORD*)(thisPtr + 0x1C);
+	// Armor next to the slow-mo bar and flashlight above the health, in the 640x480 layout
+	return std::min(g_State.currentWidth / 640.0f * 1.07f, g_State.currentHeight / 480.0f * 1.38f) / scalingFactor;
+}
 
-	g_TouchpadConfig.currentWidth = g_State.currentWidth;
-	g_TouchpadConfig.currentHeight = g_State.currentHeight;
-
-	if (!HUDScaling) return;
+static void UpdateHUDScaling()
+{
+	if (!HUDScaling && !EchoPatchMenu) return;
 
 	// Calculate the new scaling factor
 	g_State.scalingFactor = std::min(g_State.currentWidth / BASE_WIDTH, g_State.currentHeight / BASE_HEIGHT);
@@ -728,7 +727,15 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 	g_State.scalingFactorText = g_State.scalingFactor * SmallTextCustomScalingFactor;
 
 	// Apply custom scaling to calculated scaling
-	g_State.scalingFactor *= HUDCustomScalingFactor;
+	g_State.scalingFactor *= std::min(HUDCustomScalingFactor, GetMaxHUDCustomScalingFactor());
+
+	// Turned off in the EchoPatch menu
+	if (!HUDScaling)
+	{
+		g_State.scalingFactor = 1.0f;
+		g_State.scalingFactorCrosshair = 1.0f;
+		g_State.scalingFactorText = 1.0f;
+	}
 
 	// Scale the crosshair lines thickness and the width of the pause message
 	if (g_State.crosshairThicknessAddr != 0 && g_State.pausedWidthAddr != 0)
@@ -757,6 +764,20 @@ static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
 		SetConsoleVariableFloat("CrosshairSize", g_State.crosshairSize * g_State.scalingFactorCrosshair);
 		SetConsoleVariableFloat("PerturbScale", g_State.perturbScale * g_State.scalingFactorCrosshair);
 	}
+}
+
+static void __fastcall ScreenDimsChanged_Hook(int thisPtr, int)
+{
+	ScreenDimsChanged(thisPtr);
+
+	// Get the current resolution
+	g_State.currentWidth = *(DWORD*)(thisPtr + 0x18);
+	g_State.currentHeight = *(DWORD*)(thisPtr + 0x1C);
+
+	g_TouchpadConfig.currentWidth = g_State.currentWidth;
+	g_TouchpadConfig.currentHeight = g_State.currentHeight;
+
+	UpdateHUDScaling();
 }
 
 // ============================================
@@ -839,9 +860,9 @@ static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
 	g_State.isMsgBoxVisible = *(BYTE*)(thisPtr + 0x578);
 }
 
-// ============================================
-//  SDLGamepadSupport & FPSLimitMenuOption
-// ============================================
+// ===========================================================
+//  SDLGamepadSupport & FPSLimitMenuOption & EchoPatchMenu
+// ===========================================================
 
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
@@ -874,6 +895,35 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		case HashHelper::StringHashes::IDS_HELP_HOLD_DURATION:				return L"How long a button must be held to perform its hold action. Applies to every button.";
 		case HashHelper::StringHashes::IDS_HELP_RESTORE_BINDINGS:			return L"Restore the default controller button mapping.";
 		case HashHelper::StringHashes::IDS_HELP_FPS_LIMIT:					return L"Maximum framerate when V Sync is on.";
+
+		case HashHelper::StringHashes::IDS_SUPERSAMPLING:					return L"Supersampling";
+		case HashHelper::StringHashes::IDS_FIELD_OF_VIEW:					return L"Field of View";
+		case HashHelper::StringHashes::IDS_HUD_SIZE:						return L"HUD Size";
+		case HashHelper::StringHashes::IDS_SMALL_TEXT_SIZE:					return L"Small Text Size";
+		case HashHelper::StringHashes::IDS_SENSITIVITY_MULTIPLIER:			return L"Sensitivity Multiplier";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH:					return L"Change the settings of EchoPatch.";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_GRAPHICS:			return L"Reflections, supersampling, model detail and persistent world.";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_DISPLAY:			return L"Field of view, HUD scaling and cutscene letterbox.";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_MOUSE:			return L"Mouse sensitivity multiplier.";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_MEMORY:			return L"Memory usage of the game.";
+		case HashHelper::StringHashes::IDS_HELP_HIGH_RESOLUTION_REFLECTIONS:	return L"Sharper reflections and security camera screens.";
+		case HashHelper::StringHashes::IDS_HELP_SUPERSAMPLING:				return L"Renders the 3D scene at a higher resolution. Turns off FSAA.";
+		case HashHelper::StringHashes::IDS_HELP_MAXIMUM_MODEL_DETAIL:		return L"Always uses the most detailed models.";
+		case HashHelper::StringHashes::IDS_HELP_PERSISTENT_WORLD:			return L"Blood stains, bullet holes, debris and shell casings no longer disappear. Requires a restart.";
+		case HashHelper::StringHashes::IDS_HELP_SAVE_PERSISTENT_WORLD:		return L"Keeps the persistent world when loading a save. Requires a restart.";
+		case HashHelper::StringHashes::IDS_HELP_FIELD_OF_VIEW:				return L"Field of view of the player.";
+		case HashHelper::StringHashes::IDS_HELP_HUD_SCALING:				return L"Scales the HUD with the resolution.";
+		case HashHelper::StringHashes::IDS_HELP_HUD_SIZE:
+		{
+			static wchar_t text[96];
+			swprintf_s(text, L"Size of the HUD when HUD Scaling is on, up to %.2fx at this resolution.", std::floor(GetMaxHUDCustomScalingFactor() * 100.0f) / 100.0f);
+			return (g_State.currentWidth != 0) ? text : L"Size of the HUD when HUD Scaling is on.";
+		}
+		case HashHelper::StringHashes::IDS_HELP_SMALL_TEXT_SIZE:			return L"Size of the subtitles and other small texts when HUD Scaling is on.";
+		case HashHelper::StringHashes::IDS_HELP_LETTERBOX:					return L"Black bars during cutscenes.";
+		case HashHelper::StringHashes::IDS_HELP_SENSITIVITY_MULTIPLIER:		return L"Multiplies the mouse sensitivity of the game.";
+		case HashHelper::StringHashes::IDS_HELP_REDUCE_TEXTURE_MEMORY:		return L"Experimental and potentially unstable. Keeps textures in video memory only. Requires a restart.";
+		case HashHelper::StringHashes::IDS_HELP_4GB_PATCH:					return L"Lets the game use 4GB of memory instead of 2GB.";
 
 		case HashHelper::StringHashes::IDS_QUICKSAVE:
 			if (ShouldShowControllerPrompts())

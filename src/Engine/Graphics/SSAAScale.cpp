@@ -80,7 +80,7 @@ static int __stdcall StretchRect_Hook(int sourceTarget, const float* sourceRect,
 
 static void ApplySSAAScale()
 {
-    if (SSAAScale == 1.0f) return;
+    if (SSAAScale == 1.0f && !EchoPatchMenu) return;
 
     ssaaDevice = reinterpret_cast<IDirect3DDevice9* const*>(GetAddress(Addr::RendererDevice));
 

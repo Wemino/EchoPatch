@@ -12,13 +12,6 @@ namespace ScreenDisplayHook
     // Local settings
     static uint8_t g_FPSLimitSelection = 0;
 
-    // Address storage
-    static uintptr_t LTDatabase_Addr = 0;
-    static uintptr_t LTClient_Addr = 0;
-    static uintptr_t InterfaceMgr_Addr = 0;
-    static uintptr_t SwitchingRenderModesOffset = 0;
-    static uintptr_t RunConsoleCommandOffset = 0;
-
     struct ToggleCreate
     {
         int data[16];
@@ -28,14 +21,6 @@ namespace ScreenDisplayHook
     static void(__thiscall* CScreenDisplay_OnFocus)(int*, bool) = nullptr;
     static int* (__thiscall* AddToggleByName)(int*, const wchar_t*, ToggleCreate, bool, const char*, uint32_t) = nullptr;
     static DWORD* (__stdcall* LayoutDBGetRect)(DWORD*, int, const char*, uint32_t) = nullptr;
-
-    using DBGetAttribute_t = int(__thiscall*)(int, int, const char*);
-    using DBGetInt32_t = int(__thiscall*)(int, int, unsigned int, int);
-    using RunConsoleCommand_t = int(__thiscall*)(int, const char*);
-
-    // ILTDatabase virtual functions
-    static constexpr int VTBL_DATABASE_GET_ATTRIBUTE = 22;
-    static constexpr int VTBL_DATABASE_GET_INT32 = 31;
 
     // CScreenDisplay::m_bEscape
     static constexpr int SCREEN_DISPLAY_ESCAPE_OFFSET = 0x1C4;
@@ -80,23 +65,6 @@ namespace ScreenDisplayHook
         IniHelper::Save();
     }
 
-    static void RestartRender()
-    {
-        int interfaceMgr = MemoryHelper::ReadMemory<int>(InterfaceMgr_Addr);
-        int ltClient = MemoryHelper::ReadMemory<int>(LTClient_Addr);
-
-        if (!interfaceMgr || !ltClient)
-            return;
-
-        bool* pSwitchingRenderModes = reinterpret_cast<bool*>(interfaceMgr + SwitchingRenderModesOffset);
-        RunConsoleCommand_t runConsoleCommand = reinterpret_cast<RunConsoleCommand_t>(MemoryHelper::ReadMemory<uintptr_t>(MemoryHelper::ReadMemory<uintptr_t>(ltClient) + RunConsoleCommandOffset));
-
-        // Same as the display options when VSync is changed
-        *pSwitchingRenderModes = true;
-        runConsoleCommand(ltClient, "RestartRender");
-        *pSwitchingRenderModes = false;
-    }
-
     static void AddFPSLimitCycle(int* screen, const ToggleCreate& vsyncCreate)
     {
         s_refreshRates = GetDisplayRefreshRates();
@@ -132,16 +100,6 @@ namespace ScreenDisplayHook
     // =========================================================================
     // Logic & Hooks
     // =========================================================================
-
-    static int GetLayoutInt32(int hRecord, const char* pszAttribute)
-    {
-        int database = MemoryHelper::ReadMemory<int>(LTDatabase_Addr);
-        if (!database)
-            return 0;
-
-        int hAttribute = reinterpret_cast<DBGetAttribute_t>(GetVirtualFunction((void*)database, VTBL_DATABASE_GET_ATTRIBUTE))(database, hRecord, pszAttribute);
-        return reinterpret_cast<DBGetInt32_t>(GetVirtualFunction((void*)database, VTBL_DATABASE_GET_INT32))(database, hAttribute, 0, 0);
-    }
 
     static DWORD* __stdcall LayoutDBGetRect_Hook(DWORD* pRect, int hRecord, const char* pszAttribute, uint32_t nIndex)
     {
@@ -254,20 +212,15 @@ namespace ScreenDisplayHook
 
         DWORD addr_CScreenDisplay_Build = ScanModuleSignature(g_State.GameClient, "81 EC 24 01 00 00 53 55 56 57 68 ?? ?? ?? ?? 8B E9 E8 ?? ?? ?? ?? 8B 45 08 8B 0D ?? ?? ?? ?? 8B 31 33 DB 53 53 68", "CScreenDisplay_Build");
         DWORD addr_LayoutDBGetRect = ScanModuleSignature(g_State.GameClient, "8B 31 52 FF 56 58 8B 0D ?? ?? ?? ?? 50 8D 44 24 20 50 FF 96 94 00 00 00 D9 44 24 14 E8", "LayoutDBGetRect");
-        DWORD addr_RestartRender = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? C6 80 ?? ?? 00 00 01 8B 0D ?? ?? ?? ?? 8B 11 68 ?? ?? ?? ?? FF 92", "RestartRender");
 
         if (addr_CScreenDisplay_Build == 0 ||
             addr_LayoutDBGetRect == 0 ||
-            addr_RestartRender == 0)
+            LTClient_Addr == 0)
         {
             return;
         }
 
         LTDatabase_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_CScreenDisplay_Build + 0x1B);
-        InterfaceMgr_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x1);
-        SwitchingRenderModesOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x7);
-        LTClient_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0xE);
-        RunConsoleCommandOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x1B);
 
         HookHelper::ApplyHook((void*)(addr_LayoutDBGetRect - 0x3D), &LayoutDBGetRect_Hook, (LPVOID*)&LayoutDBGetRect);
         HookHelper::ApplyHook((void*)AddToggleByName_Addr, &AddToggleByName_Hook, (LPVOID*)&AddToggleByName);

@@ -109,6 +109,7 @@ static void ReadConfig()
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
     EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;
     LoadASIPlugins = IniHelper::ReadInteger("Extra", "LoadASIPlugins", 1) == 1;
+    EchoPatchMenu = IniHelper::ReadInteger("Extra", "EchoPatchMenu", 1) == 1;
     ShowErrors = IniHelper::ReadInteger("Extra", "ShowErrors", 1) == 1;
 
     // Get screen resolution
@@ -134,7 +135,7 @@ static void ReadConfig()
         ControllerBindings::ApplyAll();
     }
 
-    if (HUDScaling)
+    if (HUDScaling || EchoPatchMenu)
     {
         g_State.textDataMap =
         {
@@ -230,6 +231,13 @@ static void ApplyLAAPatch()
 {
     // The game can't start with a broken Steam DRM, its removal is offered even when the check is disabled
     bool isSteamStubBroken = LAAPatcher::IsSteamStubBroken(GetModuleHandleA(NULL));
+
+    // Already confirmed in the EchoPatch menu
+    if (LAAPatcher::IsPatchRequested())
+    {
+        CheckLAAPatch = 2;
+    }
+
     if (!CheckLAAPatch && !isSteamStubBroken) return;
 
     // The expansions are patched together with FEAR.exe

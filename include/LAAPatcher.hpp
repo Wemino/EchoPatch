@@ -22,6 +22,7 @@ namespace LAAPatcher
 	constexpr uint32_t STEAM_PATCHED_HASH = 0x8786B8E8;
 
 	constexpr wchar_t RESTART_ENV_VAR[] = L"ECHOPATCH_LAA_RESTART";
+	constexpr wchar_t PATCH_ENV_VAR[] = L"ECHOPATCH_LAA_PATCH";
 
 	enum class PatchResult
 	{
@@ -606,9 +607,50 @@ namespace LAAPatcher
 		}
 	}
 
+	inline bool StartNewInstance(const fs::path& exePath, bool applyPatch = false)
+	{
+		SetEnvironmentVariableW(RESTART_ENV_VAR, std::to_wstring(GetCurrentProcessId()).c_str());
+		SetEnvironmentVariableW(PATCH_ENV_VAR, applyPatch ? L"1" : NULL);
+
+		std::wstring commandLine = GetCommandLineW();
+		STARTUPINFOW si = { sizeof(si) };
+		PROCESS_INFORMATION pi = {};
+
+		if (!CreateProcessW(exePath.wstring().c_str(), commandLine.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+		{
+			DWORD err = GetLastError();
+			SetEnvironmentVariableW(RESTART_ENV_VAR, NULL);
+			SetEnvironmentVariableW(PATCH_ENV_VAR, NULL);
+			SetLastError(err);
+			return false;
+		}
+
+		CloseHandle(pi.hThread);
+		CloseHandle(pi.hProcess);
+		return true;
+	}
+
+	inline bool IsPatchRequested()
+	{
+		if (GetEnvironmentVariableW(PATCH_ENV_VAR, NULL, 0) == 0)
+			return false;
+
+		SetEnvironmentVariableW(PATCH_ENV_VAR, NULL);
+		return true;
+	}
+
 	// ========================
 	// Main Patching Logic
 	// ========================
+
+	// Also asked by the EchoPatch menu
+	inline std::string GetPatchQuestion(const fs::path& exeName, bool patchExpansions)
+	{
+		return "Your game executable is missing the 4GB/LAA patch. "
+			"This allows the game to use 4GB of memory instead of 2GB, which prevents crashes when loading levels.\n\n"
+			"EchoPatch will patch " + PathToString(exeName) + (patchExpansions ? " (and the expansions, if installed)" : "") + " and create a backup.\n\n"
+			"Apply patch and restart the game?";
+	}
 
 	// Also the case without the LAA flag when it is forced for every game (Proton)
 	inline bool HasLargeAddressSpace()
@@ -745,10 +787,7 @@ namespace LAAPatcher
 		if (showConfirmation)
 		{
 			const char* title = "4GB/Large Address Aware patch missing!";
-			std::string msg = "Your game executable is missing the 4GB/LAA patch. "
-				"This allows the game to use 4GB of memory instead of 2GB, which prevents crashes when loading levels.\n\n"
-				"EchoPatch will patch " + PathToString(exeName) + (patchExpansions ? " (and the expansions, if installed)" : "") + " and create a backup.\n\n"
-				"Apply patch and restart the game?\n\n"
+			std::string msg = GetPatchQuestion(exeName, patchExpansions) + "\n\n"
 				"(Selecting No disables this check, it can be enabled again by setting CheckLAAPatch=1 in the [Fixes] section of EchoPatch.ini)";
 
 			if (isSteamStubBroken)
@@ -773,26 +812,13 @@ namespace LAAPatcher
 			PatchExpansion(exePath.parent_path() / "FEARXP2" / "FEARXP2.exe");
 		}
 
-		// Restart with the same command line, the new instance waits for this one to exit
-		SetEnvironmentVariableW(RESTART_ENV_VAR, std::to_wstring(GetCurrentProcessId()).c_str());
-
-		std::wstring commandLine = GetCommandLineW();
-		STARTUPINFOW si = { sizeof(si) };
-		PROCESS_INFORMATION pi = {};
-
-		if (CreateProcessW(exePath.wstring().c_str(), commandLine.data(), NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi))
+		if (StartNewInstance(exePath))
 		{
-			CloseHandle(pi.hThread);
-			CloseHandle(pi.hProcess);
 			ExitProcess(0);
 		}
-		else
-		{
-			DWORD err = GetLastError();
-			SetEnvironmentVariableW(RESTART_ENV_VAR, NULL);
-			sprintf_s(error, "Patching completed successfully, but failed to restart the application.\nError: %d\n\nPlease restart the game manually.", err);
-			MessageBoxA(NULL, error, "EchoPatch - LAAPatcher Warning", MB_ICONWARNING);
-			return PatchResult::Patched;
-		}
+
+		sprintf_s(error, "Patching completed successfully, but failed to restart the application.\nError: %d\n\nPlease restart the game manually.", GetLastError());
+		MessageBoxA(NULL, error, "EchoPatch - LAAPatcher Warning", MB_ICONWARNING);
+		return PatchResult::Patched;
 	}
 }

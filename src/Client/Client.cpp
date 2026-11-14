@@ -46,7 +46,8 @@ void(__thiscall* PreviousWeapon)(DWORD*) = nullptr;
 unsigned __int8(__thiscall* GetWeaponSlot)(int, int) = nullptr;
 
 // HighResolutionReflections
-bool(__thiscall* RenderTargetGroupFXInit)(int, DWORD*) = nullptr;
+bool(__thiscall* RenderTargetGroupFXCreateRenderTarget)(int, uint32_t) = nullptr;
+bool(__thiscall* RenderTargetGroupFXUpdate)(int) = nullptr;
 
 // SSAAScale
 void(__thiscall* Camera_UpdateRenderTarget)(int) = nullptr;

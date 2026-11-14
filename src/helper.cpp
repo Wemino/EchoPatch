@@ -872,6 +872,31 @@ namespace HashHelper
 
 		static constexpr uint32_t IDS_HELP_VSYNC = FNV1a("IDS_HELP_VSYNC");
 		static constexpr uint32_t IDS_HELP_FPS_LIMIT = FNV1a("IDS_HELP_FPS_LIMIT");
+
+		static constexpr uint32_t IDS_SUPERSAMPLING = FNV1a("IDS_SUPERSAMPLING");
+		static constexpr uint32_t IDS_FIELD_OF_VIEW = FNV1a("IDS_FIELD_OF_VIEW");
+		static constexpr uint32_t IDS_HUD_SIZE = FNV1a("IDS_HUD_SIZE");
+		static constexpr uint32_t IDS_SMALL_TEXT_SIZE = FNV1a("IDS_SMALL_TEXT_SIZE");
+		static constexpr uint32_t IDS_SENSITIVITY_MULTIPLIER = FNV1a("IDS_SENSITIVITY_MULTIPLIER");
+
+		static constexpr uint32_t IDS_HELP_ECHOPATCH = FNV1a("IDS_HELP_ECHOPATCH");
+		static constexpr uint32_t IDS_HELP_ECHOPATCH_GRAPHICS = FNV1a("IDS_HELP_ECHOPATCH_GRAPHICS");
+		static constexpr uint32_t IDS_HELP_ECHOPATCH_DISPLAY = FNV1a("IDS_HELP_ECHOPATCH_DISPLAY");
+		static constexpr uint32_t IDS_HELP_ECHOPATCH_MOUSE = FNV1a("IDS_HELP_ECHOPATCH_MOUSE");
+		static constexpr uint32_t IDS_HELP_ECHOPATCH_MEMORY = FNV1a("IDS_HELP_ECHOPATCH_MEMORY");
+		static constexpr uint32_t IDS_HELP_HIGH_RESOLUTION_REFLECTIONS = FNV1a("IDS_HELP_HIGH_RESOLUTION_REFLECTIONS");
+		static constexpr uint32_t IDS_HELP_SUPERSAMPLING = FNV1a("IDS_HELP_SUPERSAMPLING");
+		static constexpr uint32_t IDS_HELP_MAXIMUM_MODEL_DETAIL = FNV1a("IDS_HELP_MAXIMUM_MODEL_DETAIL");
+		static constexpr uint32_t IDS_HELP_PERSISTENT_WORLD = FNV1a("IDS_HELP_PERSISTENT_WORLD");
+		static constexpr uint32_t IDS_HELP_SAVE_PERSISTENT_WORLD = FNV1a("IDS_HELP_SAVE_PERSISTENT_WORLD");
+		static constexpr uint32_t IDS_HELP_FIELD_OF_VIEW = FNV1a("IDS_HELP_FIELD_OF_VIEW");
+		static constexpr uint32_t IDS_HELP_HUD_SCALING = FNV1a("IDS_HELP_HUD_SCALING");
+		static constexpr uint32_t IDS_HELP_HUD_SIZE = FNV1a("IDS_HELP_HUD_SIZE");
+		static constexpr uint32_t IDS_HELP_SMALL_TEXT_SIZE = FNV1a("IDS_HELP_SMALL_TEXT_SIZE");
+		static constexpr uint32_t IDS_HELP_LETTERBOX = FNV1a("IDS_HELP_LETTERBOX");
+		static constexpr uint32_t IDS_HELP_SENSITIVITY_MULTIPLIER = FNV1a("IDS_HELP_SENSITIVITY_MULTIPLIER");
+		static constexpr uint32_t IDS_HELP_REDUCE_TEXTURE_MEMORY = FNV1a("IDS_HELP_REDUCE_TEXTURE_MEMORY");
+		static constexpr uint32_t IDS_HELP_4GB_PATCH = FNV1a("IDS_HELP_4GB_PATCH");
 	};
 
 	// Console variable name hashes

@@ -37,13 +37,17 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
     {
         case 'A':  // AntiAliasFSOverSample
         {
-            if (SSAAScale == 1.0f) break;
+            if (SSAAScale == 1.0f && !EchoPatchMenu) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
             if (varHash == HashHelper::CVarHashes::AntiAliasFSOverSample)
             {
-                fValue = 0.0f;
+                g_State.antiAliasFSOverSample = fValue;
+
+                if (SSAAScale != 1.0f)
+                    fValue = 0.0f;
             }
+            break;
         }
 
         case 'G':  // GPad*
@@ -71,12 +75,14 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 
         case 'M':  // ModelLODDistanceScale, MouseInvertY
         {
-            if (!NoLODBias && !SDLGamepadSupport) break;
+            if (!NoLODBias && !SDLGamepadSupport && !EchoPatchMenu) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
-            if (NoLODBias && varHash == HashHelper::CVarHashes::ModelLODDistanceScale)
+            if (varHash == HashHelper::CVarHashes::ModelLODDistanceScale)
             {
-                if (fValue > 0.0f)
+                g_State.modelLODDistanceScale = fValue;
+
+                if (NoLODBias && fValue > 0.0f)
                     fValue = 0.003f;
             }
             else if (SDLGamepadSupport && varHash == HashHelper::CVarHashes::MouseInvertY)
@@ -88,17 +94,22 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 
         case 'C':  // CameraFirstPersonLODBias, CrosshairSize, CheckPointOptimizeVideoMemory, CameraAttachedOffsetZ
         {
-            if (!NoLODBias && !HUDScaling && !OptimizeSaveSpeed && CustomFOV == 0.0f) break;
+            if (!NoLODBias && !HUDScaling && !OptimizeSaveSpeed && CustomFOV == 0.0f && !EchoPatchMenu) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
-            if (NoLODBias && varHash == HashHelper::CVarHashes::CameraFirstPersonLODBias)
+            if (varHash == HashHelper::CVarHashes::CameraFirstPersonLODBias)
             {
-                fValue = 0.0f;
+                g_State.cameraFirstPersonLODBias = fValue;
+
+                if (NoLODBias)
+                    fValue = 0.0f;
             }
-            else if (HUDScaling && varHash == HashHelper::CVarHashes::CrosshairSize)
+            else if (varHash == HashHelper::CVarHashes::CrosshairSize)
             {
                 g_State.crosshairSize = fValue;
-                fValue *= g_State.scalingFactorCrosshair;
+
+                if (HUDScaling)
+                    fValue *= g_State.scalingFactorCrosshair;
             }
             else if (OptimizeSaveSpeed && varHash == HashHelper::CVarHashes::CheckPointOptimizeVideoMemory)
             {
@@ -138,7 +149,7 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
 
         case 'P':  // Performance_Screen*, PerturbScale
         {
-            if (!(g_State.isInAutoDetect && AutoResolution != 0) && !HUDScaling) break;
+            if (!(g_State.isInAutoDetect && AutoResolution != 0) && !HUDScaling && !EchoPatchMenu) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
             if (g_State.isInAutoDetect && AutoResolution != 0)
@@ -152,22 +163,27 @@ static int __stdcall SetConsoleVariableFloat_Hook(const char* pszVarName, float 
                     fValue = static_cast<float>(g_State.screenWidth);
                 }
             }
-            if (HUDScaling && varHash == HashHelper::CVarHashes::PerturbScale)
+            if (varHash == HashHelper::CVarHashes::PerturbScale)
             {
                 g_State.perturbScale = fValue;
-                fValue *= g_State.scalingFactorCrosshair;
+
+                if (HUDScaling)
+                    fValue *= g_State.scalingFactorCrosshair;
             }
             break;
         }
 
         case 'U':  // UseTextScaling
         {
-            if (!HUDScaling) break;
+            if (!HUDScaling && !EchoPatchMenu) break;
 
             const uint32_t varHash = HashHelper::FNV1aRuntime(pszVarName);
             if (varHash == HashHelper::CVarHashes::UseTextScaling)
             {
-                fValue = 0.0f;
+                g_State.useTextScaling = fValue;
+
+                if (HUDScaling)
+                    fValue = 0.0f;
             }
             break;
         }

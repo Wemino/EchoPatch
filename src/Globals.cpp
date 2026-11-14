@@ -94,6 +94,7 @@ struct GlobalState
 	float scalingFactorCrosshair = 0.0f;
 	float crosshairSize = 0.0f;
 	float perturbScale = 0.5f;
+	float useTextScaling = 0.0f;
 	bool updateHUD = false;
 	bool isRenderingHUD = false;
 	DWORD crosshairThicknessAddr = 0;
@@ -147,6 +148,18 @@ struct GlobalState
 	int ssaaHeight = 0;
 	int cameraRenderTargetOffset = 0;
 	bool isRenderingSSAAScene = false;
+	float antiAliasFSOverSample = 0.0f;
+
+	// ======================
+	// NoLODBias
+	// ======================
+	float modelLODDistanceScale = 0.0f;
+	float cameraFirstPersonLODBias = 0.0f;
+
+	// ======================
+	// DisableLetterbox
+	// ======================
+	DWORD letterboxAddr = 0;
 
 	// ======================
 	// Controller State
@@ -400,6 +413,7 @@ int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
 bool EnableCrashHandler = false;
 bool LoadASIPlugins = false;
+bool EchoPatchMenu = false;
 bool ShowErrors = false;
 
 // Accessor for signature scanning

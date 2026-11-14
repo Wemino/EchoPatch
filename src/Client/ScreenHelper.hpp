@@ -20,6 +20,13 @@ namespace ScreenHelper
     static uintptr_t Default_Addr = 0;
     static uintptr_t OperatorNew_Addr = 0;
     static uintptr_t CreateTextItem_Addr = 0;
+    static uintptr_t LTDatabase_Addr = 0;
+    static uintptr_t MsgBoxShow_Addr = 0;
+    static uintptr_t InterfaceMgr_Addr = 0;
+    static uintptr_t MessageBoxOffset = 0;
+    static uintptr_t LTClient_Addr = 0;
+    static uintptr_t SwitchingRenderModesOffset = 0;
+    static uintptr_t RunConsoleCommandOffset = 0;
 
     using AddString_t = void(__thiscall*)(int*, const wchar_t*);
     using CreateTexRef_t = void(__thiscall*)(int, int*, const char*);
@@ -29,16 +36,26 @@ namespace ScreenHelper
     using ScreenTerm_t = void(__thiscall*)(int*);
     using ScreenUpdateData_t = void(__thiscall*)(int*, bool);
     using SetCurrentScreen_t = bool(__thiscall*)(int, int);
+    using DBGetAttribute_t = int(__thiscall*)(int, int, const char*);
+    using DBGetInt32_t = int(__thiscall*)(int, int, unsigned int, int);
+    using MsgBoxCallback_t = void(__cdecl*)(bool, void*, void*);
+    using MsgBoxShow_t = void(__thiscall*)(int, const wchar_t*, void*, uint32_t, bool);
+    using RunConsoleCommand_t = int(__thiscall*)(int, const char*);
 
     // CBaseScreen virtual functions
     static constexpr int VTBL_SCREEN_ON_COMMAND = 1;
     static constexpr int VTBL_SCREEN_INIT = 2;
     static constexpr int VTBL_SCREEN_TERM = 3;
+    static constexpr int VTBL_SCREEN_BUILD = 4;
     static constexpr int VTBL_SCREEN_ON_FOCUS = 8;
     static constexpr int VTBL_SCREEN_UPDATE_DATA = 26;
 
     // CScreenMgr virtual functions
     static constexpr int VTBL_SCREENMGR_SET_CURRENT_SCREEN = 17;
+
+    // ILTDatabase virtual functions
+    static constexpr int VTBL_DATABASE_GET_ATTRIBUTE = 22;
+    static constexpr int VTBL_DATABASE_GET_INT32 = 31;
 
     // CBaseScreen members
     static constexpr int SCREEN_BUILT_OFFSET = 0x5;
@@ -48,8 +65,29 @@ namespace ScreenHelper
     static constexpr int SCREEN_ITEM_SPACING_INDEX = 57;
     static constexpr int SCREEN_RECT_LEFT_INDEX = 60;
     static constexpr int SCREEN_RECT_TOP_INDEX = 61;
+    static constexpr int SCREEN_RECT_RIGHT_INDEX = 62;
     static constexpr int SCREEN_DEFAULT_POS_X_INDEX = 69;
     static constexpr int SCREEN_DEFAULT_POS_Y_INDEX = 70;
+
+    // CMessageBox types
+    static constexpr int LTMB_OK = 0;
+    static constexpr int LTMB_YESNO = 1;
+
+    // CMessageBox creation struct (MBCreate)
+    struct MessageBoxCreate
+    {
+        int eType;
+        MsgBoxCallback_t pFn;
+        int nHotKey;
+        void* pUserData;
+        void* pData;
+        const wchar_t* pString;
+        uint32_t nMaxChars;
+        int eInput;
+        void* pFilterFn;
+        uint32_t nFlags;
+        bool bPreventEmptyString;
+    };
 
     // =========================================================================
     // Wrapper Functions
@@ -418,6 +456,51 @@ namespace ScreenHelper
         return textItem;
     }
 
+    static int GetLayoutInt32(int hRecord, const char* pszAttribute)
+    {
+        int database = LTDatabase_Addr ? MemoryHelper::ReadMemory<int>(LTDatabase_Addr) : 0;
+        if (!database)
+            return 0;
+
+        int hAttribute = reinterpret_cast<DBGetAttribute_t>(GetVirtualFunction((void*)database, VTBL_DATABASE_GET_ATTRIBUTE))(database, hRecord, pszAttribute);
+        return reinterpret_cast<DBGetInt32_t>(GetVirtualFunction((void*)database, VTBL_DATABASE_GET_INT32))(database, hAttribute, 0, 0);
+    }
+
+    // Yes/No message box when there is a callback, OK message box otherwise
+    static bool ShowMessageBox(const wchar_t* text, MsgBoxCallback_t callback = nullptr, void* userData = nullptr, bool defaultReturn = true)
+    {
+        int interfaceMgr = InterfaceMgr_Addr ? MemoryHelper::ReadMemory<int>(InterfaceMgr_Addr) : 0;
+        if (!interfaceMgr || !MsgBoxShow_Addr)
+            return false;
+
+        MessageBoxCreate mb = {};
+        mb.eType = callback ? LTMB_YESNO : LTMB_OK;
+        mb.pFn = callback;
+        mb.nHotKey = -1;
+        mb.pUserData = userData;
+
+        // Calls MsgBoxShow_Hook when installed, keeping g_State.isMsgBoxVisible up to date
+        reinterpret_cast<MsgBoxShow_t>(MsgBoxShow_Addr)(interfaceMgr + (int)MessageBoxOffset, text, &mb, 0, defaultReturn);
+        return true;
+    }
+
+    static void RestartRender()
+    {
+        int interfaceMgr = InterfaceMgr_Addr ? MemoryHelper::ReadMemory<int>(InterfaceMgr_Addr) : 0;
+        int ltClient = LTClient_Addr ? MemoryHelper::ReadMemory<int>(LTClient_Addr) : 0;
+
+        if (!interfaceMgr || !ltClient)
+            return;
+
+        bool* pSwitchingRenderModes = reinterpret_cast<bool*>(interfaceMgr + SwitchingRenderModesOffset);
+        RunConsoleCommand_t runConsoleCommand = reinterpret_cast<RunConsoleCommand_t>(MemoryHelper::ReadMemory<uintptr_t>(MemoryHelper::ReadMemory<uintptr_t>(ltClient) + RunConsoleCommandOffset));
+
+        // Same as the display options when VSync is changed
+        *pSwitchingRenderModes = true;
+        runConsoleCommand(ltClient, "RestartRender");
+        *pSwitchingRenderModes = false;
+    }
+
     // =========================================================================
     // Initialization
     // =========================================================================
@@ -482,6 +565,28 @@ namespace ScreenHelper
 
         // Only needed by the menus made of text items
         CreateTextItem_Addr = ScanModuleSignature(g_State.GameClient, "83 EC 30 56 57 68 EC 00 00 00 8B F1 E8", "CreateTextItem");
+
+        // Only needed by the menus asking for confirmation
+        DWORD addr_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow", -1, false);
+        DWORD addr_ConfirmRestore = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 50 68 ?? ?? ?? ?? 81 C1 ?? ?? ?? ?? C7 44 24 ?? 01 00 00 00 C7 44 24 ?? ?? ?? ?? ?? 89 74 24 ?? E8", "ConfirmRestore", -1, false);
+
+        if (addr_MsgBoxShow != 0 && addr_ConfirmRestore != 0)
+        {
+            MsgBoxShow_Addr = addr_MsgBoxShow;
+            InterfaceMgr_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_ConfirmRestore + 0x2);
+            MessageBoxOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_ConfirmRestore + 0xE);
+        }
+
+        // Only needed by the menus restarting the renderer
+        DWORD addr_RestartRender = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? C6 80 ?? ?? 00 00 01 8B 0D ?? ?? ?? ?? 8B 11 68 ?? ?? ?? ?? FF 92", "RestartRender", -1, false);
+
+        if (addr_RestartRender != 0)
+        {
+            InterfaceMgr_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x1);
+            SwitchingRenderModesOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x7);
+            LTClient_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0xE);
+            RunConsoleCommandOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_RestartRender + 0x1B);
+        }
 
         s_isAvailable = true;
         return true;

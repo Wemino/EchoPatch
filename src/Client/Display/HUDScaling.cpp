@@ -115,7 +115,7 @@ static int __fastcall DBGetRecord_Hook(int thisPtr, int, int Record, char* Attri
 	int hAttribute = DBGetRecord(thisPtr, Record, Attribute);
 	pendingDBScale.hAttribute = 0;
 
-	if (!hAttribute || !Record || (Attribute[0] != 'T' && Attribute[0] != 'A'))
+	if (!HUDScaling || !hAttribute || !Record || (Attribute[0] != 'T' && Attribute[0] != 'A'))
 		return hAttribute;
 
 	const char* hudRecordString = *reinterpret_cast<const char**>(Record);

@@ -150,6 +150,7 @@
     <ClInclude Include="..\src\Client\Graphics\HighResolutionReflections.cpp" />
     <ClInclude Include="..\src\Client\Graphics\ScreenDisplayHook.hpp" />
     <ClInclude Include="..\src\Client\Graphics\SSAAScale.cpp" />
+    <ClInclude Include="..\src\Client\ScreenEchoPatchHook.hpp" />
     <ClInclude Include="..\src\Client\ScreenHelper.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFX.hpp" />
     <ClInclude Include="..\src\ClientFX\ClientFXPatch.cpp" />

@@ -27,17 +27,12 @@ namespace ScreenJoystickHook
 
     // Address storage
     static uintptr_t JoystickConstructor_Addr = 0;
-    static uintptr_t MsgBoxShow_Addr = 0;
-    static uintptr_t InterfaceMgr_Addr = 0;
-    static uintptr_t MessageBoxOffset = 0;
 
     static bool(__thiscall* CScreenJoystick_Build)(int*) = nullptr;
     static uint32_t(__thiscall* CScreenJoystick_OnCommand)(int*, uint32_t, uint32_t, uint32_t) = nullptr;
     static int* (__thiscall* GetScreenFromID)(int, int) = nullptr;
 
     using JoystickConstructor_t = int* (__thiscall*)(void*);
-    using MsgBoxCallback_t = void(__cdecl*)(bool, void*, void*);
-    using MsgBoxShow_t = void(__thiscall*)(int, const wchar_t*, void*, uint32_t, bool);
 
     static constexpr size_t JOYSTICK_SCREEN_SIZE = 0x1D8;
 
@@ -55,7 +50,6 @@ namespace ScreenJoystickHook
     static constexpr uint32_t CMD_RESTORE_BINDINGS = 0x4A02;
 
     static constexpr int HOLD_DURATION_STEP = 50;
-    static constexpr int LTMB_YESNO = 1;
 
     enum CustomScreen
     {
@@ -85,22 +79,6 @@ namespace ScreenJoystickHook
         { L"D-PAD",                 L"D-Pad",                 "IDS_HELP_BINDINGS_DPAD",      8,  4 },
         { L"STICKS & MENU BUTTONS", L"Sticks & Menu Buttons", "IDS_HELP_BINDINGS_STICKS",    12, 4 },
         { L"EXTRA BUTTONS",         L"Extra Buttons",         "IDS_HELP_BINDINGS_EXTRA",     16, 5 },
-    };
-
-    // CMessageBox creation struct (MBCreate)
-    struct MessageBoxCreate
-    {
-        int eType;
-        MsgBoxCallback_t pFn;
-        int nHotKey;
-        void* pUserData;
-        void* pData;
-        const wchar_t* pString;
-        uint32_t nMaxChars;
-        int eInput;
-        void* pFilterFn;
-        uint32_t nFlags;
-        bool bPreventEmptyString;
     };
 
     static bool s_buttonMappingAvailable = false;
@@ -478,22 +456,10 @@ namespace ScreenJoystickHook
 
     static void ShowRestoreBindingsConfirm(int* screen)
     {
-        int interfaceMgr = InterfaceMgr_Addr ? MemoryHelper::ReadMemory<int>(InterfaceMgr_Addr) : 0;
-
-        if (!interfaceMgr || !MsgBoxShow_Addr)
+        if (!ShowMessageBox(L"Restore the default controller button mapping?", &RestoreBindingsConfirm_Callback, screen))
         {
             ApplyDefaultBindings(screen);
-            return;
         }
-
-        MessageBoxCreate mb = {};
-        mb.eType = LTMB_YESNO;
-        mb.pFn = &RestoreBindingsConfirm_Callback;
-        mb.nHotKey = -1;
-        mb.pUserData = screen;
-
-        // Calls MsgBoxShow_Hook when installed, keeping g_State.isMsgBoxVisible up to date
-        reinterpret_cast<MsgBoxShow_t>(MsgBoxShow_Addr)(interfaceMgr + (int)MessageBoxOffset, L"Restore the default controller button mapping?", &mb, 0, true);
     }
 
     static uint32_t __fastcall CScreenJoystick_OnCommand_Hook(int* thisPtr, int, uint32_t command, uint32_t param1, uint32_t param2)
@@ -742,16 +708,6 @@ namespace ScreenJoystickHook
         }
 
         JoystickConstructor_Addr = addr_JoystickConstructor;
-
-        DWORD addr_MsgBoxShow = ScanModuleSignature(g_State.GameClient, "83 EC 70 56 8B F1 8A 86 78 05 00 00 84 C0 0F 85", "MsgBoxShow", -1, false);
-        DWORD addr_ConfirmRestore = ScanModuleSignature(g_State.GameClient, "8B 0D ?? ?? ?? ?? 50 68 ?? ?? ?? ?? 81 C1 ?? ?? ?? ?? C7 44 24 ?? 01 00 00 00 C7 44 24 ?? ?? ?? ?? ?? 89 74 24 ?? E8", "ConfirmRestore", -1, false);
-
-        if (addr_MsgBoxShow != 0 && addr_ConfirmRestore != 0)
-        {
-            MsgBoxShow_Addr = addr_MsgBoxShow;
-            InterfaceMgr_Addr = MemoryHelper::ReadMemory<uintptr_t>(addr_ConfirmRestore + 0x2);
-            MessageBoxOffset = MemoryHelper::ReadMemory<uintptr_t>(addr_ConfirmRestore + 0xE);
-        }
 
         return HookHelper::ApplyHook((void*)addr_GetScreenFromID, &GetScreenFromID_Hook, (LPVOID*)&GetScreenFromID);
     }
