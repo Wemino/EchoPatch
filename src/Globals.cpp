@@ -91,14 +91,18 @@ struct GlobalState
 	// ======================
 	float scalingFactor = 0.0f;
 	float scalingFactorText = 0.0f;
+	float scalingFactorScores = 0.0f;
 	float scalingFactorCrosshair = 0.0f;
 	float crosshairSize = 0.0f;
 	float perturbScale = 0.5f;
 	float useTextScaling = 0.0f;
 	bool updateHUD = false;
 	bool isRenderingHUD = false;
+	bool isInitializingNavMarkers = false;
 	DWORD crosshairThicknessAddr = 0;
 	DWORD pausedWidthAddr = 0;
+	DWORD scoresPaddingAddr = 0;
+	DWORD interfaceResMgrAddr = 0;
 
 	// ======================
 	// HUD Elements
@@ -107,6 +111,7 @@ struct GlobalState
 	int CHUDPaused = 0;
 	int CHUDWeaponList = 0;
 	int CHUDGrenadeList = 0;
+	int CHUDNavMarkerMgr = 0;
 
 	// ======================
 	// Resolution Settings

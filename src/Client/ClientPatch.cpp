@@ -352,6 +352,43 @@ static void ApplyControllerClientPatch()
 	ScreenJoystickHook::InstallHook();
 }
 
+static void ApplyHUDNavMarkerScalingClientPatch()
+{
+	DWORD addr_HUDNavMarkerRender = ScanModuleSignature(g_State.GameClient, "83 EC ?? 56 8B F1 E8 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? 00 00 A1 ?? ?? ?? ?? 53 8B 58 28", "HUDNavMarkerRender");
+	DWORD addr_HUDNavMarkerRenderArrow = ScanModuleSignature(g_State.GameClient, "83 EC 44 56 8B F1 E8 ?? ?? ?? ?? 84 C0 0F 84 ?? ?? 00 00 8B 86", "HUDNavMarkerRenderArrow");
+	DWORD addr_HUDNavMarkerMgrInit = ScanModuleSignature(g_State.GameClient, "83 EC 28 53 56 57 8B F1 6A 08 8D 8E", "HUDNavMarkerMgrInit");
+	DWORD addr_HUDNavMarkerMgrAddMarker = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 4C 24 08 85 C9 74 ?? 8A 86 D8 01 00 00", "HUDNavMarkerMgrAddMarker");
+	DWORD addr_GUIStringSetSourceString = ScanModuleSignature(g_State.GameClient, "8B 44 24 04 85 C0 74 ?? 89 41 2C", "GUIStringSetSourceString");
+	DWORD addr_HUDNavMarkerScaleChanged = 0;
+
+	// Extraction Point doesn't scale the teammates nav markers
+	if (g_State.CurrentFEARGame != FEARXP)
+	{
+		addr_HUDNavMarkerScaleChanged = ScanModuleSignature(g_State.GameClient, "83 EC 0C 53 8B D9 8B 0D ?? ?? ?? ?? 8B 41 1C 85 C0 56 8D 71 1C", "HUDNavMarkerScaleChanged");
+	}
+
+	if (addr_HUDNavMarkerRender == 0 ||
+		addr_HUDNavMarkerRenderArrow == 0 ||
+		addr_HUDNavMarkerMgrInit == 0 ||
+		addr_HUDNavMarkerMgrAddMarker == 0 ||
+		addr_GUIStringSetSourceString == 0 ||
+		(addr_HUDNavMarkerScaleChanged == 0 && g_State.CurrentFEARGame != FEARXP)) {
+		return;
+	}
+
+	HookHelper::ApplyHook((void*)addr_HUDNavMarkerRender, &HUDNavMarkerRender_Hook, (LPVOID*)&HUDNavMarkerRender);
+	HookHelper::ApplyHook((void*)addr_HUDNavMarkerRenderArrow, &HUDNavMarkerRenderArrow_Hook, (LPVOID*)&HUDNavMarkerRenderArrow);
+	HookHelper::ApplyHook((void*)addr_HUDNavMarkerMgrInit, &HUDNavMarkerMgrInit_Hook, (LPVOID*)&HUDNavMarkerMgrInit);
+	HUDNavMarkerMgrAddMarker = reinterpret_cast<decltype(HUDNavMarkerMgrAddMarker)>(addr_HUDNavMarkerMgrAddMarker);
+	GUIStringSetSourceString = reinterpret_cast<decltype(GUIStringSetSourceString)>(addr_GUIStringSetSourceString);
+
+	if (g_State.CurrentFEARGame != FEARXP)
+	{
+		g_State.interfaceResMgrAddr = MemoryHelper::ReadMemory<DWORD>(addr_HUDNavMarkerScaleChanged + 8);
+		HookHelper::ApplyHook((void*)addr_HUDNavMarkerScaleChanged, &HUDNavMarkerScaleChanged_Hook, (LPVOID*)&HUDNavMarkerScaleChanged);
+	}
+}
+
 static void ApplyHUDScalingClientPatch()
 {
     if (!HUDScaling && !EchoPatchMenu) return;
@@ -367,6 +404,9 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_GUIStringRender = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 28 56 8B F1 57 8D 4E 30 FF 15", "GUIStringRender");
     DWORD addr_CrosshairThickness = ScanModuleSignature(g_State.GameClient, "7A 3A D9 05 ?? ?? ?? ?? D8 44 24", "CrosshairThickness");
     DWORD addr_PausedWidth = ScanModuleSignature(g_State.GameClient, "C7 83 30 04 00 00 80 02 00 00 89 8B 24 04", "PausedWidth");
+    DWORD addr_ScoresPadding = ScanModuleSignature(g_State.GameClient, "83 C1 10 8B C1 89 4C 34 ?? 8B 8D ?? ?? 00 00", "ScoresPadding");
+    DWORD addr_HUDTimerInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 FF 50 20 8B 16 8B CE FF 52 14", "HUDTimerInit");
+    DWORD addr_HUDCTFFlagInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 FF 50 20 8B 16 8B CE FF 52 18 8B 06 6A 00 8B CE C6 46 68 02", "HUDCTFFlagInit");
 
     if (addr_HUDTerminate == 0 ||
         addr_HUDInit == 0 ||
@@ -378,7 +418,10 @@ static void ApplyHUDScalingClientPatch()
         addr_HUDPausedInit == 0 ||
         addr_GUIStringRender == 0 ||
         addr_CrosshairThickness == 0 ||
-        addr_PausedWidth == 0) {
+        addr_PausedWidth == 0 ||
+        addr_ScoresPadding == 0 ||
+        addr_HUDTimerInit == 0 ||
+        addr_HUDCTFFlagInit == 0) {
         return;
     }
 
@@ -391,8 +434,13 @@ static void ApplyHUDScalingClientPatch()
     HookHelper::ApplyHook((void*)addr_GUIStringRender, &GUIStringRender_Hook, (LPVOID*)&GUIStringRender);
     g_State.crosshairThicknessAddr = MemoryHelper::ReadMemory<DWORD>(addr_CrosshairThickness + 4);
     g_State.pausedWidthAddr = addr_PausedWidth + 6;
+    g_State.scoresPaddingAddr = addr_ScoresPadding + 2;
 	HUDTerminate = reinterpret_cast<decltype(HUDTerminate)>(addr_HUDTerminate);
 	HUDWeaponListReset = reinterpret_cast<decltype(HUDWeaponListReset)>(addr_HUDWeaponListReset);
+	HUDTimerInit = reinterpret_cast<decltype(HUDTimerInit)>(addr_HUDTimerInit);
+	HUDCTFFlagInit = reinterpret_cast<decltype(HUDCTFFlagInit)>(addr_HUDCTFFlagInit);
+
+	ApplyHUDNavMarkerScalingClientPatch();
 }
 
 static void ApplySSAAScaleClientPatch()
@@ -635,6 +683,7 @@ static void ApplyGameDatabaseHook()
         HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x58), &DBGetRecord_Hook, (LPVOID*)&DBGetRecord);
         HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x7C), &DBGetInt32_Hook, (LPVOID*)&DBGetInt32);
         HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x80), &DBGetFloat_Hook, (LPVOID*)&DBGetFloat);
+        HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x94), &DBGetVector4_Hook, (LPVOID*)&DBGetVector4);
         //HookHelper::ApplyHook((void*)*(int*)(pLayoutDB + 0x84), &DBGetString_Hook, (LPVOID*)&DBGetString);
     }
 }

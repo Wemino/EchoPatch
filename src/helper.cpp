@@ -828,10 +828,15 @@ namespace HashHelper
 		static constexpr uint32_t HUDSlowMo2 = FNV1a("HUDSlowMo2");
 		static constexpr uint32_t HUDFlashlight = FNV1a("HUDFlashlight");
 		static constexpr uint32_t HUDHealth = FNV1a("HUDHealth");
+		static constexpr uint32_t HUDScores = FNV1a("HUDScores");
+		static constexpr uint32_t HUDRespawn = FNV1a("HUDRespawn");
+		static constexpr uint32_t HUDControlPointBar = FNV1a("HUDControlPointBar");
+		static constexpr uint32_t HUDDialogue = FNV1a("HUDDialogue");
 		static constexpr uint32_t AdditionalRect = FNV1a("AdditionalRect");
 		static constexpr uint32_t AdditionalFloat = FNV1a("AdditionalFloat");
 		static constexpr uint32_t AdditionalInt = FNV1a("AdditionalInt");
 		static constexpr uint32_t TextSize = FNV1a("TextSize");
+		static constexpr uint32_t NavMarkerTextSize = FNV1a("Text Size");
 		static constexpr uint32_t FrameRect = FNV1a("FrameRect");
 	};
 

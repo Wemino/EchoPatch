@@ -737,6 +737,9 @@ static void UpdateHUDScaling()
 		g_State.scalingFactorText = 1.0f;
 	}
 
+	// The scoreboard is sized in pixels, at most as large as it is at 640x480 so it stays on the screen
+	g_State.scalingFactorScores = std::min(g_State.scalingFactorText, std::min(g_State.currentWidth / 640.0f, g_State.currentHeight / 480.0f));
+
 	// Scale the crosshair lines thickness and the width of the pause message
 	if (g_State.crosshairThicknessAddr != 0 && g_State.pausedWidthAddr != 0)
 	{
@@ -744,10 +747,17 @@ static void UpdateHUDScaling()
 		MemoryHelper::WriteMemory<int>(g_State.pausedWidthAddr, static_cast<int>(std::lround(640 * g_State.scalingFactor)));
 	}
 
+	// Scale the bottom padding of the scoreboard frames, it holds the rows once their text is scaled
+	if (g_State.scoresPaddingAddr != 0)
+	{
+		MemoryHelper::WriteMemory<BYTE>(g_State.scoresPaddingAddr, static_cast<BYTE>(std::min(std::lround(16 * g_State.scalingFactorScores), 127L)));
+	}
+
 	// If the resolution is updated
 	if (g_State.CHUDMgr != 0)
 	{
 		bool isHUDVisible = *(bool*)(g_State.CHUDMgr + 0x8);
+		HUDItemsState hudItemsState = SaveHUDItemsState();
 
 		// Reinitialize the HUD
 		HUDTerminate(g_State.CHUDMgr);
@@ -759,6 +769,7 @@ static void UpdateHUDScaling()
 		g_State.updateHUD = true;
 
 		*(bool*)(g_State.CHUDMgr + 0x8) = isHUDVisible;
+		RestoreHUDItemsState(hudItemsState);
 
 		// Update the size of the crosshair
 		SetConsoleVariableFloat("CrosshairSize", g_State.crosshairSize * g_State.scalingFactorCrosshair);

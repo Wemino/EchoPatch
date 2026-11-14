@@ -81,10 +81,19 @@ float* (__stdcall* GetRectF)(DWORD*, int, char*, int) = nullptr;
 int(__thiscall* DBGetRecord)(int, int, char*) = nullptr;
 int(__thiscall* DBGetInt32)(int, int, unsigned int, int) = nullptr;
 float(__thiscall* DBGetFloat)(int, int, unsigned int, float) = nullptr;
+float* (__thiscall* DBGetVector4)(int, float*, int, unsigned int, float*) = nullptr;
 const char* (__thiscall* DBGetString)(int, int, unsigned int, int) = nullptr;
 void(__stdcall* InitAdditionalTextureData)(int, int, int*, DWORD*, DWORD*, float) = nullptr;
 void(__thiscall* HUDPausedInit)(int) = nullptr;
 int(__thiscall* GUIStringRender)(int) = nullptr;
+void(__thiscall* HUDNavMarkerRender)(int) = nullptr;
+void(__thiscall* HUDNavMarkerRenderArrow)(int) = nullptr;
+void(__thiscall* HUDNavMarkerScaleChanged)(int) = nullptr;
+bool(__thiscall* HUDNavMarkerMgrInit)(int) = nullptr;
+void(__thiscall* HUDNavMarkerMgrAddMarker)(int, int) = nullptr;
+void(__thiscall* GUIStringSetSourceString)(int, int) = nullptr;
+bool(__thiscall* HUDTimerInit)(int) = nullptr;
+bool(__thiscall* HUDCTFFlagInit)(int) = nullptr;
 
 // AutoResolution
 void(__cdecl* AutoDetectPerformanceSettings)() = nullptr;

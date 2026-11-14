@@ -98,7 +98,7 @@ static float* __stdcall GetRectF_Hook(DWORD* a1, int Record, char* Attribute, in
 	const char* hudRecordString = *reinterpret_cast<const char**>(Record);
 	const uint32_t elemHash = HashHelper::FNV1aRuntime(hudRecordString);
 
-	if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight)
+	if (elemHash == HashHelper::HUDHashes::HUDSlowMo2 || elemHash == HashHelper::HUDHashes::HUDFlashlight || elemHash == HashHelper::HUDHashes::HUDDialogue)
 	{
 		result[0] *= g_State.scalingFactor;
 		result[1] *= g_State.scalingFactor;
@@ -131,6 +131,7 @@ static int __fastcall DBGetRecord_Hook(int thisPtr, int, int Record, char* Attri
 			{
 				case 1: scalingFactor *= 0.95f; break;
 				case 2: scalingFactor = g_State.scalingFactorText; break;
+				case 3: scalingFactor = g_State.scalingFactorScores; break;
 			}
 			pendingDBScale = { hAttribute, -1, scalingFactor };
 		}
@@ -147,6 +148,26 @@ static int __fastcall DBGetRecord_Hook(int thisPtr, int, int Record, char* Attri
 	else if (attrHash == HashHelper::HUDHashes::AdditionalInt && HashHelper::FNV1aRuntime(hudRecordString) == HashHelper::HUDHashes::HUDHealth)
 	{
 		pendingDBScale = { hAttribute, 2, g_State.scalingFactor };
+	}
+	// HUDScores columns widths and header text size
+	else if (attrHash == HashHelper::HUDHashes::AdditionalInt && HashHelper::FNV1aRuntime(hudRecordString) == HashHelper::HUDHashes::HUDScores)
+	{
+		pendingDBScale = { hAttribute, -1, g_State.scalingFactorScores };
+	}
+	// HUDRespawn timer and penalty text sizes
+	else if (attrHash == HashHelper::HUDHashes::AdditionalInt && HashHelper::FNV1aRuntime(hudRecordString) == HashHelper::HUDHashes::HUDRespawn)
+	{
+		pendingDBScale = { hAttribute, -1, g_State.scalingFactor };
+	}
+	// HUDControlPointBar meters and icon rectangles
+	else if (attrHash == HashHelper::HUDHashes::AdditionalRect && HashHelper::FNV1aRuntime(hudRecordString) == HashHelper::HUDHashes::HUDControlPointBar)
+	{
+		pendingDBScale = { hAttribute, -1, g_State.scalingFactor };
+	}
+	// Nav markers range, its texture is made at this size
+	else if (attrHash == HashHelper::HUDHashes::NavMarkerTextSize && g_State.isInitializingNavMarkers)
+	{
+		pendingDBScale = { hAttribute, -1, g_State.scalingFactor };
 	}
 
 	return hAttribute;
@@ -180,6 +201,22 @@ static float __fastcall DBGetFloat_Hook(int thisPtr, int, int hAttribute, unsign
 
 	pendingDBScale.hAttribute = 0;
 	return result * pendingDBScale.scalingFactor;
+}
+
+// Read by 'GetRect' for the rectangles
+static float* __fastcall DBGetVector4_Hook(int thisPtr, int, float* pResult, int hAttribute, unsigned int nValueIndex, float* vDefault)
+{
+	float* result = DBGetVector4(thisPtr, pResult, hAttribute, nValueIndex, vDefault);
+
+	if (!IsPendingDBScale(hAttribute, nValueIndex))
+		return result;
+
+	pendingDBScale.hAttribute = 0;
+	result[0] *= pendingDBScale.scalingFactor;
+	result[1] *= pendingDBScale.scalingFactor;
+	result[2] *= pendingDBScale.scalingFactor;
+	result[3] *= pendingDBScale.scalingFactor;
+	return result;
 }
 
 static const char* __fastcall DBGetString_Hook(int thisPtr, int, int hAttribute, unsigned int nValueIndex, int pszDefault)
@@ -365,4 +402,202 @@ static int __fastcall GUIStringRender_Hook(int thisPtr, int)
 	int result = GUIStringRender(thisPtr);
 	*(BYTE*)(thisPtr + 0x54) = dropShadow;
 	return result;
+}
+
+// The nav markers sizes are in pixels, those of the teammates are scaled by the X and Y ratios
+static float GetNavMarkerScalingFactor(int thisPtr)
+{
+	// Only the games scaling the teammates have the flag
+	if (g_State.interfaceResMgrAddr == 0 || !*(bool*)(thisPtr + 0x2D4))
+		return g_State.scalingFactor;
+
+	// The size they have in 4:3, with the custom scaling
+	int interfaceResMgr = MemoryHelper::ReadMemory<int>(g_State.interfaceResMgrAddr);
+	float ratio = std::min(*(float*)(interfaceResMgr + 0x10), *(float*)(interfaceResMgr + 0x14));
+	return ratio * g_State.scalingFactor / std::max(1.0f, std::min(g_State.currentWidth / BASE_WIDTH, g_State.currentHeight / BASE_HEIGHT));
+}
+
+// Scale the icon, arrow, range and text offsets of a nav marker while it renders
+static void RenderScaledNavMarker(void(__thiscall* render)(int), int thisPtr)
+{
+	float* vectors = reinterpret_cast<float*>(thisPtr + 0x25C);
+	float defaultVectors[10];
+	memcpy(defaultVectors, vectors, sizeof(defaultVectors));
+
+	float scalingFactor = GetNavMarkerScalingFactor(thisPtr);
+	for (int i = 0; i < 10; i++)
+	{
+		vectors[i] *= scalingFactor;
+	}
+
+	// Already scaled, the ratios aren't applied
+	bool* isScaled = reinterpret_cast<bool*>(thisPtr + 0x2D4);
+	bool wasScaled = false;
+	if (g_State.interfaceResMgrAddr != 0)
+	{
+		wasScaled = *isScaled;
+		*isScaled = false;
+	}
+
+	render(thisPtr);
+
+	if (g_State.interfaceResMgrAddr != 0) *isScaled = wasScaled;
+	memcpy(vectors, defaultVectors, sizeof(defaultVectors));
+}
+
+static void __fastcall HUDNavMarkerRender_Hook(int thisPtr, int)
+{
+	if (!HUDScaling)
+	{
+		HUDNavMarkerRender(thisPtr);
+		return;
+	}
+
+	RenderScaledNavMarker(HUDNavMarkerRender, thisPtr);
+}
+
+static void __fastcall HUDNavMarkerRenderArrow_Hook(int thisPtr, int)
+{
+	if (!HUDScaling)
+	{
+		HUDNavMarkerRenderArrow(thisPtr);
+		return;
+	}
+
+	RenderScaledNavMarker(HUDNavMarkerRenderArrow, thisPtr);
+}
+
+// Scale the text of the nav markers, it is only sized by the Y ratio for those of the teammates
+static void __fastcall HUDNavMarkerScaleChanged_Hook(int thisPtr, int)
+{
+	if (!HUDScaling)
+	{
+		HUDNavMarkerScaleChanged(thisPtr);
+		return;
+	}
+
+	float* yRatio = reinterpret_cast<float*>(MemoryHelper::ReadMemory<int>(g_State.interfaceResMgrAddr) + 0x14);
+	bool* isScaled = reinterpret_cast<bool*>(thisPtr + 0x2D4);
+	const float defaultYRatio = *yRatio;
+	const bool wasScaled = *isScaled;
+
+	*yRatio = GetNavMarkerScalingFactor(thisPtr);
+	*isScaled = true;
+	HUDNavMarkerScaleChanged(thisPtr);
+	*yRatio = defaultYRatio;
+	*isScaled = wasScaled;
+}
+
+static bool __fastcall HUDNavMarkerMgrInit_Hook(int thisPtr, int)
+{
+	g_State.CHUDNavMarkerMgr = thisPtr;
+	g_State.isInitializingNavMarkers = true;
+	bool result = HUDNavMarkerMgrInit(thisPtr);
+	g_State.isInitializingNavMarkers = false;
+	return result;
+}
+
+// ======================
+// HUD Reinitialization
+// ======================
+
+// What the game gave to the HUD items, they are made again when the HUD is reinitialized
+struct HUDItemsState
+{
+	std::vector<int> navMarkers;
+	std::vector<std::array<BYTE, 0x12>> timers;
+	std::vector<bool> ctfFlags;
+	bool isPausedVisible = false;
+};
+
+// The HUD items made by this Init, in the order of CHUDMgr::Init
+static std::vector<int> FindHUDItems(DWORD init)
+{
+	std::vector<int> items;
+	int* item = *reinterpret_cast<int**>(g_State.CHUDMgr + 0x47C);
+	int* end = *reinterpret_cast<int**>(g_State.CHUDMgr + 0x480);
+
+	for (; item != end; item++)
+	{
+		if (init != 0 && MemoryHelper::ReadMemory<DWORD>(*reinterpret_cast<int*>(*item) + 0x4) == init)
+			items.push_back(*item);
+	}
+
+	return items;
+}
+
+static HUDItemsState SaveHUDItemsState()
+{
+	HUDItemsState state;
+
+	if (g_State.CHUDNavMarkerMgr != 0)
+	{
+		int* begin = *reinterpret_cast<int**>(g_State.CHUDNavMarkerMgr + 0x1C4);
+		int* end = *reinterpret_cast<int**>(g_State.CHUDNavMarkerMgr + 0x1C8);
+		state.navMarkers.assign(begin, end);
+	}
+
+	// Time, time left, paused and drawn, set by the server
+	for (int timer : FindHUDItems(reinterpret_cast<DWORD>(HUDTimerInit)))
+	{
+		std::array<BYTE, 0x12> timerState;
+		memcpy(timerState.data(), reinterpret_cast<void*>(timer + 0x1C0), timerState.size());
+		state.timers.push_back(timerState);
+	}
+
+	// Carrying the flag
+	for (int ctfFlag : FindHUDItems(reinterpret_cast<DWORD>(HUDCTFFlagInit)))
+	{
+		state.ctfFlags.push_back(*(bool*)(ctfFlag + 0x1C1));
+	}
+
+	if (g_State.CHUDPaused != 0)
+	{
+		state.isPausedVisible = *(bool*)(g_State.CHUDPaused + 0x202);
+	}
+
+	return state;
+}
+
+static void RestoreHUDItemsState(const HUDItemsState& state)
+{
+	if (g_State.CHUDNavMarkerMgr != 0 && HUDNavMarkerMgrAddMarker && GUIStringSetSourceString)
+	{
+		int rangeTexture = *(int*)(g_State.CHUDNavMarkerMgr + 0x1D4);
+		for (int navMarker : state.navMarkers)
+		{
+			HUDNavMarkerMgrAddMarker(g_State.CHUDNavMarkerMgr, navMarker);
+			GUIStringSetSourceString(navMarker + 0xF4, rangeTexture);
+		}
+
+		// ScaleChanged of the markers
+		auto scaleChanged = reinterpret_cast<void(__thiscall*)(int)>(MemoryHelper::ReadMemory<DWORD>(*(int*)g_State.CHUDNavMarkerMgr + 0x18));
+		scaleChanged(g_State.CHUDNavMarkerMgr);
+	}
+
+	std::vector<int> timers = FindHUDItems(reinterpret_cast<DWORD>(HUDTimerInit));
+	for (size_t i = 0; i < timers.size() && i < state.timers.size(); i++)
+	{
+		memcpy(reinterpret_cast<void*>(timers[i] + 0x1C0), state.timers[i].data(), state.timers[i].size());
+
+		// UpdateLayout, like CHUDTimer::SetTime
+		auto updateLayout = reinterpret_cast<void(__thiscall*)(int)>(MemoryHelper::ReadMemory<DWORD>(*(int*)timers[i] + 0x20));
+		updateLayout(timers[i]);
+	}
+
+	std::vector<int> ctfFlags = FindHUDItems(reinterpret_cast<DWORD>(HUDCTFFlagInit));
+	for (size_t i = 0; i < ctfFlags.size() && i < state.ctfFlags.size(); i++)
+	{
+		*(bool*)(ctfFlags[i] + 0x1C1) = state.ctfFlags[i];
+
+		// Update, like CHUDCTFFlag::SetHasFlag
+		auto update = reinterpret_cast<void(__thiscall*)(int)>(MemoryHelper::ReadMemory<DWORD>(*(int*)ctfFlags[i] + 0x14));
+		update(ctfFlags[i]);
+	}
+
+	// Shown by its Init, only hidden once the game is unpaused
+	if (g_State.CHUDPaused != 0)
+	{
+		*(bool*)(g_State.CHUDPaused + 0x202) = state.isPausedVisible;
+	}
 }
