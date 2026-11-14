@@ -697,7 +697,7 @@ static void __cdecl ClearAllLineSystems_Hook()
 
 static void ApplyConsoleDebugLinesServerPatch()
 {
-    if (!ConsoleEnabled || g_State.CurrentFEARGame == FEARMP) return;
+    if (!ConsoleEnabled) return;
 
     DebugLines::isServerPatched = false;
 

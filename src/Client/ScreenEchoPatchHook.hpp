@@ -25,6 +25,7 @@ namespace ScreenEchoPatchHook
 
     static constexpr uint32_t CMD_OPEN_CUSTOM_SCREEN = 0x4B00;
     static constexpr uint32_t CMD_APPLY_LAA_PATCH = 0x4B01;
+    static constexpr uint32_t CMD_REQUIRED_SETTING_CHANGED = 0x4B02;
 
     // CScreenMgr::m_screenArray
     static constexpr int SCREENMGR_SCREENS_END_OFFSET = 0x6C;
@@ -169,6 +170,9 @@ namespace ScreenEchoPatchHook
     static bool g_Toggles[SETTING_COUNT] = {};
     static int g_SliderPositions[SETTING_COUNT] = {};
 
+    // Toggles of the built screens, to disable the ones whose required setting is off
+    static int* s_toggleControls[SETTING_COUNT] = {};
+
     // Values of EchoPatch.ini when the game started and when the menu was shown
     static float s_startupValues[SETTING_COUNT] = {};
     static float s_shownValues[SETTING_COUNT] = {};
@@ -196,6 +200,28 @@ namespace ScreenEchoPatchHook
     static bool IsSlider(const Setting& setting)
     {
         return setting.labelId != nullptr;
+    }
+
+    static int GetRequiredSetting(int index)
+    {
+        switch (index)
+        {
+            case SAVE_PERSISTENT_WORLD_STATE:
+                return ENABLE_PERSISTENT_WORLD_STATE;
+        }
+
+        return -1;
+    }
+
+    static bool IsRequiredSetting(int index)
+    {
+        for (int i = 0; i < SETTING_COUNT; i++)
+        {
+            if (GetRequiredSetting(i) == index)
+                return true;
+        }
+
+        return false;
     }
 
     static float ReadSetting(int index)
@@ -261,6 +287,19 @@ namespace ScreenEchoPatchHook
         }
 
         return false;
+    }
+
+    static void UpdateRequiredSettingToggles(int screenIndex)
+    {
+        for (int i = 0; i < SETTING_COUNT; i++)
+        {
+            int requiredSetting = GetRequiredSetting(i);
+
+            if (s_settings[i].screen == screenIndex && requiredSetting >= 0 && s_toggleControls[i])
+            {
+                CallControlEnable(s_toggleControls[i], g_Toggles[requiredSetting]);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -352,10 +391,17 @@ namespace ScreenEchoPatchHook
                 continue;
             }
 
+            // A required setting sends its changes to CustomScreen_OnCommand, with its index
+            bool isRequiredSetting = IsRequiredSetting(i);
+            toggleStruct[0] = isRequiredSetting ? CMD_REQUIRED_SETTING_CHANGED : 0;
             toggleStruct[1] = (int)setting.helpId;
+            toggleStruct[2] = isRequiredSetting ? (int)thisPtr : 0;
+            toggleStruct[3] = i;
             toggleStruct[15] = (int)&g_Toggles[i];
 
             int* toggle = CallAddToggleByName(thisPtr, setting.label, toggleStruct, fontSize);
+            s_toggleControls[i] = toggle;
+
             if (toggle)
             {
                 CallAddControl(thisPtr, toggle);
@@ -363,6 +409,8 @@ namespace ScreenEchoPatchHook
                 CallSetOffString(toggle, setting.inverted ? L"On" : L"Off");
             }
         }
+
+        UpdateRequiredSettingToggles(screenIndex);
 
         // Only if the game can't use 4GB of memory yet
         if (screenIndex == CUSTOM_SCREEN_MEMORY && !LAAPatcher::HasLargeAddressSpace())
@@ -662,6 +710,17 @@ namespace ScreenEchoPatchHook
             case CMD_APPLY_LAA_PATCH:
                 ShowLAAPatchConfirm();
                 return 1;
+
+            case CMD_REQUIRED_SETTING_CHANGED:
+            {
+                int index = static_cast<int>(param1);
+                if (index >= 0 && index < SETTING_COUNT && s_toggleControls[index])
+                {
+                    CallControlUpdateData(s_toggleControls[index], true);
+                    UpdateRequiredSettingToggles(GetCustomScreenIndex(thisPtr[SCREEN_ID_INDEX]));
+                }
+                return 1;
+            }
         }
 
         return CScreenOptions_OnCommand(thisPtr, command, param1, param2);
@@ -670,12 +729,14 @@ namespace ScreenEchoPatchHook
     static void __fastcall CustomScreen_OnFocus(int* thisPtr, int, bool bFocus)
     {
         bool isRestartRenderNeeded = false;
+        int screenIndex = GetCustomScreenIndex(thisPtr[SCREEN_ID_INDEX]);
 
-        if (GetCustomScreenIndex(thisPtr[SCREEN_ID_INDEX]) != CUSTOM_SCREEN_ECHOPATCH)
+        if (screenIndex != CUSTOM_SCREEN_ECHOPATCH)
         {
             if (bFocus)
             {
                 LoadSettings();
+                UpdateRequiredSettingToggles(screenIndex);
             }
             else
             {

@@ -130,6 +130,12 @@ static void ReadConfig()
         SkipAllIntro = SkipSierraIntro && SkipMonolithIntro && SkipNvidiaIntro && SkipTimegateIntro && SkipDellIntro;
     }
 
+    // The console is not available in multiplayer
+    if (g_State.CurrentFEARGame == FEARMP)
+    {
+        ConsoleEnabled = false;
+    }
+
     if (SDLGamepadSupport)
     {
         ControllerBindings::ApplyAll();

@@ -530,7 +530,7 @@ static void ApplyWeaponFixesClientPatch()
 
 static void ApplyConsoleClientPatch()
 {
-	if (!ConsoleEnabled || g_State.CurrentFEARGame == FEARMP) return;
+	if (!ConsoleEnabled) return;
 
 	DWORD addr = ScanModuleSignature(g_State.GameClient, "E8 ?? ?? ?? ?? 8A 4C 24 04 88 48 4C C2 04 00 CC", "SetInputState");
 	DWORD addr_ClearAllCommands = ScanModuleSignature(g_State.GameClient, "51 56 8B F1 8B 56 38 8B 4E 40 33 C0 85 D2 C6 44 24 07 01", "ClearAllCommands");
@@ -550,7 +550,7 @@ static void ApplyConsoleClientPatch()
 
 static void ApplyConsoleDebugToolsClientPatch()
 {
-	if (!ConsoleEnabled || g_State.CurrentFEARGame == FEARMP) return;
+	if (!ConsoleEnabled) return;
 
 	DWORD addr_PlayerCamera = ScanModuleSignature(g_State.GameClient, "A1 ?? ?? ?? ?? D9 44 24 20 8B 48 28 8B 40 28 83 C1 10", "DebugTools_PlayerCamera");
 	DWORD addr_UpdateRenderLevel = ScanModuleSignature(g_State.GameClient, "A0 ?? ?? ?? ?? 84 C0 56 8B F1 74 09 8B 06 6A 00 FF 50", "DebugTools_UpdateRenderLevel");

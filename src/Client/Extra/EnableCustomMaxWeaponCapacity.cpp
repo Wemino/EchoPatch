@@ -37,7 +37,7 @@ static void __fastcall OnEnterWorld_Hook(int thisPtr, int)
 	}
 
 	// Update the weapon capacity
-	if (EnableCustomMaxWeaponCapacity)
+	if (EnableCustomMaxWeaponCapacity && g_State.CurrentFEARGame != FEARMP)
 	{
 		SetWeaponCapacityServer(g_State.CPlayerInventory, MaxWeaponCapacity);
 	}

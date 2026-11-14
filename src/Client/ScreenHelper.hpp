@@ -41,6 +41,8 @@ namespace ScreenHelper
     using MsgBoxCallback_t = void(__cdecl*)(bool, void*, void*);
     using MsgBoxShow_t = void(__thiscall*)(int, const wchar_t*, void*, uint32_t, bool);
     using RunConsoleCommand_t = int(__thiscall*)(int, const char*);
+    using ControlEnable_t = void(__thiscall*)(int*, bool);
+    using ControlUpdateData_t = void(__thiscall*)(int*, bool);
 
     // CBaseScreen virtual functions
     static constexpr int VTBL_SCREEN_ON_COMMAND = 1;
@@ -52,6 +54,10 @@ namespace ScreenHelper
 
     // CScreenMgr virtual functions
     static constexpr int VTBL_SCREENMGR_SET_CURRENT_SCREEN = 17;
+
+    // CLTGUICtrl virtual functions
+    static constexpr int VTBL_CTRL_ENABLE = 40;
+    static constexpr int VTBL_CTRL_UPDATE_DATA = 42;
 
     // ILTDatabase virtual functions
     static constexpr int VTBL_DATABASE_GET_ATTRIBUTE = 22;
@@ -426,6 +432,17 @@ namespace ScreenHelper
     static void CallScreenUpdateData(int* screen, bool saveAndValidate)
     {
         reinterpret_cast<ScreenUpdateData_t>(GetVirtualFunction(screen, VTBL_SCREEN_UPDATE_DATA))(screen, saveAndValidate);
+    }
+
+    // Greyed out and skipped by the selection while disabled
+    static void CallControlEnable(int* control, bool enabled)
+    {
+        reinterpret_cast<ControlEnable_t>(GetVirtualFunction(control, VTBL_CTRL_ENABLE))(control, enabled);
+    }
+
+    static void CallControlUpdateData(int* control, bool saveAndValidate)
+    {
+        reinterpret_cast<ControlUpdateData_t>(GetVirtualFunction(control, VTBL_CTRL_UPDATE_DATA))(control, saveAndValidate);
     }
 
     static void InitControlStruct(int* structData, int count, int width, int fontSize)
