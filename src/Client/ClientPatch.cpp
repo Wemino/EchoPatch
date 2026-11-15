@@ -322,6 +322,8 @@ static void ApplyControllerClientPatch()
 	DWORD addr_CClientWeapon_WeaponPath_OnImpactCB = ScanModuleSignature(g_State.GameClient, "8B 4C 24 08 85 C9 75 03 32 C0 C3 8B 44 24 04", "CClientWeapon_WeaponPath_OnImpactCB");
 	DWORD addr_HandleFallLand = ScanModuleSignature(g_State.GameClient, "81 EC 38 02 00 00 ?? 8B ?? ?? ?? C0 00 00 00", "HandleFallLand");
 	DWORD addr_CTurretFX_SetDamageState = ScanModuleSignature(g_State.GameClient, "81 EC C8 00 00 00 53 56 57 8B F1 8B 46 4C 8B 0D", "CTurretFX_SetDamageState");
+    DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 0C 8B 45 08 53 56 33 DB 3B C3 57 8B F1 0F 84", "EnterSlowMo");
+    DWORD addr_ExitingSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 10 56 8B F1 DD 86 ?? ?? 00 00 C7 86 ?? ?? 00 00 02 00 00 00", "ExitingSlowMo");
 
 	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0)
 	{
@@ -333,6 +335,9 @@ static void ApplyControllerClientPatch()
 		HookHelper::ApplyHook((void*)addr_CClientWeapon_WeaponPath_OnImpactCB, &CClientWeapon_WeaponPath_OnImpactCB_Hook, (LPVOID*)&CClientWeapon_WeaponPath_OnImpactCB);
 		HookHelper::ApplyHook((void*)addr_HandleFallLand, &HandleFallLand_Hook, (LPVOID*)&HandleFallLand);
 		HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
+        HookHelper::ApplyHook((void*)addr_EnterSlowMo, &EnterSlowMo_Hook, (LPVOID*)&EnterSlowMo);
+        HookHelper::ApplyHook((void*)addr_ExitingSlowMo, &ExitingSlowMo_Hook, (LPVOID*)&ExitingSlowMo);
+        slowMoStateOffset = MemoryHelper::ReadMemory<int>(addr_ExitingSlowMo + 0xE);
 	}
 
 	// Button glyphs
@@ -591,7 +596,8 @@ static void ApplyWeaponFixesClientPatch()
         addr_GetWeaponSlot == 0 ||
         addr_NextWeapon == 0 ||
         addr_PreviousWeapon == 0 ||
-        addr_kAP_ACT_Fire_Id == 0) {
+        addr_kAP_ACT_Fire_Id == 0 ||
+        addr_CanFireWeapon == 0) {
         return;
     }
 

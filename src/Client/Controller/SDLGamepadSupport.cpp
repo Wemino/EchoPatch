@@ -14,8 +14,10 @@ static int cursorMovementAccum = 0;
 static int lastCursorX = 0;
 static int lastCursorY = 0;
 static int turretPrevDamageState = 0;
+static int slowMoStateOffset = 0;
 static uint16_t healthBefore = 0;
 static uint16_t healthAfter = 0;
+static uint16_t healthReceived = 0;
 static uint16_t armorBefore = 0;
 static uint16_t armorAfter = 0;
 static bool updateGyroCamera = false;
@@ -23,7 +25,7 @@ static int bindMgr = 0;
 static bool isAiming = false;
 static bool isDoingMeleeAttack = false;
 static bool isTakingDamage = false;
-static bool isFallDamage = false;
+static ULONGLONG fallDamageTime = 0;
 
 // =======================
 // SDLGamepadSupport
@@ -422,6 +424,8 @@ static unsigned int __fastcall UpdateHealth_Hook(DWORD* thisPtr, int, unsigned i
 		healthBefore = static_cast<uint16_t>(thisPtr[1]);
 	}
 
+	healthReceived = static_cast<uint16_t>(newHealth);
+
 	unsigned int result = UpdateHealth(thisPtr, newHealth);
 
 	if (isTakingDamage)
@@ -463,21 +467,42 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 	armorBefore = 0;
 	armorAfter = 0;
 
+	auto isDeadHealth = [](uint16_t health) { return health == 0 || health == SHRT_MAX; };
+	bool wasPlayerDead = isDeadHealth(healthReceived);
+
 	float damageBefore[12];
 	float* damageArray = (float*)((BYTE*)thisPtr + 428);
 	memcpy(damageBefore, damageArray, sizeof(damageBefore));
+	memset(damageArray, 0, sizeof(damageBefore));
 
 	HandleMsgPlayerDamage(thisPtr, a2);
 
 	isTakingDamage = false;
 
-	if (isFallDamage)
+	float maxDamage = 0.0f;
+	int damageSector = -1;
+
+	for (int i = 0; i < 12; i++)
 	{
-		isFallDamage = false;
-		return;
+		if (damageArray[i] > maxDamage)
+		{
+			maxDamage = damageArray[i];
+			damageSector = i;
+		}
+
+		damageArray[i] = std::min(damageBefore[i] + damageArray[i], 1.0f);
 	}
 
-	bool playerDied = (healthAfter == 0) || (healthAfter > healthBefore);
+	if (fallDamageTime != 0)
+	{
+		bool isFallDamage = GetTickCount64() - fallDamageTime < 1000;
+		fallDamageTime = 0;
+
+		if (isFallDamage)
+			return;
+	}
+
+	bool playerDied = !wasPlayerDead && isDeadHealth(healthReceived);
 
 	uint16_t healthLost = 0;
 	uint16_t armorLost = 0;
@@ -492,19 +517,6 @@ static void __fastcall HandleMsgPlayerDamage_Hook(DWORD* thisPtr, int, int* a2)
 
 	if (totalLost == 0 && !playerDied)
 		return;
-
-	float maxDelta = 0.0f;
-	int damageSector = -1;
-
-	for (int i = 0; i < 12; i++)
-	{
-		float delta = damageArray[i] - damageBefore[i];
-		if (delta > maxDelta && delta > 0.01f)
-		{
-			maxDelta = delta;
-			damageSector = i;
-		}
-	}
 
 	float damageScale;
 	uint32_t duration;
@@ -669,7 +681,7 @@ static void __fastcall HandleFallLand_Hook(DWORD* thisPtr, int, float fDistFell,
 		highFreq = static_cast<uint16_t>(15000 + scaled * 50535);
 		duration = static_cast<uint32_t>(250 + scaled * 350);
 		priority = 5;
-		isFallDamage = true;
+		fallDamageTime = GetTickCount64();
 	}
 
 	SetGamepadRumble(lowFreq, highFreq, duration, priority);
@@ -722,6 +734,25 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 	}
 
 	turretPrevDamageState = newDamageState;
+}
+
+static void __fastcall EnterSlowMo_Hook(int thisPtr, int, int hSlowMoRecord, bool bTransition, double fSlowMoPeriod, bool bPlayer)
+{
+	EnterSlowMo(thisPtr, hSlowMoRecord, bTransition, fSlowMoPeriod, bPlayer);
+
+	if (RumbleEnabled && hSlowMoRecord)
+		SetGamepadRumble(40000, 10000, 350, 2);
+}
+
+static void __fastcall ExitingSlowMo_Hook(int thisPtr, int)
+{
+	// Entering or in slowmo
+	bool isInSlowMo = *(uint32_t*)(thisPtr + slowMoStateOffset) <= 1;
+
+	ExitingSlowMo(thisPtr);
+
+	if (RumbleEnabled && isInSlowMo)
+		SetGamepadRumble(12000, 20000, 200, 2);
 }
 
 // =====================================

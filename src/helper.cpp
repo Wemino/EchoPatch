@@ -1027,7 +1027,7 @@ namespace HashHelper
 	struct GearHashes
 	{
 		static constexpr uint32_t ArmorLightSP = FNV1a("Armor Light SP");
-		static constexpr uint32_t Medkit = FNV1a("Medkit");
+		static constexpr uint32_t Medkit = FNV1a("MedKit");
 		static constexpr uint32_t HealthMax = FNV1a("HealthMax");
 		static constexpr uint32_t SlowMoMax = FNV1a("SlowMoMax");
 	};

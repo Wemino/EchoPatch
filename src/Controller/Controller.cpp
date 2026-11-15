@@ -2101,8 +2101,6 @@ void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs, int pr
 
     SDL_RumbleGamepad(s_pGamepad, lowFreq, highFreq, durationMs);
 
-    uint16_t newIntensity = (lowFreq > highFreq) ? lowFreq : highFreq;
     rumble.activePriority = priority;
-    rumble.activeIntensity = newIntensity;
     rumble.endTime = now + durationMs;
 }

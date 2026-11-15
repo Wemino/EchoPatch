@@ -71,7 +71,6 @@ struct ButtonState
 struct RumbleState
 {
     int activePriority = 0;
-    uint16_t activeIntensity = 0;
     ULONGLONG endTime = 0;
 };
 
