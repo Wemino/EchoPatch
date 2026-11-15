@@ -280,6 +280,8 @@ static void ApplyLAAPatch()
 
 static void Init()
 {
+    HookHelper::BeginBatch();
+
     ReadConfig();
 
     // LAA Patching if needed
@@ -344,6 +346,9 @@ static void Init()
     ApplyDisableJoystick();
     ApplyTextureWrapperHook();
     ApplyDeviceCreationHook();
+
+    HookHelper::EndBatch();
+
     ApplyASILoader();
 }
 

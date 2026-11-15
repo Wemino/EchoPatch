@@ -794,6 +794,7 @@ static void ApplyClientPatchSet4()
 
 void ApplyClientPatch()
 {
+	HookHelper::BeginBatch();
 	ApplyHighFPSFixesClientPatch();
 	ApplyMouseAimMultiplierClientPatch();
 	ApplyXPWidescreenClientPatch();
@@ -821,4 +822,5 @@ void ApplyClientPatch()
 	ApplyClientPatchSet2();
 	ApplyClientPatchSet3();
 	ApplyClientPatchSet4();
+	HookHelper::EndBatch();
 }

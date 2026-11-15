@@ -100,6 +100,26 @@ namespace MemoryHelper
 		return value;
 	}
 
+	static const uint32_t* GetModuleByteCounts(BYTE* base, DWORD imageSize)
+	{
+		static BYTE* countedBase = nullptr;
+		static DWORD countedSize = 0;
+		static uint32_t counts[256];
+
+		if (countedBase != base || countedSize != imageSize)
+		{
+			memset(counts, 0, sizeof(counts));
+
+			for (DWORD i = 0; i < imageSize; i += 7)
+				counts[base[i]]++;
+
+			countedBase = base;
+			countedSize = imageSize;
+		}
+
+		return counts;
+	}
+
 	inline DWORD PatternScan(HMODULE hModule, std::string_view signature)
 	{
 		auto dosHeader = reinterpret_cast<PIMAGE_DOS_HEADER>(hModule);
@@ -142,17 +162,22 @@ namespace MemoryHelper
 
 		if (patSize == 0 || imageSize < patSize) return 0;
 
-		size_t a1 = SIZE_MAX, a2 = SIZE_MAX;
+		const uint32_t* counts = GetModuleByteCounts(base, imageSize);
+
+		size_t a1 = SIZE_MAX;
 		for (size_t i = 0; i < patSize; i++)
 		{
-			if (msk[i])
-			{
-				if (a1 == SIZE_MAX) a1 = i;
-				a2 = i;
-			}
+			if (msk[i] && (a1 == SIZE_MAX || counts[pat[i]] < counts[pat[a1]])) a1 = i;
 		}
 
 		if (a1 == SIZE_MAX) return reinterpret_cast<DWORD>(base);
+
+		size_t a2 = a1;
+		for (size_t i = 0; i < patSize; i++)
+		{
+			if (msk[i] && i != a1 && (a2 == a1 || counts[pat[i]] < counts[pat[a2]])) a2 = i;
+		}
+
 		const bool useDual = (a2 != a1);
 
 		__m128i simPat = _mm_loadu_si128(reinterpret_cast<const __m128i*>(pat));
@@ -460,6 +485,7 @@ namespace IniHelper
 namespace HookHelper
 {
 	inline bool isMHInitialized = false;
+	inline int batchDepth = 0;
 
 	static bool InitializeMinHook()
 	{
@@ -492,6 +518,30 @@ namespace HookHelper
 		return VirtualProtect(mbi.BaseAddress, mbi.RegionSize, PAGE_EXECUTE_READWRITE, &oldProtect);
 	}
 
+	static void BeginBatch()
+	{
+		batchDepth++;
+	}
+
+	static void EndBatch()
+	{
+		if (--batchDepth > 0 || !isMHInitialized)
+			return;
+
+		MH_STATUS status = MH_ApplyQueued();
+		if (status != MH_OK)
+		{
+			char errorMsg[0x100];
+			sprintf_s(errorMsg, "Failed to enable the hooks\nError: %s", MH_StatusToString(status));
+			MessageBoxA(NULL, errorMsg, "Error", MB_ICONERROR | MB_OK);
+		}
+	}
+
+	static MH_STATUS EnableHook(LPVOID target)
+	{
+		return batchDepth > 0 ? MH_QueueEnableHook(target) : MH_EnableHook(target);
+	}
+
 	static bool ApplyHook(void* addr, LPVOID hookFunc, LPVOID* originalFunc, bool checkRegion = false)
 	{
 		if (!InitializeMinHook()) return false;
@@ -513,7 +563,7 @@ namespace HookHelper
 			return false;
 		}
 
-		status = MH_EnableHook(addr);
+		status = EnableHook(addr);
 		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
@@ -544,7 +594,7 @@ namespace HookHelper
 			return false;
 		}
 
-		status = MH_EnableHook(addr);
+		status = EnableHook(addr);
 		if (status != MH_OK)
 		{
 			char errorMsg[0x100];
@@ -570,7 +620,7 @@ namespace HookHelper
 			return false;
 		}
 
-		status = MH_EnableHook(target);
+		status = EnableHook(target);
 		if (status != MH_OK)
 		{
 			char errorMsg[0x100];

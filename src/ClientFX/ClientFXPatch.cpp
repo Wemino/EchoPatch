@@ -4,7 +4,9 @@
 
 void ApplyClientFXPatch()
 {
+    HookHelper::BeginBatch();
     ApplyHighFPSFixesClientFXPatch();
     ApplyControllerClientFXPatch();
     ApplyFixTranslucentRenderingClientFXPatch();
+    HookHelper::EndBatch();
 }

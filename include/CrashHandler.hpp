@@ -412,7 +412,7 @@ namespace CrashHandler
 
 		__try
 		{
-			SymRefreshModuleList(process);
+			SymInitialize(process, nullptr, TRUE);
 
 			STACKFRAME64 frame{};
 			frame.AddrPC.Offset = ctx->Eip;
@@ -846,7 +846,6 @@ namespace CrashHandler
 		g_dllShutdownInProgress = reinterpret_cast<decltype(g_dllShutdownInProgress)>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "RtlDllShutdownInProgress"));
 
 		SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_DEFERRED_LOADS | SYMOPT_UNDNAME | SYMOPT_NO_PROMPTS | SYMOPT_FAIL_CRITICAL_ERRORS);
-		SymInitialize(GetCurrentProcess(), nullptr, TRUE);
 
 		g_previousFilter = SetUnhandledExceptionFilter(UnhandledCrashFilter);
 
