@@ -275,6 +275,9 @@
     <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp">
       <Filter>Server\Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Server\Misc\LocalPlayer.cpp">
+      <Filter>Server\Misc</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Server\Server.hpp">
       <Filter>Server</Filter>
     </ClInclude>
@@ -423,6 +426,9 @@
     </Filter>
     <Filter Include="Server\Graphics">
       <UniqueIdentifier>{0787dd71-0880-45f5-a229-79554ff1db64}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Server\Misc">
+      <UniqueIdentifier>{1bc9deaf-3409-41c6-8a99-f3dafc3782f8}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

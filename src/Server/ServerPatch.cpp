@@ -5,6 +5,7 @@
 void ApplyServerPatch()
 {
     HookHelper::BeginBatch();
+    ApplyLocalPlayerServerPatch();
     ApplyPersistentWorldServerPatch();
     ApplySavePersistentWorldStateServerPatch();
     ApplySetWeaponCapacityServerPatch();

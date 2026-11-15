@@ -4,9 +4,30 @@
 #include "../../Addresses.cpp"
 
 static void* hookedSetTextureAddr = nullptr;
-static IDirect3DDevice9* hookedDevice = nullptr;
 
 bool(__thiscall* CreateAndInitializeDevice)(DWORD*, DWORD*, DWORD*, int, char) = nullptr;
+
+static IDXGIAdapter* FindMonitorAdapter(IDXGIFactory1* pFactory, HMONITOR hMonitor)
+{
+    IDXGIAdapter* pAdapter = nullptr;
+    for (UINT i = 0; pFactory->EnumAdapters(i, &pAdapter) == S_OK; i++)
+    {
+        IDXGIOutput* pOutput = nullptr;
+        for (UINT j = 0; pAdapter->EnumOutputs(j, &pOutput) == S_OK; j++)
+        {
+            DXGI_OUTPUT_DESC desc;
+            bool isMonitorOutput = pOutput->GetDesc(&desc) == S_OK && desc.Monitor == hMonitor;
+            pOutput->Release();
+
+            if (isMonitorOutput)
+                return pAdapter;
+        }
+
+        pAdapter->Release();
+    }
+
+    return nullptr;
+}
 
 static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* a2, DWORD* a3, int a4, char a5)
 {
@@ -15,8 +36,10 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
         IDXGIFactory1* pFactory = nullptr;
         if (CreateDXGIFactory1(__uuidof(IDXGIFactory1), (void**)&pFactory) == S_OK)
         {
-            IDXGIAdapter* pAdapter = nullptr;
-            if (pFactory->EnumAdapters(a2[0], &pAdapter) == S_OK)
+            IDirect3D9* d3d = *reinterpret_cast<IDirect3D9**>(GetAddress(Addr::Direct3D));
+            HMONITOR hMonitor = d3d ? d3d->GetAdapterMonitor(a2[0]) : nullptr;
+            IDXGIAdapter* pAdapter = hMonitor ? FindMonitorAdapter(pFactory, hMonitor) : nullptr;
+            if (pAdapter)
             {
                 DXGI_ADAPTER_DESC desc;
                 if (pAdapter->GetDesc(&desc) == S_OK)
@@ -67,7 +90,6 @@ static bool __fastcall CreateAndInitializeDevice_Hook(DWORD* thisp, int, DWORD* 
             std::fill(std::begin(g_State.stageIsDirty), std::end(g_State.stageIsDirty), false);
             HookHelper::ApplyHook(newSetTextureAddr, &SetTexture_Hook, (LPVOID*)&D3D9_SetTexture);
             hookedSetTextureAddr = newSetTextureAddr;
-            hookedDevice = device;
         }
 
         if (ReduceTextureMemory)

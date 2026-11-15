@@ -325,7 +325,7 @@ static void ApplyControllerClientPatch()
     DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 0C 8B 45 08 53 56 33 DB 3B C3 57 8B F1 0F 84", "EnterSlowMo");
     DWORD addr_ExitingSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 10 56 8B F1 DD 86 ?? ?? 00 00 C7 86 ?? ?? 00 00 02 00 00 00", "ExitingSlowMo");
 
-	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0)
+	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0 && addr_EnterSlowMo != 0 && addr_ExitingSlowMo != 0)
 	{
 		HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
 		HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
@@ -434,7 +434,7 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_GetRectF = ScanModuleSignature(g_State.GameClient, "14 8B 44 24 28 8B 4C 24 18 D9 18", "GetRectF");
     DWORD addr_HUDWeaponListReset = ScanModuleSignature(g_State.GameClient, "51 53 55 8B E9 8B 0D", "HUDWeaponListReset");
     DWORD addr_InitAdditionalTextureData = ScanModuleSignature(g_State.GameClient, "8B 54 24 04 8B 01 83 EC 20 57", "InitAdditionalTextureData");
-    DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20", "HUDPausedInit");
+    DWORD addr_HUDPausedInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 57 FF 50 20 8B 0D", "HUDPausedInit");
     DWORD addr_GUIStringRender = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 28 56 8B F1 57 8D 4E 30 FF 15", "GUIStringRender");
     DWORD addr_CrosshairThickness = ScanModuleSignature(g_State.GameClient, "7A 3A D9 05 ?? ?? ?? ?? D8 44 24", "CrosshairThickness");
     DWORD addr_PausedWidth = ScanModuleSignature(g_State.GameClient, "C7 83 30 04 00 00 80 02 00 00 89 8B 24 04", "PausedWidth");
@@ -556,7 +556,7 @@ static void ApplyKeyboardInputLanguageClientCheck()
 {
     if (!FixKeyboardInputLanguage) return;
 
-    DWORD addr_LoadUserProfile = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9", "LoadUserProfile");
+    DWORD addr_LoadUserProfile = ScanModuleSignature(g_State.GameClient, "53 8B 5C 24 08 84 DB 55 56 57 8B F9 74 5B", "LoadUserProfile");
     DWORD addr_RestoreDefaults = ScanModuleSignature(g_State.GameClient, "57 8B F9 8B 0D ?? ?? ?? ?? 8B 01 FF 50 4C 8B 10", "RestoreDefaults");
     DWORD addr_SetBinding = ScanModuleSignature(g_State.GameClient, "8A 44 24 08 84 C0 56 57 8B 7C 24 0C 8B F1 74 06 57 E8", "SetBinding");
 

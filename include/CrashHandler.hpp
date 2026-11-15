@@ -62,15 +62,6 @@ namespace CrashHandler
 		WriteStr(file, buf);
 	}
 
-	static const char* FindFileNameA(const char* path)
-	{
-		const char* bs = strrchr(path, '\\');
-		const char* fs = strrchr(path, '/');
-		const char* sep = bs > fs ? bs : fs;
-
-		return sep ? sep + 1 : path;
-	}
-
 	static void RemoveFileSpecW(wchar_t* path)
 	{
 		wchar_t* bs = wcsrchr(path, L'\\');

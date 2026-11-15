@@ -61,7 +61,6 @@ static int lightRenderer = 0;
 static int lightScene = 0;
 static int lightObjects = 0;
 static int lightVariant = 0;
-static IDirect3DDevice9* const* rendererDevice = nullptr;
 
 // Glass lit after the translucent objects behind it, by groups at the same distance
 static std::unordered_map<int, int> glassGroups;
@@ -319,7 +318,7 @@ static bool PlanGlassGroups(const float* cameraPos, std::vector<float>& groupDis
 // Lights the glass skipped by the light passes
 static void DrawDeferredGlass(int group, bool isTranslucentPass)
 {
-    IDirect3DDevice9* device = isTranslucentPass ? *rendererDevice : nullptr;
+    IDirect3DDevice9* device = isTranslucentPass ? GetRendererDevice() : nullptr;
     int lightList = lightRenderer + 0x60;
     DWORD states[4][2] = { { D3DRS_ZENABLE }, { D3DRS_ZWRITEENABLE }, { D3DRS_ALPHABLENDENABLE }, { D3DRS_STENCILENABLE } };
 
@@ -637,7 +636,7 @@ static void ComputeTranslucentKeys(int list, float* cameraPos, int variant)
 // The translucent objects behind the glass are drawn before its light, the ones in front after
 static char __fastcall RenderSortedList_Hook(int list, int, int scene, int technique, int variant, void* callback, int userData)
 {
-    if (technique != TechniqueTranslucent || !lightOnlySkipped || list != lightRenderer + 0x60 || scene != lightScene || !*rendererDevice)
+    if (technique != TechniqueTranslucent || !lightOnlySkipped || list != lightRenderer + 0x60 || scene != lightScene || !GetRendererDevice())
         return RenderSortedList(list, scene, technique, variant, callback, userData);
 
     lightOnlySkipped = false;
@@ -743,7 +742,6 @@ static void ApplyFixTranslucentRendering()
     bool checkRegion = g_State.CurrentFEARGame == FEAR;
 
     RenderListClear = reinterpret_cast<decltype(RenderListClear)>(GetAddress(Addr::RenderListClear));
-    rendererDevice = reinterpret_cast<IDirect3DDevice9* const*>(GetAddress(Addr::RendererDevice));
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::LightPasses), &LightPasses_Hook, (LPVOID*)&LightPasses, checkRegion);
     HookHelper::ApplyHook((void*)GetAddress(Addr::BlackLightPass), &BlackLightPass_Hook, (LPVOID*)&BlackLightPass, checkRegion);

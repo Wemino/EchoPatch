@@ -709,7 +709,7 @@ static void ApplyConsoleDebugLinesServerPatch()
     DWORD addr_NodeStatus = ScanModuleSignature(g_State.GameServer, "56 6A FF 8B F1 8B 4C 24 0C 8B 06 6A 00 51 8D 56 ?? 52 6A 00 8B CE FF 90 ?? ?? 00 00 38 86 ?? ?? 00 00 74 1A 88 86 ?? ?? 00 00 8B 06 8B CE FF 90 ?? ?? 00 00 8B 16 8B CE FF 92", "DebugLines_NodeStatus");
     DWORD addr_NodeTypeName = ScanModuleSignature(g_State.GameServer, "8B 44 24 04 83 F8 FF 75 06 B8 ?? ?? ?? ?? C3 85 C0 7C 0D 83 F8 ?? 7D 08 8B 04 85 ?? ?? ?? ?? C3", "DebugLines_NodeTypeName");
     DWORD addr_NodeList = ScanModuleSignature(g_State.GameServer, "8B 46 08 8B 48 0C 57 51 8B 0D ?? ?? ?? ?? E8", "DebugLines_NodeList");
-    DWORD addr_NavMeshPoly = ScanModuleSignature(g_State.GameServer, "84 C0 74 0F 8B 4E 40 51 8B 0D ?? ?? ?? ?? E8", "DebugLines_NavMeshPoly");
+    DWORD addr_NavMeshPoly = ScanModuleSignature(g_State.GameServer, "84 C0 74 0F 8B 4E 40 51 8B 0D ?? ?? ?? ?? E8 ?? ?? ?? ?? 5E C2 08 00 85", "DebugLines_NavMeshPoly");
     DWORD addr_RegionPolys = ScanModuleSignature(g_State.GameServer, "8B 51 ?? 56 33 C0 85 D2 7E 13 8B 49 ?? 8B 74 24 08 39 31 74 0E 40 83 C1 04 3B C2 7C F4 32 C0", "DebugLines_RegionPolys");
 
     // The line systems of the game use the strings of msvcp71

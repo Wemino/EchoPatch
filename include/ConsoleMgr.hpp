@@ -3969,9 +3969,6 @@ namespace Console
         }
     }
 
-    inline void ClearOutput() { ClearOutputLines(); }
-    inline bool IsInitialized() { return g_imguiInitialized; }
-
     // Debug tools
     inline void AddUpdateCallback(void (*callback)())
     {
@@ -4034,6 +4031,5 @@ namespace Console
         g_browserNeedsRefresh = true;
     }
 
-    inline bool IsVisible() { return g_visible; }
     inline float GetUIScale() { return g_uiScale; }
 }

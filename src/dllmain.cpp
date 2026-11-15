@@ -37,6 +37,7 @@
 
 #include "Controller/Controller.cpp"
 
+#include "Server/Misc/LocalPlayer.cpp"
 #include "Server/Graphics/EnablePersistentWorldState.cpp"
 #include "Server/Extra/EnableCustomMaxWeaponCapacity.cpp"
 #include "Server/Fixes/HighFPSFixes.cpp"

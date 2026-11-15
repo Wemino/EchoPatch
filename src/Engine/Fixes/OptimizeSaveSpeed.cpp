@@ -5,6 +5,7 @@
 
 struct SaveBuffer
 {
+    DWORD* file = nullptr;
     HANDLE handle = INVALID_HANDLE_VALUE;
     std::vector<uint8_t> buffer{};
     LONGLONG position = 0;
@@ -13,6 +14,7 @@ struct SaveBuffer
 
     void Reset()
     {
+        file = nullptr;
         handle = INVALID_HANDLE_VALUE;
         buffer.clear();
         position = 0;
@@ -104,9 +106,10 @@ static bool __fastcall FileOpen_Hook(DWORD* thisp, int, LPCSTR lpFileName, char 
             {
                 if (saveBuffer.IsActive())
                 {
-                    saveBuffer.Reset();
+                    FlushSaveBuffer(saveBuffer.file);
                 }
 
+                saveBuffer.file = thisp;
                 saveBuffer.handle = h;
                 saveBuffer.position = 0;
                 saveBuffer.size = 0;

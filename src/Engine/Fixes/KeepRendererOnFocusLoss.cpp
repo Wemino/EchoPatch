@@ -6,7 +6,6 @@
 int(__cdecl* TermRenderer)() = nullptr;
 int(__cdecl* InitRenderer)() = nullptr;
 
-static IDirect3DDevice9* const* s_focusDevice = nullptr;
 static const volatile uint8_t* s_rendererActive = nullptr;
 static bool isRestorePending = false;
 
@@ -16,7 +15,7 @@ static bool isRestorePending = false;
 
 static HRESULT GetDeviceState()
 {
-    IDirect3DDevice9* device = *s_focusDevice;
+    IDirect3DDevice9* device = GetRendererDevice();
     return device ? device->TestCooperativeLevel() : D3DERR_INVALIDCALL;
 }
 
@@ -43,7 +42,7 @@ static int __cdecl FocusGainedInitRenderer_Hook()
 // The device can still be lost without a focus change (session lock, display change)
 static void RecoverLostDevice()
 {
-    if (!*s_focusDevice) return;
+    if (!GetRendererDevice()) return;
 
     HRESULT hr = GetDeviceState();
 
@@ -72,7 +71,6 @@ static void ApplyKeepRendererOnFocusLoss()
     DWORD addr_FocusLost = GetAddress(Addr::FocusLostTermRenderer);
     DWORD addr_FocusGained = GetAddress(Addr::FocusGainedInitRenderer);
 
-    s_focusDevice = reinterpret_cast<IDirect3DDevice9* const*>(GetAddress(Addr::RendererDevice));
     s_rendererActive = reinterpret_cast<const volatile uint8_t*>(GetAddress(Addr::RendererActive));
 
     TermRenderer = reinterpret_cast<decltype(TermRenderer)>(MemoryHelper::ResolveRelativeAddress(addr_FocusLost, 0x1));

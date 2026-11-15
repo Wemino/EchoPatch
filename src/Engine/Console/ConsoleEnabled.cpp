@@ -90,7 +90,7 @@ static void InitConsole(LPCSTR title)
     if (game != FEAR && game != FEARXP && game != FEARXP2) return;
 
     const uintptr_t
-    oInit = GetAddress(Addr::Console_Init),
+    oRendererDevice = GetAddress(Addr::RendererDevice),
     oCursorLock = GetAddress(Addr::Console_CursorLock),
     oCvarListHead = GetAddress(Addr::Console_CvarListHead),
     oCvarArrayStart = GetAddress(Addr::Console_CvarArrayStart),
@@ -117,7 +117,7 @@ static void InitConsole(LPCSTR title)
     settings.alpha = ConsoleAlpha;
     settings.position = MoveConsole;
 
-    Console::Init(oInit, g_State.hWnd, title, settings);
+    Console::Init(oRendererDevice, g_State.hWnd, title, settings);
 
     ConsoleAddresses addresses = {};
     addresses.cursorLockAddr = oCursorLock;

@@ -7,6 +7,8 @@
 
 static bool isLoadingWorld = false;
 
+static constexpr float DEFAULT_MIPMAP_BIAS = -0.25f;
+
 static std::vector<uint32_t> sharpTexturePaths;
 
 namespace TextureHelper
@@ -86,12 +88,6 @@ namespace TextureHelper
 		if (StartsWithI(path, "guns-xp\\"))
 			return true;
 		if (StartsWithI(path, "Attachments-XP\\"))
-			return true;
-		if (StartsWithI(path, "CharsXP\\"))
-			return true;
-		if (StartsWithI(path, "FX-XP\\"))
-			return true;
-		if (StartsWithI(path, "Guns-XP\\"))
 			return true;
 
 		// Prefabs - full folder paths
@@ -269,7 +265,7 @@ static HRESULT WINAPI SetTexture_Hook(IDirect3DDevice9* device, DWORD Stage, IDi
     }
     else if (g_State.stageIsDirty[Stage])
     {
-        float defaultBias = -0.2f;
+        float defaultBias = DEFAULT_MIPMAP_BIAS;
         device->SetSamplerState(Stage, D3DSAMP_MIPMAPLODBIAS, *reinterpret_cast<DWORD*>(&defaultBias));
         g_State.stageIsDirty[Stage] = false;
     }
@@ -281,6 +277,6 @@ static void ApplyReducedMipMapBias()
 {
     if (!ReducedMipMapBias) return;
 
-    MemoryHelper::WriteMemory<float>(GetAddress(Addr::MipMapBias), -0.5f, false);
+    MemoryHelper::WriteMemory<float>(GetAddress(Addr::MipMapBias), DEFAULT_MIPMAP_BIAS, false);
     HookHelper::ApplyHook((void*)GetAddress(Addr::LoadWorld), &LoadWorld_Hook, (LPVOID*)&LoadWorld);
 }

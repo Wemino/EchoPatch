@@ -5,8 +5,6 @@
 static int phSlowMoRecord = 0;
 static int lastHSlowMoRecord = 0;
 static bool slowMoChargeObserved = false;
-static DWORD pPlayerObjListBegin = 0;
-static DWORD pPlayerObjListEnd = 0;
 static DWORD pLTServerAddr = 0;
 static int serverGetFrameTimeOffset = 0;
 static int proximityFlippingOffset = 0;
@@ -23,6 +21,7 @@ static std::unordered_map<int, double> deathFireUpdateTimes;
 static std::unordered_map<int, double> flickerUpdateTimes;
 static std::unordered_map<uint64_t, double> progressiveDamageTimes;
 static std::unordered_map<uint64_t, double> triggerTouchTimes;
+static double updateTimesPruneTime = 0.0;
 
 void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
 void(__thiscall* ServerExitSlowMo)(int*, bool, float) = nullptr;
@@ -40,12 +39,20 @@ void(__thiscall* TriggerObjectTouch)(int, int) = nullptr;
 // HighFPSFixes
 // ========================
 
-// The local client is in this process, so a lone player on the server is the local player
-static bool IsLocalPlayerAlone()
+static void PruneUpdateTimes()
 {
-    DWORD playerObjListBegin = *(DWORD*)pPlayerObjListBegin;
-    DWORD playerObjListEnd = *(DWORD*)pPlayerObjListEnd;
-    return playerObjListEnd - playerObjListBegin == sizeof(DWORD);
+    double currentTime = g_State.totalRealTime;
+    if (currentTime - updateTimesPruneTime <= 1.0)
+        return;
+
+    auto isOld = [currentTime](const auto& entry) { return currentTime - entry.second > 1.0; };
+    std::erase_if(proximityGrenadeUpdateTimes, isOld);
+    std::erase_if(deathFireUpdateTimes, isOld);
+    std::erase_if(flickerUpdateTimes, isOld);
+    std::erase_if(progressiveDamageTimes, isOld);
+    std::erase_if(triggerTouchTimes, isOld);
+    std::erase_if(aiRolls, [currentTime](const auto& entry) { return currentTime - entry.second.time > 1.0; });
+    updateTimesPruneTime = currentTime;
 }
 
 void __fastcall ServerUpdateSlowMo_Hook(int* thisPtr, int)
@@ -124,6 +131,8 @@ static float GetServerFrameTime()
 
 static bool __fastcall ProximityGrenadeUpdate_Hook(int thisPtr, int)
 {
+    PruneUpdateTimes();
+
     BYTE* pFlipping = reinterpret_cast<BYTE*>(thisPtr + proximityFlippingOffset);
     if (IsTargetFrameDue(proximityGrenadeUpdateTimes.try_emplace(thisPtr, -1.0).first->second) || *pFlipping)
         return ProximityGrenadeUpdate(thisPtr);
@@ -138,12 +147,16 @@ static bool __fastcall ProximityGrenadeUpdate_Hook(int thisPtr, int)
 
 static void __fastcall UpdateFireWeaponDuringDeath_Hook(int thisPtr, int)
 {
+    PruneUpdateTimes();
+
     if (IsTargetFrameDue(deathFireUpdateTimes.try_emplace(thisPtr, -1.0).first->second))
         UpdateFireWeaponDuringDeath(thisPtr);
 }
 
 static float GetAIRoll(uint64_t key, float min, float max)
 {
+    PruneUpdateTimes();
+
     // Goals and actions with a chance roll on every update while they are considered, keep the roll for a 60 FPS frame
     auto [entry, isNew] = aiRolls.try_emplace(key, AIRoll{ 0.0f, -1.0, 0 });
     AIRoll& roll = entry->second;
@@ -199,6 +212,8 @@ static __declspec(naked) void ActionRoll_Hook()
 
 static void __fastcall FlickerUpdate_Hook(int thisPtr, int)
 {
+    PruneUpdateTimes();
+
     bool bEnabled = *reinterpret_cast<bool*>(thisPtr + 0x55);
     if (!bEnabled || IsTargetFrameDue(flickerUpdateTimes.try_emplace(thisPtr, -1.0).first->second))
     {
@@ -223,6 +238,8 @@ static void __fastcall FlickerUpdate_Hook(int thisPtr, int)
 
 static bool __fastcall DamageStructDoDamage_Hook(int thisPtr, int, int hDamager, int hVictim)
 {
+    PruneUpdateTimes();
+
     int hContainer = *reinterpret_cast<int*>(thisPtr + 0x28);
     float fDuration = *reinterpret_cast<float*>(thisPtr + 0x34);
 
@@ -239,6 +256,8 @@ static bool __fastcall DamageStructDoDamage_Hook(int thisPtr, int, int hDamager,
 
 static void __fastcall TriggerObjectTouch_Hook(int thisPtr, int, int hToucher)
 {
+    PruneUpdateTimes();
+
     // A trigger without delay accepts every touch, an object standing in it touches it on every update
     float fTriggerDelay = *reinterpret_cast<float*>(thisPtr + 0x24);
     if (fTriggerDelay <= 0.0f)
@@ -255,12 +274,34 @@ static void ApplyHighFPSFixesServerPatch()
 {
     if (!HighFPSFixes) return;
 
-    DWORD addr_ServerUpdateSlowMo = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 86 ?? ?? ?? ?? 85 C0 74 6B", "ServerUpdateSlowMo");
-    DWORD addr_ServerExitSlowMo = ScanModuleSignature(g_State.GameServer, "51 53 8B D9 8B 83 ?? ?? ?? ?? 85 C0 0F 84 ?? ?? ?? ?? DD 05", "ServerExitSlowMo");
+    // From the previous server
+    aiRolls.clear();
+    proximityGrenadeUpdateTimes.clear();
+    deathFireUpdateTimes.clear();
+    flickerUpdateTimes.clear();
+    progressiveDamageTimes.clear();
+    triggerTouchTimes.clear();
+    lastHSlowMoRecord = 0;
+    slowMoChargeObserved = false;
+
+    // Needs the charge of the local client, not available on a dedicated server
+    if (g_State.isClientSlowMoTracked && pPlayerObjListBegin != 0)
+    {
+        DWORD addr_ServerUpdateSlowMo = ScanModuleSignature(g_State.GameServer, "56 8B F1 8B 86 ?? ?? ?? ?? 85 C0 74 6B", "ServerUpdateSlowMo");
+        DWORD addr_ServerExitSlowMo = ScanModuleSignature(g_State.GameServer, "51 53 8B D9 8B 83 ?? ?? ?? ?? 85 C0 0F 84 ?? ?? ?? ?? DD 05", "ServerExitSlowMo");
+        DWORD addr_PlayerInventoryUpdate = ScanModuleSignature(g_State.GameServer, "51 A1 ?? ?? ?? ?? 56 8B F1 8B 88 ?? ?? 00 00 85 C9 74 ?? 8A 46 ?? 84 C0 74 ?? 8A 46 ?? 84 C0 74 ?? E8", "PlayerInventoryUpdate");
+
+        if (addr_ServerUpdateSlowMo != 0 && addr_ServerExitSlowMo != 0 && addr_PlayerInventoryUpdate != 0)
+        {
+            phSlowMoRecord = MemoryHelper::ReadMemory<int>(addr_ServerUpdateSlowMo + 0x5);
+            HookHelper::ApplyHookReplaceable((void*)addr_ServerUpdateSlowMo, &ServerUpdateSlowMo_Hook, (LPVOID*)&ServerUpdateSlowMo);
+            HookHelper::ApplyHookReplaceable((void*)addr_PlayerInventoryUpdate, &PlayerInventoryUpdate_Hook, (LPVOID*)&PlayerInventoryUpdate);
+            ServerExitSlowMo = reinterpret_cast<decltype(ServerExitSlowMo)>((int)addr_ServerExitSlowMo);
+        }
+    }
+
     DWORD addr_CheckForSever = ScanModuleSignature(g_State.GameServer, "83 EC 18 8B 44 24 1C 89 4C 24 08", "CheckForSever");
     DWORD addr_AI_SetNextServerUpdate = ScanModuleSignature(g_State.GameServer, "8B 44 24 10 83 C4 08 89 86", "AI_SetNextServerUpdate");
-    DWORD addr_PlayerInventoryUpdate = ScanModuleSignature(g_State.GameServer, "51 A1 ?? ?? ?? ?? 56 8B F1 8B 88 ?? ?? 00 00 85 C9 74 ?? 8A 46 ?? 84 C0 74 ?? 8A 46 ?? 84 C0 74 ?? E8", "PlayerInventoryUpdate");
-    DWORD addr_PlayerObjList = ScanModuleSignature(g_State.GameServer, "8B 35 ?? ?? ?? ?? 3B 35 ?? ?? ?? ?? 74 25 8B 87 ?? ?? 00 00 8B 0E 33 D2", "PlayerObjList");
     DWORD addr_ProximityGrenadeFlipping = ScanModuleSignature(g_State.GameServer, "8A 86 ?? 02 00 00 84 C0 0F 85 02 02 00 00 8A 86 ?? 02 00 00 84 C0 0F 85 F4 01 00 00", "ProximityGrenadeFlipping");
     DWORD addr_ProximityGrenadeUpdate = ScanModuleSignature(g_State.GameServer, "8A 86 ?? 02 00 00 84 C0 0F 85 02 02 00 00 8A 86 ?? 02 00 00 84 C0 0F 85 F4 01 00 00", "ProximityGrenadeUpdate", 4);
     DWORD addr_UpdateFireWeaponDuringDeath = ScanModuleSignature(g_State.GameServer, "81 EC 80 00 00 00 57 8B F9 8B 87 ?? ?? 00 00 83 F8 ?? 0F 84 71 02 00 00 83 F8 ?? 0F 84 68 02 00 00 8B 87", "UpdateFireWeaponDuringDeath");
@@ -270,21 +311,17 @@ static void ApplyHighFPSFixesServerPatch()
     DWORD addr_DamageStructDoDamage = ScanModuleSignature(g_State.GameServer, "53 8B 5C 24 0C 85 DB 57 8B F9 75 07 5F 32 C0 5B C2 08 00 8B 0D ?? ?? ?? ?? 8B 01 56 8D 54 24 14 52 33 F6", "DamageStructDoDamage");
     DWORD addr_TriggerObjectTouch = ScanModuleSignature(g_State.GameServer, "53 55 57 8B 7C 24 10 57 8B E9 E8 ?? ?? ?? ?? 84 C0 57 0F 95", "TriggerObjectTouch");
 
-    if (addr_ServerUpdateSlowMo == 0 || addr_ServerExitSlowMo == 0 || addr_CheckForSever == 0 || addr_AI_SetNextServerUpdate == 0 || addr_PlayerInventoryUpdate == 0 || addr_PlayerObjList == 0 ||
-        addr_ProximityGrenadeFlipping == 0 || addr_ProximityGrenadeUpdate == 0 || addr_UpdateFireWeaponDuringDeath == 0 || addr_GoalRoll == 0 || addr_ActionRoll == 0 ||
-        addr_FlickerUpdate == 0 || addr_DamageStructDoDamage == 0 || addr_TriggerObjectTouch == 0)
+    if (addr_CheckForSever == 0 || 
+        addr_AI_SetNextServerUpdate == 0 || 
+        addr_ProximityGrenadeFlipping == 0 || 
+        addr_ProximityGrenadeUpdate == 0 || 
+        addr_UpdateFireWeaponDuringDeath == 0 || 
+        addr_GoalRoll == 0 || 
+        addr_ActionRoll == 0 ||
+        addr_FlickerUpdate == 0 || 
+        addr_DamageStructDoDamage == 0 || 
+        addr_TriggerObjectTouch == 0)
         return;
-
-    // Needs the client charge, not available on a dedicated server
-    if (g_State.isClientSlowMoTracked)
-    {
-        pPlayerObjListBegin = MemoryHelper::ReadMemory<DWORD>(addr_PlayerObjList + 0x2);
-        pPlayerObjListEnd = MemoryHelper::ReadMemory<DWORD>(addr_PlayerObjList + 0x8);
-        phSlowMoRecord = MemoryHelper::ReadMemory<int>(addr_ServerUpdateSlowMo + 0x5);
-        HookHelper::ApplyHookReplaceable((void*)addr_ServerUpdateSlowMo, &ServerUpdateSlowMo_Hook, (LPVOID*)&ServerUpdateSlowMo);
-        HookHelper::ApplyHookReplaceable((void*)addr_PlayerInventoryUpdate, &PlayerInventoryUpdate_Hook, (LPVOID*)&PlayerInventoryUpdate);
-        ServerExitSlowMo = reinterpret_cast<decltype(ServerExitSlowMo)>((int)addr_ServerExitSlowMo);
-    }
 
     HookHelper::ApplyHookReplaceable((void*)addr_CheckForSever, &CheckForSever_Hook, (LPVOID*)&CheckForSever);
     HookHelper::ApplyHookReplaceable((void*)(addr_AI_SetNextServerUpdate - 0x15), &AI_SetNextServerUpdate_Hook, (LPVOID*)&AI_SetNextServerUpdate);

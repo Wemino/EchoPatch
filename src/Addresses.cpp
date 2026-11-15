@@ -128,7 +128,6 @@ enum class Addr
 	RebindTextures,
 
 	// ConsoleEnabled
-	Console_Init,
 	Console_CursorLock,
 	Console_CvarListHead,
 	Console_CvarArrayStart,
@@ -288,7 +287,6 @@ namespace
 		/* RebindTextures                   */ {  0x16BA0,  0x16CC0,  0x218F0,  0x21AA0 },
 
 		// ConsoleEnabled
-		/* Console_Init                     */ { 0x176FF0,      0x0, 0x21BFD0, 0x21E010 },
 		/* Console_CursorLock               */ { 0x16ABB4,      0x0, 0x20EBEC, 0x210BEC },
 		/* Console_CvarListHead             */ { 0x1773D4,      0x0, 0x21C3B4, 0x21E414 },
 		/* Console_CvarArrayStart           */ { 0x16D0F8,      0x0, 0x2126C8, 0x2146D8 },
@@ -326,4 +324,9 @@ uintptr_t GetAddress(Addr id)
 		return 0;
 
 	return g_State.BaseAddress + offset;
+}
+
+IDirect3DDevice9* GetRendererDevice()
+{
+	return *reinterpret_cast<IDirect3DDevice9**>(GetAddress(Addr::RendererDevice));
 }

@@ -7,7 +7,6 @@
 int(__stdcall* CreateRenderTarget)(int, int, int, DWORD*) = nullptr;
 int(__stdcall* StretchRect)(int, const float*, int, const float*) = nullptr;
 
-static IDirect3DDevice9* const* ssaaDevice = nullptr;
 
 // =====================
 // SSAAScale
@@ -22,7 +21,7 @@ static int __stdcall CreateRenderTarget_Hook(int width, int height, int flags, D
         flags |= 0x300; // eRTO_DepthBufferTexture | eRTO_ShadowBuffer
 
         D3DCAPS9 caps;
-        IDirect3DDevice9* device = *ssaaDevice;
+        IDirect3DDevice9* device = GetRendererDevice();
         if (device && SUCCEEDED(device->GetDeviceCaps(&caps)) && (width > (int)caps.MaxTextureWidth || height > (int)caps.MaxTextureHeight))
         {
             float scale = std::min((float)caps.MaxTextureWidth / width, (float)caps.MaxTextureHeight / height);
@@ -39,7 +38,7 @@ static int __stdcall CreateRenderTarget_Hook(int width, int height, int flags, D
 
 static bool ResolveSSAAToScreen()
 {
-    IDirect3DDevice9* device = *ssaaDevice;
+    IDirect3DDevice9* device = GetRendererDevice();
     if (!device) return false;
 
     IDirect3DSurface9* sourceSurface = nullptr;
@@ -81,8 +80,6 @@ static int __stdcall StretchRect_Hook(int sourceTarget, const float* sourceRect,
 static void ApplySSAAScale()
 {
     if (SSAAScale == 1.0f && !EchoPatchMenu) return;
-
-    ssaaDevice = reinterpret_cast<IDirect3DDevice9* const*>(GetAddress(Addr::RendererDevice));
 
     HookHelper::ApplyHook((void*)GetAddress(Addr::CreateRenderTarget), &CreateRenderTarget_Hook, (LPVOID*)&CreateRenderTarget);
     HookHelper::ApplyHook((void*)GetAddress(Addr::StretchRect), &StretchRect_Hook, (LPVOID*)&StretchRect);

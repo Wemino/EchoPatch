@@ -205,6 +205,7 @@
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp" />
+    <ClInclude Include="..\src\Server\Misc\LocalPlayer.cpp" />
     <ClInclude Include="..\src\Server\Server.hpp" />
     <ClInclude Include="..\src\Server\ServerPatch.cpp" />
     <ClInclude Include="..\src\Shaders\blur_fxo.hpp" />

@@ -126,7 +126,6 @@ namespace ScreenEchoPatchHook
         const char* section;
         const char* key;
         const char* helpId;
-        float defaultValue;
         bool requiresRestart;
 
         // Toggles, 'inverted' shows the opposite of the setting
@@ -146,24 +145,24 @@ namespace ScreenEchoPatchHook
     static const Setting s_settings[] =
     {
         // Graphics
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "HighResolutionReflections",    "IDS_HELP_HIGH_RESOLUTION_REFLECTIONS", 1.0f, false, L"High Resolution Reflections" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SSAAScale",                    "IDS_HELP_SUPERSAMPLING",               1.0f, false, nullptr, false, "IDS_SUPERSAMPLING",          100, 100, 400, 25, &SSAAScaleText },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "NoLODBias",                    "IDS_HELP_MAXIMUM_MODEL_DETAIL",        1.0f, false, L"Maximum Model Detail" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "EnablePersistentWorldState",   "IDS_HELP_PERSISTENT_WORLD",            1.0f, true,  L"Persistent World" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SavePersistentWorldState",     "IDS_HELP_SAVE_PERSISTENT_WORLD",       1.0f, true,  L"Save Persistent World" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "HighResolutionReflections",    "IDS_HELP_HIGH_RESOLUTION_REFLECTIONS", false, L"High Resolution Reflections" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SSAAScale",                    "IDS_HELP_SUPERSAMPLING",               false, nullptr, false, "IDS_SUPERSAMPLING",          100, 100, 400, 25, &SSAAScaleText },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "NoLODBias",                    "IDS_HELP_MAXIMUM_MODEL_DETAIL",        false, L"Maximum Model Detail" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "EnablePersistentWorldState",   "IDS_HELP_PERSISTENT_WORLD",            true,  L"Persistent World" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SavePersistentWorldState",     "IDS_HELP_SAVE_PERSISTENT_WORLD",       true,  L"Save Persistent World" },
 
         // Display
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "CustomFOV",                    "IDS_HELP_FIELD_OF_VIEW",               0.0f, false, nullptr, false, "IDS_FIELD_OF_VIEW",          1,   70,  130, 1,  &CustomFOVText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDScaling",                   "IDS_HELP_HUD_SCALING",                 1.0f, false, L"HUD Scaling" },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDCustomScalingFactor",       "IDS_HELP_HUD_SIZE",                    1.0f, false, nullptr, false, "IDS_HUD_SIZE",               100, 50,  200, 5,  &HUDSizeText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "SmallTextCustomScalingFactor", "IDS_HELP_SMALL_TEXT_SIZE",             1.0f, false, nullptr, false, "IDS_SMALL_TEXT_SIZE",        100, 50,  200, 5,  &MultiplierText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "DisableLetterbox",             "IDS_HELP_LETTERBOX",                   0.0f, false, L"Letterbox", true },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "CustomFOV",                    "IDS_HELP_FIELD_OF_VIEW",               false, nullptr, false, "IDS_FIELD_OF_VIEW",          1,   70,  130, 1,  &CustomFOVText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDScaling",                   "IDS_HELP_HUD_SCALING",                 false, L"HUD Scaling" },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDCustomScalingFactor",       "IDS_HELP_HUD_SIZE",                    false, nullptr, false, "IDS_HUD_SIZE",               100, 50,  200, 5,  &HUDSizeText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "SmallTextCustomScalingFactor", "IDS_HELP_SMALL_TEXT_SIZE",             false, nullptr, false, "IDS_SMALL_TEXT_SIZE",        100, 50,  200, 5,  &MultiplierText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "DisableLetterbox",             "IDS_HELP_LETTERBOX",                   false, L"Letterbox", true },
 
         // Mouse
-        { CUSTOM_SCREEN_MOUSE,    "Controller", "MouseAimMultiplier",           "IDS_HELP_SENSITIVITY_MULTIPLIER",      1.0f, false, nullptr, false, "IDS_SENSITIVITY_MULTIPLIER", 100, 5,   200, 5,  &MultiplierText },
+        { CUSTOM_SCREEN_MOUSE,    "Controller", "MouseAimMultiplier",           "IDS_HELP_SENSITIVITY_MULTIPLIER",      false, nullptr, false, "IDS_SENSITIVITY_MULTIPLIER", 100, 5,   200, 5,  &MultiplierText },
 
         // Memory
-        { CUSTOM_SCREEN_MEMORY,   "Fixes",      "ReduceTextureMemory",          "IDS_HELP_REDUCE_TEXTURE_MEMORY",       0.0f, true,  L"Reduce Texture Memory" },
+        { CUSTOM_SCREEN_MEMORY,   "Fixes",      "ReduceTextureMemory",          "IDS_HELP_REDUCE_TEXTURE_MEMORY",       true,  L"Reduce Texture Memory" },
     };
 
     // Local settings
@@ -224,14 +223,35 @@ namespace ScreenEchoPatchHook
         return false;
     }
 
+    static float GetCurrentValue(int index)
+    {
+        switch (index)
+        {
+            case HIGH_RESOLUTION_REFLECTIONS: return HighResolutionReflections;
+            case SSAA_SCALE: return SSAAScale;
+            case NO_LOD_BIAS: return NoLODBias;
+            case ENABLE_PERSISTENT_WORLD_STATE: return EnablePersistentWorldState;
+            case SAVE_PERSISTENT_WORLD_STATE: return SavePersistentWorldState;
+            case CUSTOM_FOV: return CustomFOV;
+            case HUD_SCALING: return HUDScaling;
+            case HUD_CUSTOM_SCALING_FACTOR: return HUDCustomScalingFactor;
+            case SMALL_TEXT_CUSTOM_SCALING_FACTOR: return SmallTextCustomScalingFactor;
+            case DISABLE_LETTERBOX: return DisableLetterbox;
+            case MOUSE_AIM_MULTIPLIER: return MouseAimMultiplier;
+            case REDUCE_TEXTURE_MEMORY: return ReduceTextureMemory;
+        }
+
+        return 0.0f;
+    }
+
     static float ReadSetting(int index)
     {
         const Setting& setting = s_settings[index];
 
         if (IsSlider(setting))
-            return IniHelper::ReadFloat(setting.section, setting.key, setting.defaultValue);
+            return IniHelper::ReadFloat(setting.section, setting.key, GetCurrentValue(index));
 
-        return IniHelper::ReadInteger(setting.section, setting.key, static_cast<int>(setting.defaultValue)) == 1 ? 1.0f : 0.0f;
+        return IniHelper::ReadInteger(setting.section, setting.key, static_cast<int>(GetCurrentValue(index))) == 1 ? 1.0f : 0.0f;
     }
 
     static float GetSettingValue(int index)

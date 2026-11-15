@@ -502,9 +502,6 @@ static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
     s_capabilities.hasTouchpad = SDL_GetNumGamepadTouchpads(pGamepad) > 0;
     s_capabilities.hasGyro = SDL_GamepadHasSensor(pGamepad, SDL_SENSOR_GYRO);
     s_capabilities.hasAccel = SDL_GamepadHasSensor(pGamepad, SDL_SENSOR_ACCEL);
-    s_capabilities.name = SDL_GetGamepadName(pGamepad);
-    s_capabilities.vendorId = SDL_GetGamepadVendor(pGamepad);
-    s_capabilities.productId = SDL_GetGamepadProduct(pGamepad);
 
     if (s_capabilities.hasGyro)
     {

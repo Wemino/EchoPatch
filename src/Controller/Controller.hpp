@@ -46,9 +46,6 @@ struct GamepadCapabilities
     bool hasTouchpad = false;
     bool hasGyro = false;
     bool hasAccel = false;
-    const char* name = nullptr;
-    Uint16 vendorId = 0;
-    Uint16 productId = 0;
 };
 
 struct GyroState
