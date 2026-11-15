@@ -60,6 +60,14 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 		return value * std::min((magnitude - DEAD_ZONE) / (1.0 - DEAD_ZONE), 1.0) / magnitude;
 	};
 
+	auto ReadMovementAxis = [&](SDL_GamepadAxis axis, SDL_GamepadAxis otherAxis) -> double
+	{
+		if (std::abs(SDL_GetGamepadAxis(pGamepad, axis) / 32767.0) < DEAD_ZONE)
+			return 0.0;
+
+		return ReadStickAxis(axis, otherAxis);
+	};
+
 	auto ApplyZoomScale = [](double value) -> double
 	{
 		if (zoomMag > GPadZoomMagThreshold)
@@ -69,8 +77,8 @@ static double __fastcall GetExtremalCommandValue_Hook(int thisPtr, int, int comm
 
 	switch (commandId)
 	{
-		case 2:  return -ReadStickAxis(SDL_GAMEPAD_AXIS_LEFTY, SDL_GAMEPAD_AXIS_LEFTX);                      // Forward
-		case 5:  return  ReadStickAxis(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY);                      // Strafe
+		case 2:  return -ReadMovementAxis(SDL_GAMEPAD_AXIS_LEFTY, SDL_GAMEPAD_AXIS_LEFTX);                   // Forward
+		case 5:  return  ReadMovementAxis(SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY);                   // Strafe
 		case 22: return  ApplyZoomScale(ReadStickAxis(SDL_GAMEPAD_AXIS_RIGHTY, SDL_GAMEPAD_AXIS_RIGHTX));     // Pitch
 		case 23: return  ApplyZoomScale(ReadStickAxis(SDL_GAMEPAD_AXIS_RIGHTX, SDL_GAMEPAD_AXIS_RIGHTY));     // Yaw
 		default: return  GetExtremalCommandValue(thisPtr, commandId);
