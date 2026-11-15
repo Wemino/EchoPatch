@@ -52,7 +52,7 @@ static void ReadConfig()
     CustomFOV = IniHelper::ReadFloat("Display", "CustomFOV", 0.0f);
     HUDScaling = IniHelper::ReadInteger("Display", "HUDScaling", 1) == 1;
     HUDCustomScalingFactor = IniHelper::ReadFloat("Display", "HUDCustomScalingFactor", 1.0f);
-    SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.2f);
+    SmallTextCustomScalingFactor = IniHelper::ReadFloat("Display", "SmallTextCustomScalingFactor", 1.4f);
     AutoResolution = IniHelper::ReadInteger("Display", "AutoResolution", 1);
     DisableLetterbox = IniHelper::ReadInteger("Display", "DisableLetterbox", 0) == 1;
     ForceWindowed = IniHelper::ReadInteger("Display", "ForceWindowed", 0) == 1;
