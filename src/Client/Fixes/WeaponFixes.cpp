@@ -11,6 +11,7 @@ static int pUpperAnimationContext = 0;
 static bool fireAnimationInterceptionDisabled = false;
 static bool requestNextWeapon = false;
 static bool requestPreviousWeapon = false;
+static bool isFireHeldFromTurret = false;
 
 // ======================
 // WeaponFixes
@@ -219,4 +220,26 @@ static uint8_t __fastcall GetWeaponSlot_Hook(int thisPtr, int, int weaponHandle)
 
 	// Fallback: return the actual current slot index
 	return static_cast<uint8_t>(currentSlot);
+}
+
+static bool __fastcall CanFireWeapon_Hook(int thisPtr, int)
+{
+	// BC_CFLG_FIRING in the control flags of m_pMoveMgr, set by the button itself
+	int moveMgr = *(int*)(thisPtr + 0x14);
+	bool isFireHeld = moveMgr != 0 && (*(uint32_t*)(moveMgr + 0x28) & 0x400) != 0;
+
+	// m_pTurretFX
+	if (*(int*)(thisPtr + 0x5F4) != 0)
+	{
+		isFireHeldFromTurret = isFireHeld;
+	}
+	else if (isFireHeldFromTurret)
+	{
+		if (isFireHeld)
+			return false;
+
+		isFireHeldFromTurret = false;
+	}
+
+	return CanFireWeapon(thisPtr);
 }
