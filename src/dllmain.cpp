@@ -59,6 +59,7 @@
 #include "Client/Graphics/SSAAScale.cpp"
 #include "Client/Display/AutoResolution.cpp"
 #include "Client/Controller/SDLGamepadSupport.cpp"
+#include "Client/Controller/ButtonGlyphs.cpp"
 #include "Client/Console/ConsoleEnabled.cpp"
 #include "Client/Console/DebugTools.cpp"
 #include "Client/Extra/EnableCustomMaxWeaponCapacity.cpp"
@@ -70,6 +71,7 @@
 #pragma comment(lib, "libMinHook.x86.lib")
 #pragma comment(lib, "SDL3-static.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "windowscodecs.lib")
 
 bool OnProcessAttach(HMODULE hModule)
 {

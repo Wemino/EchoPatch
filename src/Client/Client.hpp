@@ -17,3 +17,6 @@ void WritePersistentWorldStateFile(const std::string& savePath);
 // Used by the ClientFX decal hook
 bool GetPersistentDecalScale(int decal, float& scale);
 void SetPersistentDecalWorldModel(int decal);
+
+// Used by the controller when the button prompts change
+void RefreshButtonGlyphs();

@@ -182,6 +182,9 @@ struct GlobalState
 	bool isUsingRemoteDetonator = false;
 	bool isOperatingTurret = false;
 	bool isBuildingCScreenJoystick = false;
+	bool hasButtonGlyphs = false;
+	DWORD textureStringAddr = 0;
+	DWORD drawPrimAddr = 0;
 
 	// ======================
 	// Server State

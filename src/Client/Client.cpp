@@ -129,6 +129,17 @@ bool(__cdecl* CClientWeapon_WeaponPath_OnImpactCB)(DWORD*, int) = nullptr;
 bool(__thiscall* HandleFallLand)(DWORD*, float, int) = nullptr;
 void(__thiscall* CTurretFX_SetDamageState)(DWORD*) = nullptr;
 void(__thiscall* CycleCtrlSetSelIndex)(int, unsigned __int8) = nullptr;
+int(__thiscall* TextureStringCreate)(int, const wchar_t*, int) = nullptr;
+int(__thiscall* TextureStringWordWrap)(int, int, int) = nullptr;
+int(__thiscall* TextureStringRecreate)(int, int, const wchar_t*, int) = nullptr;
+int(__thiscall* TextureStringGetStringExtents)(int, int, int*) = nullptr;
+int(__thiscall* TextureStringGetStringLength)(int, int, uint32_t*) = nullptr;
+int(__thiscall* TextureStringGetString)(int, int, wchar_t*, uint32_t) = nullptr;
+int(__thiscall* TextureStringGetCharRect)(int, int, uint32_t, int*, int*, float*, float*) = nullptr;
+int(__thiscall* TextureStringSetupTextRendering)(int, int) = nullptr;
+int(__thiscall* TextureStringRender)(int, int, int, const float*, uint32_t, const float*, const float*, const float*, const float*, bool) = nullptr;
+int(__thiscall* TextureStringRenderClipped)(int, int, int, const int*, const float*, uint32_t, const float*, bool) = nullptr;
+bool(__thiscall* BaseScreenRender)(int) = nullptr;
 
 // ConsoleEnabled
 void(__stdcall* SetInputState)(bool) = nullptr;

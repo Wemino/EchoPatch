@@ -80,6 +80,9 @@
     <ClInclude Include="..\src\Client\Console\DebugTools.cpp">
       <Filter>Client\Console</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Controller\ButtonGlyphs.cpp">
+      <Filter>Client\Controller</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Controller\SDLGamepadSupport.cpp">
       <Filter>Client\Controller</Filter>
     </ClInclude>
@@ -323,6 +326,9 @@
     <ClInclude Include="..\src\Shaders\ssaa_resolve_cso.hpp">
       <Filter>Shaders</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Textures\controller_glyphs_png.hpp">
+      <Filter>Textures</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EchoPatch.ini" />
@@ -351,6 +357,9 @@
     </Filter>
     <Filter Include="Shaders">
       <UniqueIdentifier>{bad4a820-7419-477c-897a-3cc9982d5d7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Textures">
+      <UniqueIdentifier>{5c2e8f3a-9b1d-4e7a-a6c4-3f0d2b8e1c57}</UniqueIdentifier>
     </Filter>
     <Filter Include="Client\Console">
       <UniqueIdentifier>{7a2cccb9-e3a7-4d03-8703-fac9b0c80991}</UniqueIdentifier>

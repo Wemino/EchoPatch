@@ -138,6 +138,7 @@
     <ClInclude Include="..\src\Client\ClientPatch.cpp" />
     <ClInclude Include="..\src\Client\Console\ConsoleEnabled.cpp" />
     <ClInclude Include="..\src\Client\Console\DebugTools.cpp" />
+    <ClInclude Include="..\src\Client\Controller\ButtonGlyphs.cpp" />
     <ClInclude Include="..\src\Client\Controller\SDLGamepadSupport.cpp" />
     <ClInclude Include="..\src\Client\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Client\Display\HUDScaling.cpp" />
@@ -221,6 +222,7 @@
     <ClInclude Include="..\src\Shaders\screeneffect_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\ShadowBlur_BlurBuffer_fxo.hpp" />
     <ClInclude Include="..\src\Shaders\ssaa_resolve_cso.hpp" />
+    <ClInclude Include="..\src\Textures\controller_glyphs_png.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />

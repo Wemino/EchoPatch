@@ -10,6 +10,11 @@ static constexpr int MAX_COMMAND_ID = 114;
 // Reserved lParam bits (25-28), never set by real key messages
 static constexpr LPARAM SIMULATED_KEY_FLAG = 0x1E000000;
 
+static constexpr wchar_t COMMAND_PROMPT_CHAR = 0xE000;
+static constexpr wchar_t INPUT_STRING_CHAR = 0xE0F0;
+static constexpr wchar_t BUTTON_GLYPH_CHAR = 0xE100;
+static constexpr wchar_t TRIGGER_GLYPH_CHAR = BUTTON_GLYPH_CHAR + SDL_GAMEPAD_BUTTON_COUNT;
+
 enum class GamepadStyle
 {
     Xbox,
@@ -18,9 +23,26 @@ enum class GamepadStyle
     Unknown
 };
 
+enum class GamepadGlyphs
+{
+    Xbox360,
+    XboxOne,
+    XboxSeries,
+    PS3,
+    PS4,
+    PS5,
+    SwitchPro,
+    JoyCon,
+    GameCube,
+    SteamController,
+    SteamDeck,
+    Count
+};
+
 struct GamepadCapabilities
 {
     GamepadStyle style = GamepadStyle::Unknown;
+    GamepadGlyphs glyphs = GamepadGlyphs::Xbox360;
     bool hasTouchpad = false;
     bool hasGyro = false;
     bool hasAccel = false;
@@ -79,6 +101,8 @@ struct ButtonPromptInfo
 {
     const wchar_t* buttonName;
     bool isHoldAction;
+    bool isTrigger;
+    int index;
 };
 
 // ==========================================================
@@ -169,6 +193,8 @@ const wchar_t* GetGamepadButtonName(int commandId, bool shortName);
 ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName);
 const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName);
 const wchar_t* GetGamepadInputName(bool isTrigger, int index, bool shortName);
+wchar_t GetGamepadButtonGlyph(bool isTrigger, int index);
+SDL_GamepadButton GetGamepadMenuButton(bool isConfirm);
 void RefreshGamepadPrompts();
 void SetGamepadRumble(Uint16 lowFreq, Uint16 highFreq, Uint32 durationMs, int priority = 0);
 void OnKeyboardMouseInput();

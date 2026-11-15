@@ -152,6 +152,11 @@ enum class Addr
 	Console_ClientCommon,
 	Console_UpdateObject,
 
+	// ButtonGlyphs
+	TextureDataConstructor,
+	TextureDataDestructor,
+	ReadDDSTextureData,
+
 	Count
 };
 
@@ -306,6 +311,11 @@ namespace
 		/* Console_ServerInterface          */ { 0x16BCF8,      0x0, 0x20FD30, 0x211D38 },
 		/* Console_ClientCommon             */ { 0x169F60,      0x0, 0x20DF98, 0x20FF98 },
 		/* Console_UpdateObject             */ {  0x573E0,      0x0,  0x79900,  0x7A590 },
+
+		// ButtonGlyphs
+		/* TextureDataConstructor           */ {      0x0,      0x0, 0x186940,      0x0 },
+		/* TextureDataDestructor            */ {      0x0,      0x0, 0x186970,      0x0 },
+		/* ReadDDSTextureData               */ {      0x0,      0x0, 0x1D3BF0,      0x0 },
 	};
 }
 

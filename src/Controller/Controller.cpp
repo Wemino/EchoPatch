@@ -455,6 +455,41 @@ static GamepadStyle DetectGamepadStyle(SDL_Gamepad* pGamepad)
     return GamepadStyle::Xbox;
 }
 
+static GamepadGlyphs DetectGamepadGlyphs(SDL_Gamepad* pGamepad)
+{
+    if (!pGamepad)
+        return GamepadGlyphs::Xbox360;
+
+    // Valve
+    if (SDL_GetGamepadVendor(pGamepad) == 0x28DE)
+    {
+        switch (SDL_GetGamepadProduct(pGamepad))
+        {
+            case 0x1205: return GamepadGlyphs::SteamDeck;
+            case 0x1102:
+            case 0x1142: return GamepadGlyphs::SteamController;
+        }
+    }
+
+    switch (SDL_GetGamepadType(pGamepad))
+    {
+        case SDL_GAMEPAD_TYPE_XBOXONE:
+            // Share button
+            return SDL_GamepadHasButton(pGamepad, SDL_GAMEPAD_BUTTON_MISC1) ? GamepadGlyphs::XboxSeries : GamepadGlyphs::XboxOne;
+
+        case SDL_GAMEPAD_TYPE_PS3:                          return GamepadGlyphs::PS3;
+        case SDL_GAMEPAD_TYPE_PS4:                          return GamepadGlyphs::PS4;
+        case SDL_GAMEPAD_TYPE_PS5:                          return GamepadGlyphs::PS5;
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_PRO:          return GamepadGlyphs::SwitchPro;
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_LEFT:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_RIGHT:
+        case SDL_GAMEPAD_TYPE_NINTENDO_SWITCH_JOYCON_PAIR:  return GamepadGlyphs::JoyCon;
+        case SDL_GAMEPAD_TYPE_GAMECUBE:                     return GamepadGlyphs::GameCube;
+        case SDL_GAMEPAD_TYPE_STEAM:                        return GamepadGlyphs::SteamController;
+        default:                                            return GamepadGlyphs::Xbox360;
+    }
+}
+
 static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
 {
     s_capabilities = GamepadCapabilities();
@@ -463,6 +498,7 @@ static void LoadGamepadCapabilities(SDL_Gamepad* pGamepad)
         return;
 
     s_capabilities.style = DetectGamepadStyle(pGamepad);
+    s_capabilities.glyphs = DetectGamepadGlyphs(pGamepad);
     s_capabilities.hasTouchpad = SDL_GetNumGamepadTouchpads(pGamepad) > 0;
     s_capabilities.hasGyro = SDL_GamepadHasSensor(pGamepad, SDL_SENSOR_GYRO);
     s_capabilities.hasAccel = SDL_GamepadHasSensor(pGamepad, SDL_SENSOR_ACCEL);
@@ -1176,6 +1212,7 @@ static void NotifyHUDConnectionChange()
     HUDWeaponListUpdateTriggerNames(g_State.CHUDWeaponList);
     HUDGrenadeListUpdateTriggerNames(g_State.CHUDGrenadeList);
     HUDSwapUpdateTriggerName();
+    RefreshButtonGlyphs();
 }
 
 static void ClearMenuButtonStates()
@@ -1475,7 +1512,7 @@ const wchar_t* GetGamepadButtonName(int commandId, bool shortName)
 
 static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName)
 {
-    ButtonPromptInfo info = { nullptr, false };
+    ButtonPromptInfo info = { nullptr, false, false, -1 };
     const ButtonNameSet& names = GetButtonNameSet();
 
     // Check tap commands first
@@ -1485,6 +1522,7 @@ static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName
         {
             info.buttonName = shortName ? names.buttons[i].shortName : names.buttons[i].longName;
             info.isHoldAction = false;
+            info.index = i;
             return info;
         }
     }
@@ -1495,6 +1533,8 @@ static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName
         {
             info.buttonName = shortName ? names.triggers[i].shortName : names.triggers[i].longName;
             info.isHoldAction = false;
+            info.isTrigger = true;
+            info.index = i;
             return info;
         }
     }
@@ -1506,6 +1546,7 @@ static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName
         {
             info.buttonName = shortName ? names.buttons[i].shortName : names.buttons[i].longName;
             info.isHoldAction = true;
+            info.index = i;
             return info;
         }
     }
@@ -1516,6 +1557,8 @@ static ButtonPromptInfo GetGamepadButtonPromptInfo(int commandId, bool shortName
         {
             info.buttonName = shortName ? names.triggers[i].shortName : names.triggers[i].longName;
             info.isHoldAction = true;
+            info.isTrigger = true;
+            info.index = i;
             return info;
         }
     }
@@ -1534,13 +1577,17 @@ const wchar_t* GetGamepadButtonPrompt(int commandId, bool shortName)
     if (!info.buttonName)
         return nullptr;
 
+    // The glyph takes the place of the name when there is one
+    wchar_t glyph[2] = { GetGamepadButtonGlyph(info.isTrigger, info.index), L'\0' };
+    const wchar_t* buttonName = glyph[0] ? glyph : info.buttonName;
+
     if (info.isHoldAction)
     {
-        swprintf_s(buffer, 64, L"Hold %s", info.buttonName);
+        swprintf_s(buffer, 64, L"Hold %s", buttonName);
     }
     else
     {
-        wcscpy_s(buffer, 64, info.buttonName);
+        wcscpy_s(buffer, 64, buttonName);
     }
 
     return buffer;
@@ -1565,6 +1612,25 @@ const wchar_t* GetGamepadInputName(bool isTrigger, int index, bool shortName)
         return L"";
 
     return shortName ? entry->shortName : entry->longName;
+}
+
+wchar_t GetGamepadButtonGlyph(bool isTrigger, int index)
+{
+    if (!g_State.hasButtonGlyphs)
+        return 0;
+
+    if (isTrigger)
+        return (index >= 0 && index < 2) ? TRIGGER_GLYPH_CHAR + index : 0;
+
+    return (index >= 0 && index < SDL_GAMEPAD_BUTTON_COUNT) ? BUTTON_GLYPH_CHAR + index : 0;
+}
+
+SDL_GamepadButton GetGamepadMenuButton(bool isConfirm)
+{
+    if (s_capabilities.style == GamepadStyle::Nintendo)
+        return isConfirm ? SDL_GAMEPAD_BUTTON_EAST : SDL_GAMEPAD_BUTTON_SOUTH;
+
+    return isConfirm ? SDL_GAMEPAD_BUTTON_SOUTH : SDL_GAMEPAD_BUTTON_EAST;
 }
 
 // Re-reads the trigger names cached by the HUD after the button mapping changed
@@ -1857,14 +1923,8 @@ static void ProcessMenuNavigation()
 
     const ULONGLONG currentTime = GetTickCount64();
 
-    SDL_GamepadButton confirmButton = SDL_GAMEPAD_BUTTON_SOUTH;
-    SDL_GamepadButton cancelButton = SDL_GAMEPAD_BUTTON_EAST;
-
-    if (s_capabilities.style == GamepadStyle::Nintendo)
-    {
-        confirmButton = SDL_GAMEPAD_BUTTON_EAST;
-        cancelButton = SDL_GAMEPAD_BUTTON_SOUTH;
-    }
+    SDL_GamepadButton confirmButton = GetGamepadMenuButton(true);
+    SDL_GamepadButton cancelButton = GetGamepadMenuButton(false);
 
     const struct { SDL_GamepadButton button; int vkey; } menuNavigation[] =
     {

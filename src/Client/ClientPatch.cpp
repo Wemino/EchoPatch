@@ -335,6 +335,35 @@ static void ApplyControllerClientPatch()
 		HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
 	}
 
+	// Button glyphs
+	DWORD addr_GUIStringRenderString = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 46 28 85 C0 74 ?? 8B 74 24 1C 8B 0D", "GUIStringRenderString");
+	DWORD addr_BaseScreenRender = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 58 01 00 00 85 C0 57 74", "BaseScreenRender");
+
+	if (addr_GUIStringRenderString != 0 && addr_BaseScreenRender != 0)
+	{
+		g_State.textureStringAddr = MemoryHelper::ReadMemory<int>(addr_GUIStringRenderString + 0x10);
+		g_State.drawPrimAddr = MemoryHelper::ReadMemory<int>(addr_GUIStringRenderString + 0x34);
+		int pTextureString = MemoryHelper::ReadMemory<int>(g_State.textureStringAddr);
+
+		if (pTextureString != 0)
+		{
+			int textureStringVtable = *(int*)pTextureString;
+
+			HookHelper::ApplyHook((void*)*(int*)(textureStringVtable + 0x10), &TextureStringCreate_Hook, (LPVOID*)&TextureStringCreate);
+			HookHelper::ApplyHook((void*)*(int*)(textureStringVtable + 0x18), &TextureStringWordWrap_Hook, (LPVOID*)&TextureStringWordWrap);
+			HookHelper::ApplyHook((void*)*(int*)(textureStringVtable + 0x1C), &TextureStringRecreate_Hook, (LPVOID*)&TextureStringRecreate);
+			HookHelper::ApplyHook((void*)*(int*)(textureStringVtable + 0x48), &TextureStringRender_Hook, (LPVOID*)&TextureStringRender);
+			HookHelper::ApplyHook((void*)*(int*)(textureStringVtable + 0x4C), &TextureStringRenderClipped_Hook, (LPVOID*)&TextureStringRenderClipped);
+			HookHelper::ApplyHook((void*)addr_BaseScreenRender, &BaseScreenRender_Hook, (LPVOID*)&BaseScreenRender);
+			TextureStringGetStringExtents = reinterpret_cast<decltype(TextureStringGetStringExtents)>(*(int*)(textureStringVtable + 0x24));
+			TextureStringGetStringLength = reinterpret_cast<decltype(TextureStringGetStringLength)>(*(int*)(textureStringVtable + 0x28));
+			TextureStringGetString = reinterpret_cast<decltype(TextureStringGetString)>(*(int*)(textureStringVtable + 0x2C));
+			TextureStringGetCharRect = reinterpret_cast<decltype(TextureStringGetCharRect)>(*(int*)(textureStringVtable + 0x38));
+			TextureStringSetupTextRendering = reinterpret_cast<decltype(TextureStringSetupTextRendering)>(*(int*)(textureStringVtable + 0x44));
+			g_State.hasButtonGlyphs = true;
+		}
+	}
+
 	if (HideMouseCursor)
 	{
 		DWORD addr_UseCursor = ScanModuleSignature(g_State.GameClient, "8A 44 24 04 84 C0 56 8B F1 88 46 01 74", "UseCursor");

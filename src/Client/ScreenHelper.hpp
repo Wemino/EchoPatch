@@ -339,7 +339,9 @@ namespace ScreenHelper
 
         int texMgr = *pTexMgr;
         int texMgrVtable = *(int*)texMgr;
-        ReleaseTexRef_t releaseTexRef = (ReleaseTexRef_t)(*(int*)(texMgrVtable + 0x10));
+
+        int releaseTexRefOffset = g_State.CurrentFEARGame == FEARXP ? 0xC : 0x10;
+        ReleaseTexRef_t releaseTexRef = (ReleaseTexRef_t)(*(int*)(texMgrVtable + releaseTexRefOffset));
         releaseTexRef(texMgr, textureRef);
     }
 

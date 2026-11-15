@@ -108,11 +108,10 @@ static int __fastcall SetOperatingTurret_Hook(int thisPtr, int, int pTurret)
 	return SetOperatingTurret(thisPtr, pTurret);
 }
 
-static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int, int commandId)
-{
-	if (!ShouldShowControllerPrompts() || g_State.isLoadingDefault)
-		return GetTriggerNameFromCommandID(thisPtr, commandId);
+static int userProfile = 0;
 
+static const wchar_t* GetControllerTriggerName(int thisPtr, int commandId)
+{
 	// Left Thumbstick movement
 	switch (commandId)
 	{
@@ -142,6 +141,25 @@ static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, i
 		return name;
 
 	return GetTriggerNameFromCommandID(thisPtr, commandId);
+}
+
+static const wchar_t* __fastcall GetTriggerNameFromCommandID_Hook(int thisPtr, int, int commandId)
+{
+	if (g_State.isLoadingDefault)
+		return GetTriggerNameFromCommandID(thisPtr, commandId);
+
+	const wchar_t* name = ShouldShowControllerPrompts() ? GetControllerTriggerName(thisPtr, commandId) : GetTriggerNameFromCommandID(thisPtr, commandId);
+	if (!g_State.hasButtonGlyphs || name[0] == L'\0' || commandId < 0 || commandId > MAX_COMMAND_ID)
+		return name;
+
+	static wchar_t s_promptChars[4][2];
+	static int s_promptIndex = 0;
+	wchar_t* prompt = s_promptChars[s_promptIndex++ & 3];
+
+	userProfile = thisPtr;
+	prompt[0] = COMMAND_PROMPT_CHAR + commandId;
+	prompt[1] = L'\0';
+	return prompt;
 }
 
 static void __fastcall UseCursor_Hook(int thisPtr, int, bool bUseCursor, bool bLockCursorToCenter)
@@ -875,9 +893,44 @@ static void __fastcall MsgBoxHide_Hook(int thisPtr, int, int a2)
 //  SDLGamepadSupport & FPSLimitMenuOption & EchoPatchMenu
 // ===========================================================
 
+static int stringDatabase = 0;
+
+static const char* const inputStrings[] = { "IDS_QUICKSAVE", "ScreenFailure_PressAnyKey" };
+
+static const wchar_t* GetControllerString(uint32_t strHash)
+{
+	switch (strHash)
+	{
+		case HashHelper::StringHashes::IDS_QUICKSAVE:
+			return L"Quick save";
+
+		case HashHelper::StringHashes::ScreenFailure_PressAnyKey:
+			if (wchar_t glyph = GetGamepadButtonGlyph(false, GetGamepadMenuButton(false)))
+			{
+				static wchar_t text[96];
+				swprintf_s(text, L"Press %c to return to the main menu.\nPress any other button to continue.", glyph);
+				return text;
+			}
+
+			switch (GetGamepadStyle())
+			{
+				case GamepadStyle::PlayStation:
+					return L"Press Circle to return to the main menu.\nPress any other button to continue.";
+				case GamepadStyle::Nintendo:
+					return L"Press B to return to the main menu.\nPress any other button to continue.";
+				case GamepadStyle::Xbox:
+				default:
+					return L"Press B to return to the main menu.\nPress any other button to continue.";
+			}
+	}
+
+	return nullptr;
+}
+
 static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 {
 	const uint32_t strHash = HashHelper::FNV1aRuntime(String);
+	stringDatabase = ptr;
 
 	switch (strHash)
 	{
@@ -936,26 +989,28 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		case HashHelper::StringHashes::IDS_HELP_REDUCE_TEXTURE_MEMORY:		return L"Experimental and potentially unstable. Keeps textures in video memory only. Requires a restart.";
 		case HashHelper::StringHashes::IDS_HELP_4GB_PATCH:					return L"Lets the game use 4GB of memory instead of 2GB.";
 
-		case HashHelper::StringHashes::IDS_QUICKSAVE:
-			if (ShouldShowControllerPrompts())
-			{
-				return L"Quick save";
-			}
-			break;
+		case HashHelper::StringHashes::IDS_SELECT:							return L"Select";
+		case HashHelper::StringHashes::IDS_CATEGORY:						return L"Category";
 
+		case HashHelper::StringHashes::IDS_QUICKSAVE:
 		case HashHelper::StringHashes::ScreenFailure_PressAnyKey:
+			if (g_State.hasButtonGlyphs)
+			{
+				static wchar_t s_inputStringChars[std::size(inputStrings)][2];
+
+				for (int i = 0; i < (int)std::size(inputStrings); i++)
+				{
+					if (HashHelper::FNV1aRuntime(inputStrings[i]) == strHash)
+					{
+						s_inputStringChars[i][0] = INPUT_STRING_CHAR + i;
+						return s_inputStringChars[i];
+					}
+				}
+			}
+
 			if (ShouldShowControllerPrompts())
 			{
-				switch (GetGamepadStyle())
-				{
-					case GamepadStyle::PlayStation:
-						return L"Press Circle to return to the main menu.\nPress any other button to continue.";
-					case GamepadStyle::Nintendo:
-						return L"Press B to return to the main menu.\nPress any other button to continue.";
-					case GamepadStyle::Xbox:
-					default:
-						return L"Press B to return to the main menu.\nPress any other button to continue.";
-				}
+				return GetControllerString(strHash);
 			}
 			break;
 		}

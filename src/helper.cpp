@@ -845,6 +845,8 @@ namespace HashHelper
 	{
 		static constexpr uint32_t IDS_QUICKSAVE = FNV1a("IDS_QUICKSAVE");
 		static constexpr uint32_t ScreenFailure_PressAnyKey = FNV1a("ScreenFailure_PressAnyKey");
+		static constexpr uint32_t IDS_SELECT = FNV1a("IDS_SELECT");
+		static constexpr uint32_t IDS_CATEGORY = FNV1a("IDS_CATEGORY");
 		static constexpr uint32_t ScreenCrosshair_Size_Help = FNV1a("ScreenCrosshair_Size_Help");
 		static constexpr uint32_t IDS_HELP_PICKUP_MSG_DUR = FNV1a("IDS_HELP_PICKUP_MSG_DUR");
 
