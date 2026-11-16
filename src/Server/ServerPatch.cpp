@@ -10,6 +10,7 @@ void ApplyServerPatch()
     ApplySavePersistentWorldStateServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyHighFPSFixesServerPatch();
+    ApplyFixWaterReflectionsServerPatch();
     ApplyControllerServerPatch();
     ApplyConsoleDebugLinesServerPatch();
     HookHelper::EndBatch();

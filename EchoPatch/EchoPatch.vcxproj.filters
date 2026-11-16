@@ -101,6 +101,9 @@
     <ClInclude Include="..\src\Client\Fixes\FixKeyboardInputLanguage.cpp">
       <Filter>Client\Fixes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Fixes\FixWaterReflections.cpp">
+      <Filter>Client\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Fixes\HighFPSFixes.cpp">
       <Filter>Client\Fixes</Filter>
     </ClInclude>
@@ -268,6 +271,9 @@
     </ClInclude>
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp">
       <Filter>Server\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp">
+      <Filter>Server\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp">
       <Filter>Server\Fixes</Filter>

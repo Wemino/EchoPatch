@@ -280,6 +280,7 @@ bool FixSoundWrapperLoading = false;
 bool FixHWMixing = false;
 bool FixScriptedAnimationCrash = false;
 bool FixTranslucentRendering = false;
+bool FixWaterReflections = false;
 bool KeepRendererOnFocusLoss = false;
 bool HardwareVertexProcessing = false;
 bool FixHardwareCursor = false;

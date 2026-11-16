@@ -50,6 +50,12 @@ bool(__thiscall* CanFireWeapon)(int) = nullptr;
 bool(__thiscall* RenderTargetGroupFXCreateRenderTarget)(int, uint32_t) = nullptr;
 bool(__thiscall* RenderTargetGroupFXUpdate)(int) = nullptr;
 
+// FixWaterReflections
+bool(__thiscall* RenderTargetFXBindToMaterialParam)(int) = nullptr;
+bool(__thiscall* RenderTargetFXUnbindMaterialParam)(int) = nullptr;
+bool(__thiscall* RenderTargetFXUpdateRenderTarget)(int, const float*, const float*) = nullptr;
+const char*(__thiscall* RenderTargetFXMaterialCStr)(int) = nullptr;
+
 // SSAAScale
 void(__thiscall* Camera_UpdateRenderTarget)(int) = nullptr;
 

@@ -533,6 +533,26 @@ static void ApplyHighResolutionReflectionsClientPatch()
     }
 }
 
+static void ApplyFixWaterReflectionsClientPatch()
+{
+    if (!FixWaterReflections || g_State.CurrentFEARGame != FEARXP) return;
+
+    DWORD addr_BindToMaterialParam = ScanModuleSignature(g_State.GameClient, "56 8B F1 8A 46 50 84 C0 74 04 B0 01 5E C3 8B 0D ?? ?? ?? ?? 8B 01 53 57 FF 90 ?? ?? ?? ?? 8B F8 8B 1F 8D 4E 70 FF 15", "RenderTargetFXBindToMaterialParam");
+    DWORD addr_UnbindMaterialParam = ScanModuleSignature(g_State.GameClient, "53 8B D9 8A 43 50 84 C0 74 75", "RenderTargetFXUnbindMaterialParam");
+    DWORD addr_UpdateRenderTarget = ScanModuleSignature(g_State.GameClient, "83 EC 38 56 8B F1 8B 0D ?? ?? ?? ?? 8B 01 FF 90 ?? ?? ?? ?? 8B 10 8B C8 FF 52 14 84 C0", "RenderTargetFXUpdateRenderTarget");
+    DWORD addr_MirrorInitialSectorPos = ScanModuleSignature(g_State.GameClient, "8D 4C 24 3C 51 8D 8C 24 9C 00 00 00 51 8B C8 FF 52 40", "RenderTargetFXUpdateRenderTargetMirror");
+
+    if (addr_BindToMaterialParam == 0 || addr_UnbindMaterialParam == 0 || addr_UpdateRenderTarget == 0 || addr_MirrorInitialSectorPos == 0)
+        return;
+
+    RenderTargetFXMaterialCStr = reinterpret_cast<decltype(RenderTargetFXMaterialCStr)>(MemoryHelper::ReadMemory<DWORD>(MemoryHelper::ReadMemory<DWORD>(addr_BindToMaterialParam + 0x27)));
+
+    HookHelper::ApplyHook((void*)addr_BindToMaterialParam, &RenderTargetFXBindToMaterialParam_Hook, (LPVOID*)&RenderTargetFXBindToMaterialParam);
+    HookHelper::ApplyHook((void*)addr_UnbindMaterialParam, &RenderTargetFXUnbindMaterialParam_Hook, (LPVOID*)&RenderTargetFXUnbindMaterialParam);
+    HookHelper::ApplyHook((void*)addr_UpdateRenderTarget, &RenderTargetFXUpdateRenderTarget_Hook, (LPVOID*)&RenderTargetFXUpdateRenderTarget);
+    MemoryHelper::MakeCALL(addr_MirrorInitialSectorPos, reinterpret_cast<uintptr_t>(&UpdateRenderTargetMirrorInitialSectorPos_Hook));
+}
+
 static void ApplyAutoResolutionClientPatch()
 {
     if (!AutoResolution) return;
@@ -818,6 +838,7 @@ void ApplyClientPatch()
 	ApplyEchoPatchMenuClientPatch();
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
+	ApplyFixWaterReflectionsClientPatch();
 	ApplyAutoResolutionClientPatch();
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyWeaponFixesClientPatch();

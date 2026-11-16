@@ -145,6 +145,7 @@
     <ClInclude Include="..\src\Client\Extra\DisableHipFireAccuracyPenalty.cpp" />
     <ClInclude Include="..\src\Client\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Client\Fixes\FixKeyboardInputLanguage.cpp" />
+    <ClInclude Include="..\src\Client\Fixes\FixWaterReflections.cpp" />
     <ClInclude Include="..\src\Client\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Client\Fixes\WeaponFixes.cpp" />
     <ClInclude Include="..\src\Client\Graphics\EnablePersistentWorldState.cpp" />
@@ -203,6 +204,7 @@
     <ClInclude Include="..\src\Server\Console\DebugLines.cpp" />
     <ClInclude Include="..\src\Server\Controller\Controller.cpp" />
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
+    <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp" />
     <ClInclude Include="..\src\Server\Misc\LocalPlayer.cpp" />
