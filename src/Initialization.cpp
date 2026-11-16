@@ -34,6 +34,7 @@ static void ReadConfig()
     KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;
     HardwareVertexProcessing = IniHelper::ReadInteger("Fixes", "HardwareVertexProcessing", 1) == 1;
     FixHardwareCursor = IniHelper::ReadInteger("Fixes", "FixHardwareCursor", 1) == 1;
+    FixYear2038 = IniHelper::ReadInteger("Fixes", "FixYear2038", 1) == 1;
     CacheShaderValidation = IniHelper::ReadInteger("Fixes", "CacheShaderValidation", 1) == 1;
     ReduceTextureMemory = IniHelper::ReadInteger("Fixes", "ReduceTextureMemory", 0) == 1;
     CheckLAAPatch = IniHelper::ReadInteger("Fixes", "CheckLAAPatch", 1);

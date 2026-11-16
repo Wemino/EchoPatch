@@ -56,6 +56,7 @@
 #include "Client/Fixes/FixKeyboardInputLanguage.cpp"
 #include "Client/Fixes/WeaponFixes.cpp"
 #include "Client/Fixes/FixWaterReflections.cpp"
+#include "Client/Fixes/FixYear2038.cpp"
 #include "Client/Graphics/HighResolutionReflections.cpp"
 #include "Client/Graphics/EnablePersistentWorldState.cpp"
 #include "Client/Display/HUDScaling.cpp"

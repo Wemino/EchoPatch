@@ -104,6 +104,9 @@
     <ClInclude Include="..\src\Client\Fixes\FixWaterReflections.cpp">
       <Filter>Client\Fixes</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Fixes\FixYear2038.cpp">
+      <Filter>Client\Fixes</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Fixes\HighFPSFixes.cpp">
       <Filter>Client\Fixes</Filter>
     </ClInclude>

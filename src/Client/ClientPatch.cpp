@@ -553,6 +553,24 @@ static void ApplyFixWaterReflectionsClientPatch()
     MemoryHelper::MakeCALL(addr_MirrorInitialSectorPos, reinterpret_cast<uintptr_t>(&UpdateRenderTargetMirrorInitialSectorPos_Hook));
 }
 
+static void ApplyFixYear2038ClientPatch()
+{
+    if (!FixYear2038) return;
+
+    DWORD addr_LoadScreenLocalTime = ScanModuleSignature(g_State.GameClient, "8B 84 24 2C 03 00 00 50 FF 15 ?? ?? ?? ?? 8B C8 33 DB 83 C4 04 3B CB", "LoadScreenLocalTime");
+    DWORD addr_SaveScreenLocalTime = ScanModuleSignature(g_State.GameClient, "8D 54 24 24 52 FF 15 ?? ?? ?? ?? 8B C8 83 C4 04 3B CB", "SaveScreenLocalTime");
+
+    if (addr_LoadScreenLocalTime == 0 || addr_SaveScreenLocalTime == 0)
+        return;
+
+    LocalTime = reinterpret_cast<decltype(LocalTime)>(MemoryHelper::ReadMemory<DWORD>(MemoryHelper::ReadMemory<DWORD>(addr_LoadScreenLocalTime + 0xA)));
+
+    MemoryHelper::MakeCALL(addr_LoadScreenLocalTime + 0x8, reinterpret_cast<uintptr_t>(&SaveLocalTime));
+    MemoryHelper::MakeNOP(addr_LoadScreenLocalTime + 0xD, 1);
+    MemoryHelper::MakeCALL(addr_SaveScreenLocalTime + 0x5, reinterpret_cast<uintptr_t>(&SaveLocalTime));
+    MemoryHelper::MakeNOP(addr_SaveScreenLocalTime + 0xA, 1);
+}
+
 static void ApplyAutoResolutionClientPatch()
 {
     if (!AutoResolution) return;
@@ -839,6 +857,7 @@ void ApplyClientPatch()
 	ApplySetWeaponCapacityClientPatch();
 	ApplyHighResolutionReflectionsClientPatch();
 	ApplyFixWaterReflectionsClientPatch();
+	ApplyFixYear2038ClientPatch();
 	ApplyAutoResolutionClientPatch();
 	ApplyKeyboardInputLanguageClientCheck();
 	ApplyWeaponFixesClientPatch();

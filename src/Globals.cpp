@@ -284,6 +284,7 @@ bool FixWaterReflections = false;
 bool KeepRendererOnFocusLoss = false;
 bool HardwareVertexProcessing = false;
 bool FixHardwareCursor = false;
+bool FixYear2038 = false;
 bool CacheShaderValidation = false;
 bool ReduceTextureMemory = false;
 int CheckLAAPatch = 0;

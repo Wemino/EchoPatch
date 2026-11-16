@@ -146,6 +146,7 @@
     <ClInclude Include="..\src\Client\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Client\Fixes\FixKeyboardInputLanguage.cpp" />
     <ClInclude Include="..\src\Client\Fixes\FixWaterReflections.cpp" />
+    <ClInclude Include="..\src\Client\Fixes\FixYear2038.cpp" />
     <ClInclude Include="..\src\Client\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Client\Fixes\WeaponFixes.cpp" />
     <ClInclude Include="..\src\Client\Graphics\EnablePersistentWorldState.cpp" />
