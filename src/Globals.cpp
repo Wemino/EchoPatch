@@ -277,6 +277,7 @@ bool DisableXPWidescreenFiltering = false;
 bool FixKeyboardInputLanguage = false;
 bool WeaponFixes = false;
 bool FixSoundWrapperLoading = false;
+bool FixHWMixing = false;
 bool FixScriptedAnimationCrash = false;
 bool FixTranslucentRendering = false;
 bool KeepRendererOnFocusLoss = false;

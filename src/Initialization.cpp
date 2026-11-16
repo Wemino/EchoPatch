@@ -27,6 +27,7 @@ static void ReadConfig()
     FixKeyboardInputLanguage = IniHelper::ReadInteger("Fixes", "FixKeyboardInputLanguage", 1) == 1;
     WeaponFixes = IniHelper::ReadInteger("Fixes", "WeaponFixes", 1) == 1;
     FixSoundWrapperLoading = IniHelper::ReadInteger("Fixes", "FixSoundWrapperLoading", 1) == 1;
+    FixHWMixing = IniHelper::ReadInteger("Fixes", "FixHWMixing", 1) == 1;
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
     FixTranslucentRendering = IniHelper::ReadInteger("Fixes", "FixTranslucentRendering", 1) == 1;
     KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;

@@ -655,11 +655,261 @@ namespace DirectSoundHelper
 		}
 	}
 
+	inline bool IsDownmixableStereo(const WAVEFORMATEX* pFormat)
+	{
+		return pFormat && pFormat->wFormatTag == WAVE_FORMAT_PCM && pFormat->nChannels == 2 && (pFormat->wBitsPerSample == 8 || pFormat->wBitsPerSample == 16) && pFormat->nBlockAlign == pFormat->wBitsPerSample / 4;
+	}
+
+	class DownmixBufferProxy : public IDirectSoundBuffer8
+	{
+	private:
+		struct PendingLock
+		{
+			std::unique_ptr<BYTE[]> data;
+			void* pReal1;
+			DWORD realBytes1;
+			void* pReal2;
+			DWORD realBytes2;
+		};
+
+		inline static void* s_vtable = nullptr;
+
+		IDirectSoundBuffer8* m_pReal;
+		volatile LONG m_refCount;
+		WAVEFORMATEX m_format;
+		SRWLOCK m_lock = SRWLOCK_INIT;
+		std::vector<PendingLock> m_locks;
+
+		DWORD ToMono(DWORD bytes) const { return bytes / m_format.nBlockAlign * (m_format.nBlockAlign / 2); }
+		DWORD ToStereo(DWORD bytes) const { return bytes / (m_format.nBlockAlign / 2) * m_format.nBlockAlign; }
+
+		void Downmix(const BYTE* pStereo, void* pMono, DWORD frames) const
+		{
+			if (m_format.wBitsPerSample == 16)
+			{
+				auto src = reinterpret_cast<const int16_t*>(pStereo);
+				auto dst = static_cast<int16_t*>(pMono);
+				for (DWORD i = 0; i < frames; i++)
+				{
+					dst[i] = static_cast<int16_t>((src[i * 2] + src[i * 2 + 1]) / 2);
+				}
+			}
+			else
+			{
+				auto dst = static_cast<BYTE*>(pMono);
+				for (DWORD i = 0; i < frames; i++)
+				{
+					dst[i] = static_cast<BYTE>((pStereo[i * 2] + pStereo[i * 2 + 1]) / 2);
+				}
+			}
+		}
+
+	public:
+		DownmixBufferProxy(IDirectSoundBuffer8* pReal, const WAVEFORMATEX* pFormat) : m_pReal(pReal), m_refCount(1), m_format(*pFormat)
+		{
+			m_format.cbSize = 0;
+			s_vtable = *reinterpret_cast<void**>(this);
+		}
+
+		~DownmixBufferProxy()
+		{
+			if (m_pReal)
+				m_pReal->Release();
+		}
+
+		static DownmixBufferProxy* FromBuffer(IDirectSoundBuffer* pBuffer)
+		{
+			if (!pBuffer || !s_vtable || *reinterpret_cast<void**>(pBuffer) != s_vtable)
+				return nullptr;
+
+			return static_cast<DownmixBufferProxy*>(reinterpret_cast<IDirectSoundBuffer8*>(pBuffer));
+		}
+
+		static HRESULT Create(IDirectSoundBuffer* pMono, const WAVEFORMATEX* pFormat, LPDIRECTSOUNDBUFFER* ppDSBuffer)
+		{
+			IDirectSoundBuffer8* pMono8 = nullptr;
+			HRESULT hr = pMono->QueryInterface(IID_IDirectSoundBuffer8, reinterpret_cast<LPVOID*>(&pMono8));
+			pMono->Release();
+			if (FAILED(hr))
+				return hr;
+
+			auto proxy = new (std::nothrow) DownmixBufferProxy(pMono8, pFormat);
+			if (!proxy)
+			{
+				pMono8->Release();
+				return DSERR_OUTOFMEMORY;
+			}
+
+			*ppDSBuffer = reinterpret_cast<LPDIRECTSOUNDBUFFER>(static_cast<IDirectSoundBuffer8*>(proxy));
+			return DS_OK;
+		}
+
+		HRESULT Duplicate(IDirectSound8* pDS, LPDIRECTSOUNDBUFFER* ppDSBufferDuplicate)
+		{
+			IDirectSoundBuffer* pMono = nullptr;
+			HRESULT hr = pDS->DuplicateSoundBuffer(reinterpret_cast<LPDIRECTSOUNDBUFFER>(m_pReal), &pMono);
+			if (FAILED(hr))
+				return hr;
+
+			return Create(pMono, &m_format, ppDSBufferDuplicate);
+		}
+
+		// IUnknown
+		STDMETHOD(QueryInterface)(REFIID riid, LPVOID* ppv)
+		{
+			if (!ppv) return E_POINTER;
+			*ppv = nullptr;
+
+			if (riid == IID_IUnknown || riid == IID_IDirectSoundBuffer || riid == IID_IDirectSoundBuffer8)
+			{
+				*ppv = static_cast<IDirectSoundBuffer8*>(this);
+				AddRef();
+				return S_OK;
+			}
+
+			return m_pReal->QueryInterface(riid, ppv);
+		}
+
+		STDMETHOD_(ULONG, AddRef)()
+		{
+			return InterlockedIncrement(&m_refCount);
+		}
+
+		STDMETHOD_(ULONG, Release)()
+		{
+			ULONG ref = InterlockedDecrement(&m_refCount);
+			if (ref == 0) delete this;
+			return ref;
+		}
+
+		// IDirectSoundBuffer
+		STDMETHOD(GetCaps)(LPDSBCAPS pDSBufferCaps)
+		{
+			HRESULT hr = m_pReal->GetCaps(pDSBufferCaps);
+			if (SUCCEEDED(hr))
+				pDSBufferCaps->dwBufferBytes = ToStereo(pDSBufferCaps->dwBufferBytes);
+			return hr;
+		}
+
+		STDMETHOD(GetCurrentPosition)(LPDWORD pdwCurrentPlayCursor, LPDWORD pdwCurrentWriteCursor)
+		{
+			HRESULT hr = m_pReal->GetCurrentPosition(pdwCurrentPlayCursor, pdwCurrentWriteCursor);
+			if (SUCCEEDED(hr))
+			{
+				if (pdwCurrentPlayCursor) *pdwCurrentPlayCursor = ToStereo(*pdwCurrentPlayCursor);
+				if (pdwCurrentWriteCursor) *pdwCurrentWriteCursor = ToStereo(*pdwCurrentWriteCursor);
+			}
+			return hr;
+		}
+
+		STDMETHOD(GetFormat)(LPWAVEFORMATEX pwfxFormat, DWORD dwSizeAllocated, LPDWORD pdwSizeWritten)
+		{
+			if (!pwfxFormat && !pdwSizeWritten)
+				return DSERR_INVALIDPARAM;
+
+			if (pwfxFormat)
+				memcpy(pwfxFormat, &m_format, (std::min)(dwSizeAllocated, static_cast<DWORD>(sizeof(m_format))));
+			if (pdwSizeWritten)
+				*pdwSizeWritten = sizeof(m_format);
+			return DS_OK;
+		}
+
+		STDMETHOD(GetVolume)(LPLONG plVolume) { return m_pReal->GetVolume(plVolume); }
+		STDMETHOD(GetPan)(LPLONG plPan) { return m_pReal->GetPan(plPan); }
+		STDMETHOD(GetFrequency)(LPDWORD pdwFrequency) { return m_pReal->GetFrequency(pdwFrequency); }
+		STDMETHOD(GetStatus)(LPDWORD pdwStatus) { return m_pReal->GetStatus(pdwStatus); }
+		STDMETHOD(Initialize)(LPDIRECTSOUND pDirectSound, LPCDSBUFFERDESC pcDSBufferDesc) { return m_pReal->Initialize(pDirectSound, pcDSBufferDesc); }
+
+		STDMETHOD(Lock)(DWORD dwOffset, DWORD dwBytes, LPVOID* ppvAudioPtr1, LPDWORD pdwAudioBytes1, LPVOID* ppvAudioPtr2, LPDWORD pdwAudioBytes2, DWORD dwFlags)
+		{
+			if (!ppvAudioPtr1 || !pdwAudioBytes1)
+				return DSERR_INVALIDPARAM;
+
+			PendingLock pending = {};
+			HRESULT hr = m_pReal->Lock(ToMono(dwOffset), ToMono(dwBytes), &pending.pReal1, &pending.realBytes1, ppvAudioPtr2 ? &pending.pReal2 : nullptr, ppvAudioPtr2 ? &pending.realBytes2 : nullptr, dwFlags);
+			if (FAILED(hr))
+				return hr;
+
+			DWORD bytes1 = ToStereo(pending.realBytes1);
+			DWORD bytes2 = ToStereo(pending.realBytes2);
+			pending.data.reset(new (std::nothrow) BYTE[bytes1 + bytes2]);
+			if (!pending.data)
+			{
+				m_pReal->Unlock(pending.pReal1, 0, pending.pReal2, 0);
+				return DSERR_OUTOFMEMORY;
+			}
+
+			*ppvAudioPtr1 = pending.data.get();
+			*pdwAudioBytes1 = bytes1;
+			if (ppvAudioPtr2) *ppvAudioPtr2 = bytes2 ? pending.data.get() + bytes1 : nullptr;
+			if (pdwAudioBytes2) *pdwAudioBytes2 = bytes2;
+
+			AcquireSRWLockExclusive(&m_lock);
+			m_locks.push_back(std::move(pending));
+			ReleaseSRWLockExclusive(&m_lock);
+			return DS_OK;
+		}
+
+		STDMETHOD(Play)(DWORD dwReserved1, DWORD dwPriority, DWORD dwFlags) { return m_pReal->Play(dwReserved1, dwPriority, dwFlags); }
+		STDMETHOD(SetCurrentPosition)(DWORD dwNewPosition) { return m_pReal->SetCurrentPosition(ToMono(dwNewPosition)); }
+		STDMETHOD(SetFormat)(LPCWAVEFORMATEX pcfxFormat) { return m_pReal->SetFormat(pcfxFormat); }
+		STDMETHOD(SetVolume)(LONG lVolume) { return m_pReal->SetVolume(lVolume); }
+		STDMETHOD(SetPan)(LONG lPan) { return m_pReal->SetPan(lPan); }
+		STDMETHOD(SetFrequency)(DWORD dwFrequency) { return m_pReal->SetFrequency(dwFrequency); }
+		STDMETHOD(Stop)() { return m_pReal->Stop(); }
+
+		STDMETHOD(Unlock)(LPVOID pvAudioPtr1, DWORD dwAudioBytes1, LPVOID pvAudioPtr2, DWORD dwAudioBytes2)
+		{
+			PendingLock pending = {};
+			AcquireSRWLockExclusive(&m_lock);
+			for (auto it = m_locks.begin(); it != m_locks.end(); ++it)
+			{
+				if (it->data.get() == pvAudioPtr1)
+				{
+					pending = std::move(*it);
+					m_locks.erase(it);
+					break;
+				}
+			}
+			ReleaseSRWLockExclusive(&m_lock);
+
+			if (!pending.data)
+				return DSERR_INVALIDPARAM;
+
+			DWORD sampleBytes = m_format.nBlockAlign / 2;
+			DWORD bytes1 = (std::min)(ToMono(dwAudioBytes1), pending.realBytes1);
+			DWORD bytes2 = pvAudioPtr2 ? (std::min)(ToMono(dwAudioBytes2), pending.realBytes2) : 0;
+			Downmix(pending.data.get(), pending.pReal1, bytes1 / sampleBytes);
+			if (bytes2)
+				Downmix(pending.data.get() + ToStereo(pending.realBytes1), pending.pReal2, bytes2 / sampleBytes);
+
+			return m_pReal->Unlock(pending.pReal1, bytes1, pending.pReal2, bytes2);
+		}
+
+		STDMETHOD(Restore)() { return m_pReal->Restore(); }
+
+		// IDirectSoundBuffer8
+		STDMETHOD(SetFX)(DWORD dwEffectsCount, LPDSEFFECTDESC pDSFXDesc, LPDWORD pdwResultCodes) { return m_pReal->SetFX(dwEffectsCount, pDSFXDesc, pdwResultCodes); }
+		STDMETHOD(AcquireResources)(DWORD dwFlags, DWORD dwEffectsCount, LPDWORD pdwResultCodes) { return m_pReal->AcquireResources(dwFlags, dwEffectsCount, pdwResultCodes); }
+		STDMETHOD(GetObjectInPath)(REFGUID rguidObject, DWORD dwIndex, REFGUID rguidInterface, LPVOID* ppObject) { return m_pReal->GetObjectInPath(rguidObject, dwIndex, rguidInterface, ppObject); }
+	};
+
 	class DirectSound8Proxy : public IDirectSound8
 	{
 	private:
 		IDirectSound8* m_pReal;
 		volatile LONG m_refCount;
+
+		HRESULT CreateBuffer(DSBUFFERDESC desc, LPDIRECTSOUNDBUFFER* ppDSBuffer, LPUNKNOWN pUnkOuter)
+		{
+			HRESULT hr = m_pReal->CreateSoundBuffer(&desc, ppDSBuffer, pUnkOuter);
+			if (hr == DSERR_ALLOCATED && (desc.dwFlags & DSBCAPS_LOCHARDWARE))
+			{
+				desc.dwFlags &= ~DSBCAPS_LOCHARDWARE;
+				hr = m_pReal->CreateSoundBuffer(&desc, ppDSBuffer, pUnkOuter);
+			}
+			return hr;
+		}
 
 	public:
 		DirectSound8Proxy(IDirectSound8* pReal) : m_pReal(pReal), m_refCount(1) {}
@@ -705,7 +955,32 @@ namespace DirectSoundHelper
 
 		STDMETHOD(CreateSoundBuffer)(LPCDSBUFFERDESC pcDSBufferDesc, LPDIRECTSOUNDBUFFER* ppDSBuffer, LPUNKNOWN pUnkOuter)
 		{
-			return m_pReal->CreateSoundBuffer(pcDSBufferDesc, ppDSBuffer, pUnkOuter);
+			if (!FixHWMixing || !pcDSBufferDesc || !ppDSBuffer)
+				return m_pReal->CreateSoundBuffer(pcDSBufferDesc, ppDSBuffer, pUnkOuter);
+
+			DSBUFFERDESC desc = {};
+			memcpy(&desc, pcDSBufferDesc, (std::min)(static_cast<size_t>(pcDSBufferDesc->dwSize), sizeof(desc)));
+
+			HRESULT hr = CreateBuffer(desc, ppDSBuffer, pUnkOuter);
+			if (hr != DSERR_INVALIDPARAM || !(desc.dwFlags & DSBCAPS_CTRL3D) || !IsDownmixableStereo(desc.lpwfxFormat))
+				return hr;
+
+			const WAVEFORMATEX* pStereoFormat = desc.lpwfxFormat;
+			WAVEFORMATEX monoFormat = *pStereoFormat;
+			monoFormat.nChannels = 1;
+			monoFormat.nBlockAlign = pStereoFormat->nBlockAlign / 2;
+			monoFormat.nAvgBytesPerSec = monoFormat.nSamplesPerSec * monoFormat.nBlockAlign;
+			monoFormat.cbSize = 0;
+
+			desc.lpwfxFormat = &monoFormat;
+			desc.dwBufferBytes = desc.dwBufferBytes / pStereoFormat->nBlockAlign * monoFormat.nBlockAlign;
+
+			IDirectSoundBuffer* pMono = nullptr;
+			hr = CreateBuffer(desc, &pMono, pUnkOuter);
+			if (FAILED(hr))
+				return hr;
+
+			return DownmixBufferProxy::Create(pMono, pStereoFormat, ppDSBuffer);
 		}
 
 		STDMETHOD(GetCaps)(LPDSCAPS pDSCaps)
@@ -715,6 +990,10 @@ namespace DirectSoundHelper
 
 		STDMETHOD(DuplicateSoundBuffer)(LPDIRECTSOUNDBUFFER pDSBufferOriginal, LPDIRECTSOUNDBUFFER* ppDSBufferDuplicate)
 		{
+			DownmixBufferProxy* pDownmix = DownmixBufferProxy::FromBuffer(pDSBufferOriginal);
+			if (pDownmix && ppDSBufferDuplicate)
+				return pDownmix->Duplicate(m_pReal, ppDSBufferDuplicate);
+
 			return m_pReal->DuplicateSoundBuffer(pDSBufferOriginal, ppDSBufferDuplicate);
 		}
 
@@ -756,6 +1035,19 @@ namespace DirectSoundHelper
 		}
 	}
 
+	inline void AllowStereo3DSounds()
+	{
+		HMODULE hSndDrv = GetModuleHandleA("SndDrv.dll");
+		if (!hSndDrv)
+			return;
+
+		DWORD addr = ScanModuleSignature(hSndDrv, "66 83 78 02 ?? ?? 57 8D 78 02 8B", "FixHWMixing");
+		if (addr != 0)
+		{
+			MemoryHelper::WriteMemory<uint8_t>(addr + 0x4, 2);
+		}
+	}
+
 	inline HRESULT WINAPI CoCreateInstance_Hook(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid, LPVOID* ppv)
 	{
 		if (!ppv) return E_POINTER;
@@ -764,6 +1056,9 @@ namespace DirectSoundHelper
 		// Only intercept DirectSound8 requests
 		if (IsEqualGUID(rclsid, CLSID_DirectSound8) && cachedDSCreate8 && pUnkOuter == nullptr && (riid == IID_IDirectSound8 || riid == IID_IDirectSound || riid == IID_IUnknown))
 		{
+			if (FixHWMixing)
+				AllowStereo3DSounds();
+
 			IDirectSound8* pRealDS = nullptr;
 			HRESULT hr = SafeCallDSCreate(nullptr, &pRealDS);
 
