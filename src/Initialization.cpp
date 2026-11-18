@@ -41,6 +41,7 @@ static void ReadConfig()
 
     // Graphics
     MaxFPS = IniHelper::ReadFloat("Graphics", "MaxFPS", -1.0f);
+    OverrideMaxFPS = std::max(IniHelper::ReadFloat("Graphics", "OverrideMaxFPS", 0.0f), 0.0f);
     FPSLimitMenuOption = IniHelper::ReadInteger("Graphics", "FPSLimitMenuOption", 1) == 1;
     HighResolutionReflections = IniHelper::ReadInteger("Graphics", "HighResolutionReflections", 1) == 1;
     NoLODBias = IniHelper::ReadInteger("Graphics", "NoLODBias", 1) == 1;

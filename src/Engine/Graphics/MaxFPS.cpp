@@ -111,6 +111,14 @@ static bool IsRefreshRateOutdated()
 
 static void UpdateFpsLimiter()
 {
+    // Replaces the limit of MaxFPS, with or without VSync
+    if (OverrideMaxFPS > 0.0f)
+    {
+        isUsingFpsLimiter = true;
+        fpsLimiter.SetTargetFps(OverrideMaxFPS);
+        return;
+    }
+
     if (!g_State.isVsyncEnabled)
     {
         isUsingFpsLimiter = false;

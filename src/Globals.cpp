@@ -291,6 +291,7 @@ int CheckLAAPatch = 0;
 
 // Graphics
 float MaxFPS = 0;
+float OverrideMaxFPS = 0;
 bool FPSLimitMenuOption = false;
 bool HighResolutionReflections = false;
 bool NoLODBias = false;
