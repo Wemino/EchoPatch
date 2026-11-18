@@ -41,6 +41,7 @@
 #include "Server/Misc/LocalPlayer.cpp"
 #include "Server/Graphics/EnablePersistentWorldState.cpp"
 #include "Server/Extra/EnableCustomMaxWeaponCapacity.cpp"
+#include "Server/Extra/DoorBashing.cpp"
 #include "Server/Fixes/HighFPSFixes.cpp"
 #include "Server/Fixes/FixWaterReflections.cpp"
 #include "Server/Controller/Controller.cpp"

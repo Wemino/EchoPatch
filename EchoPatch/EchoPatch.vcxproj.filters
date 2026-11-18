@@ -275,6 +275,9 @@
     <ClInclude Include="..\src\Server\Controller\Controller.cpp">
       <Filter>Server\Controller</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Server\Extra\DoorBashing.cpp">
+      <Filter>Server\Extra</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp">
       <Filter>Server\Extra</Filter>
     </ClInclude>

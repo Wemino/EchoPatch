@@ -422,6 +422,7 @@ bool DisablePunkBuster = false;
 bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
+bool DoorBashing = false;
 bool EnableCrashHandler = false;
 bool LoadASIPlugins = false;
 bool EchoPatchMenu = false;

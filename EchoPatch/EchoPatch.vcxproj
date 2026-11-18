@@ -205,6 +205,7 @@
     <ClInclude Include="..\src\Initialization.cpp" />
     <ClInclude Include="..\src\Server\Console\DebugLines.cpp" />
     <ClInclude Include="..\src\Server\Controller\Controller.cpp" />
+    <ClInclude Include="..\src\Server\Extra\DoorBashing.cpp" />
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />
