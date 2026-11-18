@@ -10,6 +10,7 @@
 #include "Engine/Misc/ConsoleVariableHook.cpp"
 #include "Engine/Fixes/FixKeyboardInputLanguage.cpp"
 #include "Engine/Fixes/FixAspectRatioBlur.cpp"
+#include "Engine/Fixes/HighFPSFixes.cpp"
 #include "Engine/Fixes/HavokPhysicsFix.cpp"
 #include "Engine/Fixes/KeepRendererOnFocusLoss.cpp"
 #include "Engine/Graphics/MaxFPS.cpp"

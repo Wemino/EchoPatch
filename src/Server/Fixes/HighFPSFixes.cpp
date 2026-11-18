@@ -8,6 +8,7 @@ static bool slowMoChargeObserved = false;
 static DWORD pLTServerAddr = 0;
 static int serverGetFrameTimeOffset = 0;
 static int proximityFlippingOffset = 0;
+static int aiTargetPushSpeedOffset = 0;
 
 struct AIRoll
 {
@@ -21,6 +22,7 @@ static std::unordered_map<int, double> deathFireUpdateTimes;
 static std::unordered_map<int, double> flickerUpdateTimes;
 static std::unordered_map<uint64_t, double> progressiveDamageTimes;
 static std::unordered_map<uint64_t, double> triggerTouchTimes;
+static std::unordered_map<int, double> aiTargetPushTimes;
 static double updateTimesPruneTime = 0.0;
 
 void(__thiscall* ServerUpdateSlowMo)(int*) = nullptr;
@@ -34,6 +36,7 @@ float(__cdecl* AIGetRandom)(float, float) = nullptr;
 void(__thiscall* FlickerUpdate)(int) = nullptr;
 bool(__thiscall* DamageStructDoDamage)(int, int, int) = nullptr;
 void(__thiscall* TriggerObjectTouch)(int, int) = nullptr;
+void(__thiscall* AITargetUpdatePush)(int, int) = nullptr;
 
 // ========================
 // HighFPSFixes
@@ -51,6 +54,7 @@ static void PruneUpdateTimes()
     std::erase_if(flickerUpdateTimes, isOld);
     std::erase_if(progressiveDamageTimes, isOld);
     std::erase_if(triggerTouchTimes, isOld);
+    std::erase_if(aiTargetPushTimes, isOld);
     std::erase_if(aiRolls, [currentTime](const auto& entry) { return currentTime - entry.second.time > 1.0; });
     updateTimesPruneTime = currentTime;
 }
@@ -270,6 +274,20 @@ static void __fastcall TriggerObjectTouch_Hook(int thisPtr, int, int hToucher)
     TriggerObjectTouch(thisPtr, hToucher);
 }
 
+static void __fastcall AITargetUpdatePush_Hook(int thisPtr, int, int pCharacter)
+{
+    PruneUpdateTimes();
+
+    float fPushSpeed = *reinterpret_cast<float*>(thisPtr + aiTargetPushSpeedOffset);
+    if (fPushSpeed > 0.0f)
+    {
+        if (!IsTargetFrameDue(aiTargetPushTimes.try_emplace(thisPtr, -1.0).first->second))
+            return;
+    }
+
+    AITargetUpdatePush(thisPtr, pCharacter);
+}
+
 static void ApplyHighFPSFixesServerPatch()
 {
     if (!HighFPSFixes) return;
@@ -281,6 +299,7 @@ static void ApplyHighFPSFixesServerPatch()
     flickerUpdateTimes.clear();
     progressiveDamageTimes.clear();
     triggerTouchTimes.clear();
+    aiTargetPushTimes.clear();
     lastHSlowMoRecord = 0;
     slowMoChargeObserved = false;
 
@@ -310,6 +329,7 @@ static void ApplyHighFPSFixesServerPatch()
     DWORD addr_FlickerUpdate = ScanModuleSignature(g_State.GameServer, "56 8B F1 8A 46 55 84 C0 0F 84 ?? ?? ?? ?? 8B 0D ?? ?? ?? ?? 8B 01 FF 90 ?? ?? 00 00 D9 C0 D8 46 28 D9 5E 28 D8 6E 30 D9 56 30", "FlickerUpdate");
     DWORD addr_DamageStructDoDamage = ScanModuleSignature(g_State.GameServer, "53 8B 5C 24 0C 85 DB 57 8B F9 75 07 5F 32 C0 5B C2 08 00 8B 0D ?? ?? ?? ?? 8B 01 56 8D 54 24 14 52 33 F6", "DamageStructDoDamage");
     DWORD addr_TriggerObjectTouch = ScanModuleSignature(g_State.GameServer, "53 55 57 8B 7C 24 10 57 8B E9 E8 ?? ?? ?? ?? 84 C0 57 0F 95", "TriggerObjectTouch");
+    DWORD addr_AITargetUpdatePush = ScanModuleSignature(g_State.GameServer, "D9 41 ?? 83 EC 0C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85 ?? ?? ?? ?? 8B 51 04 8D 82", "AITargetUpdatePush");
 
     if (addr_CheckForSever == 0 || 
         addr_AI_SetNextServerUpdate == 0 || 
@@ -320,7 +340,8 @@ static void ApplyHighFPSFixesServerPatch()
         addr_ActionRoll == 0 ||
         addr_FlickerUpdate == 0 || 
         addr_DamageStructDoDamage == 0 || 
-        addr_TriggerObjectTouch == 0)
+        addr_TriggerObjectTouch == 0 || 
+        addr_AITargetUpdatePush == 0)
         return;
 
     HookHelper::ApplyHookReplaceable((void*)addr_CheckForSever, &CheckForSever_Hook, (LPVOID*)&CheckForSever);
@@ -329,6 +350,7 @@ static void ApplyHighFPSFixesServerPatch()
     proximityFlippingOffset = MemoryHelper::ReadMemory<int>(addr_ProximityGrenadeFlipping + 0x10);
     pLTServerAddr = MemoryHelper::ReadMemory<DWORD>(addr_FlickerUpdate + 0x10);
     serverGetFrameTimeOffset = MemoryHelper::ReadMemory<int>(addr_FlickerUpdate + 0x18);
+    aiTargetPushSpeedOffset = MemoryHelper::ReadMemory<uint8_t>(addr_AITargetUpdatePush + 0x2);
     AIGetRandom = reinterpret_cast<decltype(AIGetRandom)>(MemoryHelper::ResolveRelativeAddress(addr_GoalRoll, 0x12));
     MemoryHelper::MakeCALL(addr_GoalRoll + 0x11, reinterpret_cast<uintptr_t>(&GoalRoll_Hook));
     MemoryHelper::MakeCALL(addr_ActionRoll + 0x16, reinterpret_cast<uintptr_t>(&ActionRoll_Hook));
@@ -337,4 +359,5 @@ static void ApplyHighFPSFixesServerPatch()
     HookHelper::ApplyHookReplaceable((void*)addr_FlickerUpdate, &FlickerUpdate_Hook, (LPVOID*)&FlickerUpdate);
     HookHelper::ApplyHookReplaceable((void*)addr_DamageStructDoDamage, &DamageStructDoDamage_Hook, (LPVOID*)&DamageStructDoDamage);
     HookHelper::ApplyHookReplaceable((void*)addr_TriggerObjectTouch, &TriggerObjectTouch_Hook, (LPVOID*)&TriggerObjectTouch);
+    HookHelper::ApplyHookReplaceable((void*)addr_AITargetUpdatePush, &AITargetUpdatePush_Hook, (LPVOID*)&AITargetUpdatePush);
 }

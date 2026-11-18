@@ -316,6 +316,7 @@ static void Init()
 
     // Fixes
     ApplyFixDirectInputFps();
+    ApplyHighFPSFixes();
     ApplyHavokPhysicsFix();
     ApplyOptimizeSaveSpeed();
     ApplyFixNvidiaShadowCorruption();

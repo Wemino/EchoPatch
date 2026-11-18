@@ -186,6 +186,7 @@
     <ClInclude Include="..\src\Engine\Fixes\HardwareVertexProcessing.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\FixHardwareCursor.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\HavokPhysicsFix.cpp" />
+    <ClInclude Include="..\src\Engine\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\KeepRendererOnFocusLoss.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\OptimizeSaveSpeed.cpp" />
     <ClInclude Include="..\src\Engine\Fixes\ReduceTextureMemory.cpp" />

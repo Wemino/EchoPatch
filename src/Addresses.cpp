@@ -8,6 +8,9 @@ enum class Addr
 	DirectInputFps_HID1,
 	DirectInputFps_HID2,
 
+	// HighFPSFixes
+	AnimTrackerUpdate,
+
 	// HavokPhysicsFix
 	PhysicsSimUpdate,
 	PhysicsSimTerm,
@@ -166,6 +169,9 @@ namespace
 		// FixDirectInputFps
 		/* DirectInputFps_HID1              */ {  0x840DD,  0x841FD,  0xB895D,  0xB99AD },
 		/* DirectInputFps_HID2              */ {  0x84057,  0x84177,  0xB88D7,  0xB9927 },
+
+		// HighFPSFixes
+		/* AnimTrackerUpdate                */ {   0x16B0,   0x16B0,   0x2FA0,   0x2FA0 },
 
 		// HavokPhysicsFix
 		/* PhysicsSimUpdate                 */ {  0x4D100,  0x4D220,  0x6B330,  0x6BFA0 },
