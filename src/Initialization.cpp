@@ -110,7 +110,7 @@ static void ReadConfig()
     EnableCustomMaxWeaponCapacity = IniHelper::ReadInteger("Extra", "EnableCustomMaxWeaponCapacity", 0) == 1;
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
-    DoorBashing = IniHelper::ReadInteger("Extra", "DoorBashing", 1) == 1;
+    DoorBashing = IniHelper::ReadInteger("Extra", "DoorBashing", 0) == 1;
     EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;
     LoadASIPlugins = IniHelper::ReadInteger("Extra", "LoadASIPlugins", 1) == 1;
     EchoPatchMenu = IniHelper::ReadInteger("Extra", "EchoPatchMenu", 1) == 1;

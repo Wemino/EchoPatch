@@ -46,6 +46,7 @@ namespace ScreenEchoPatchHook
         CUSTOM_SCREEN_DISPLAY,
         CUSTOM_SCREEN_MOUSE,
         CUSTOM_SCREEN_MEMORY,
+        CUSTOM_SCREEN_EXTRA,
         CUSTOM_SCREEN_COUNT
     };
 
@@ -63,6 +64,7 @@ namespace ScreenEchoPatchHook
         { L"DISPLAY",  L"Display",  "IDS_HELP_ECHOPATCH_DISPLAY" },
         { L"MOUSE",    L"Mouse",    "IDS_HELP_ECHOPATCH_MOUSE" },
         { L"MEMORY",   L"Memory",   "IDS_HELP_ECHOPATCH_MEMORY" },
+        { L"EXTRA",    L"Extra",    "IDS_HELP_ECHOPATCH_EXTRA" },
     };
 
     enum SettingIndex
@@ -79,6 +81,11 @@ namespace ScreenEchoPatchHook
         DISABLE_LETTERBOX,
         MOUSE_AIM_MULTIPLIER,
         REDUCE_TEXTURE_MEMORY,
+        INFINITE_FLASHLIGHT,
+        ENABLE_CUSTOM_MAX_WEAPON_CAPACITY,
+        MAX_WEAPON_CAPACITY,
+        DOOR_BASHING,
+        DISABLE_HIP_FIRE_ACCURACY_PENALTY,
         SETTING_COUNT
     };
 
@@ -100,6 +107,13 @@ namespace ScreenEchoPatchHook
         if (position == static_cast<int>(DEFAULT_FOV))
             return L"Default";
 
+        swprintf_s(s_text, L"%d", position);
+        return s_text;
+    }
+
+    static const wchar_t* __cdecl NumberText(int position, void*)
+    {
+        static wchar_t s_text[16];
         swprintf_s(s_text, L"%d", position);
         return s_text;
     }
@@ -145,32 +159,39 @@ namespace ScreenEchoPatchHook
     static const Setting s_settings[] =
     {
         // Graphics
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "HighResolutionReflections",    "IDS_HELP_HIGH_RESOLUTION_REFLECTIONS", false, L"High Resolution Reflections" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SSAAScale",                    "IDS_HELP_SUPERSAMPLING",               false, nullptr, false, "IDS_SUPERSAMPLING",          100, 100, 400, 25, &SSAAScaleText },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "NoLODBias",                    "IDS_HELP_MAXIMUM_MODEL_DETAIL",        false, L"Maximum Model Detail" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "EnablePersistentWorldState",   "IDS_HELP_PERSISTENT_WORLD",            true,  L"Persistent World" },
-        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SavePersistentWorldState",     "IDS_HELP_SAVE_PERSISTENT_WORLD",       true,  L"Save Persistent World" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "HighResolutionReflections",     "IDS_HELP_HIGH_RESOLUTION_REFLECTIONS", false, L"High Resolution Reflections" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SSAAScale",                     "IDS_HELP_SUPERSAMPLING",               false, nullptr, false, "IDS_SUPERSAMPLING",          100, 100, 400, 25, &SSAAScaleText },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "NoLODBias",                     "IDS_HELP_MAXIMUM_MODEL_DETAIL",        false, L"Maximum Model Detail" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "EnablePersistentWorldState",    "IDS_HELP_PERSISTENT_WORLD",            true,  L"Persistent World" },
+        { CUSTOM_SCREEN_GRAPHICS, "Graphics",   "SavePersistentWorldState",      "IDS_HELP_SAVE_PERSISTENT_WORLD",       true,  L"Save Persistent World" },
 
         // Display
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "CustomFOV",                    "IDS_HELP_FIELD_OF_VIEW",               false, nullptr, false, "IDS_FIELD_OF_VIEW",          1,   70,  130, 1,  &CustomFOVText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDScaling",                   "IDS_HELP_HUD_SCALING",                 false, L"HUD Scaling" },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDCustomScalingFactor",       "IDS_HELP_HUD_SIZE",                    false, nullptr, false, "IDS_HUD_SIZE",               100, 50,  200, 5,  &HUDSizeText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "SmallTextCustomScalingFactor", "IDS_HELP_SMALL_TEXT_SIZE",             false, nullptr, false, "IDS_SMALL_TEXT_SIZE",        100, 50,  200, 5,  &MultiplierText },
-        { CUSTOM_SCREEN_DISPLAY,  "Display",    "DisableLetterbox",             "IDS_HELP_LETTERBOX",                   false, L"Letterbox", true },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "CustomFOV",                     "IDS_HELP_FIELD_OF_VIEW",               false, nullptr, false, "IDS_FIELD_OF_VIEW",          1,   70,  130, 1,  &CustomFOVText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDScaling",                    "IDS_HELP_HUD_SCALING",                 false, L"HUD Scaling" },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "HUDCustomScalingFactor",        "IDS_HELP_HUD_SIZE",                    false, nullptr, false, "IDS_HUD_SIZE",               100, 50,  200, 5,  &HUDSizeText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "SmallTextCustomScalingFactor",  "IDS_HELP_SMALL_TEXT_SIZE",             false, nullptr, false, "IDS_SMALL_TEXT_SIZE",        100, 50,  200, 5,  &MultiplierText },
+        { CUSTOM_SCREEN_DISPLAY,  "Display",    "DisableLetterbox",              "IDS_HELP_LETTERBOX",                   false, L"Letterbox", true },
 
         // Mouse
-        { CUSTOM_SCREEN_MOUSE,    "Controller", "MouseAimMultiplier",           "IDS_HELP_SENSITIVITY_MULTIPLIER",      false, nullptr, false, "IDS_SENSITIVITY_MULTIPLIER", 100, 5,   200, 5,  &MultiplierText },
+        { CUSTOM_SCREEN_MOUSE,    "Controller", "MouseAimMultiplier",            "IDS_HELP_SENSITIVITY_MULTIPLIER",      false, nullptr, false, "IDS_SENSITIVITY_MULTIPLIER", 100, 5,   200, 5,  &MultiplierText },
 
         // Memory
-        { CUSTOM_SCREEN_MEMORY,   "Fixes",      "ReduceTextureMemory",          "IDS_HELP_REDUCE_TEXTURE_MEMORY",       true,  L"Reduce Texture Memory" },
+        { CUSTOM_SCREEN_MEMORY,   "Fixes",      "ReduceTextureMemory",           "IDS_HELP_REDUCE_TEXTURE_MEMORY",       true,  L"Reduce Texture Memory" },
+
+        // Extra
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "InfiniteFlashlight",            "IDS_HELP_INFINITE_FLASHLIGHT",         true,  L"Infinite Flashlight" },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "EnableCustomMaxWeaponCapacity", "IDS_HELP_CUSTOM_WEAPON_CAPACITY",      true,  L"Custom Weapon Capacity" },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "MaxWeaponCapacity",             "IDS_HELP_WEAPON_CAPACITY",             true,  nullptr, false, "IDS_WEAPON_CAPACITY",        1,   0,   10,  1,  &NumberText },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "DoorBashing",                   "IDS_HELP_DOOR_BASHING",                true,  L"Door Bashing" },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "DisableHipFireAccuracyPenalty", "IDS_HELP_ACCURACY_PENALTY",            true,  L"Accuracy Penalty", true },
     };
 
     // Local settings
     static bool g_Toggles[SETTING_COUNT] = {};
     static int g_SliderPositions[SETTING_COUNT] = {};
 
-    // Toggles of the built screens, to disable the ones whose required setting is off
-    static int* s_toggleControls[SETTING_COUNT] = {};
+    // Controls of the built screens, to disable the ones whose required setting is off
+    static int* s_controls[SETTING_COUNT] = {};
 
     // Values of EchoPatch.ini when the game started and when the menu was shown
     static float s_startupValues[SETTING_COUNT] = {};
@@ -201,12 +222,27 @@ namespace ScreenEchoPatchHook
         return setting.labelId != nullptr;
     }
 
+    static bool IsSettingShown(int index)
+    {
+        switch (index)
+        {
+            // Extraction Point and Perseus Mandate already have it
+            case DOOR_BASHING:
+                return g_State.CurrentFEARGame == FEAR;
+        }
+
+        return true;
+    }
+
     static int GetRequiredSetting(int index)
     {
         switch (index)
         {
             case SAVE_PERSISTENT_WORLD_STATE:
                 return ENABLE_PERSISTENT_WORLD_STATE;
+
+            case MAX_WEAPON_CAPACITY:
+                return ENABLE_CUSTOM_MAX_WEAPON_CAPACITY;
         }
 
         return -1;
@@ -239,6 +275,11 @@ namespace ScreenEchoPatchHook
             case DISABLE_LETTERBOX: return DisableLetterbox;
             case MOUSE_AIM_MULTIPLIER: return MouseAimMultiplier;
             case REDUCE_TEXTURE_MEMORY: return ReduceTextureMemory;
+            case INFINITE_FLASHLIGHT: return InfiniteFlashlight;
+            case ENABLE_CUSTOM_MAX_WEAPON_CAPACITY: return EnableCustomMaxWeaponCapacity;
+            case MAX_WEAPON_CAPACITY: return static_cast<float>(MaxWeaponCapacity);
+            case DOOR_BASHING: return DoorBashing;
+            case DISABLE_HIP_FIRE_ACCURACY_PENALTY: return DisableHipFireAccuracyPenalty;
         }
 
         return 0.0f;
@@ -270,7 +311,7 @@ namespace ScreenEchoPatchHook
 
     static std::string GetIniValue(int index, float value)
     {
-        if (!IsSlider(s_settings[index]) || index == CUSTOM_FOV)
+        if (!IsSlider(s_settings[index]) || s_settings[index].scale == 1)
             return std::to_string(static_cast<int>(value));
 
         return std::to_string(value);
@@ -315,9 +356,9 @@ namespace ScreenEchoPatchHook
         {
             int requiredSetting = GetRequiredSetting(i);
 
-            if (s_settings[i].screen == screenIndex && requiredSetting >= 0 && s_toggleControls[i])
+            if (s_settings[i].screen == screenIndex && requiredSetting >= 0 && s_controls[i])
             {
-                CallControlEnable(s_toggleControls[i], g_Toggles[requiredSetting]);
+                CallControlEnable(s_controls[i], g_Toggles[requiredSetting]);
             }
         }
     }
@@ -367,9 +408,9 @@ namespace ScreenEchoPatchHook
         int numControls = 0;
         int rowHeight = fontSize + thisPtr[SCREEN_ITEM_SPACING_INDEX];
 
-        for (const Setting& setting : s_settings)
+        for (int i = 0; i < SETTING_COUNT; i++)
         {
-            if (setting.screen == screenIndex)
+            if (s_settings[i].screen == screenIndex && IsSettingShown(i))
                 numControls++;
         }
 
@@ -396,7 +437,7 @@ namespace ScreenEchoPatchHook
         {
             const Setting& setting = s_settings[i];
 
-            if (setting.screen != screenIndex)
+            if (setting.screen != screenIndex || !IsSettingShown(i))
                 continue;
 
             if (IsSlider(setting))
@@ -407,7 +448,7 @@ namespace ScreenEchoPatchHook
                 sliderStruct[19] = setting.step;
                 sliderStruct[20] = (int)&g_SliderPositions[i];
                 sliderStruct[23] = (int)setting.text;
-                CallAddSlider(thisPtr, setting.labelId, sliderStruct, fontSize);
+                s_controls[i] = CallAddSlider(thisPtr, setting.labelId, sliderStruct, fontSize);
                 continue;
             }
 
@@ -420,7 +461,7 @@ namespace ScreenEchoPatchHook
             toggleStruct[15] = (int)&g_Toggles[i];
 
             int* toggle = CallAddToggleByName(thisPtr, setting.label, toggleStruct, fontSize);
-            s_toggleControls[i] = toggle;
+            s_controls[i] = toggle;
 
             if (toggle)
             {
@@ -734,9 +775,9 @@ namespace ScreenEchoPatchHook
             case CMD_REQUIRED_SETTING_CHANGED:
             {
                 int index = static_cast<int>(param1);
-                if (index >= 0 && index < SETTING_COUNT && s_toggleControls[index])
+                if (index >= 0 && index < SETTING_COUNT && s_controls[index])
                 {
-                    CallControlUpdateData(s_toggleControls[index], true);
+                    CallControlUpdateData(s_controls[index], true);
                     UpdateRequiredSettingToggles(GetCustomScreenIndex(thisPtr[SCREEN_ID_INDEX]));
                 }
                 return 1;
