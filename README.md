@@ -73,14 +73,14 @@ The game performs hundreds of thousands of individual WriteFile calls per save (
 ## Fast VRAM Detection
 Replaces the slow legacy DxDiag VRAM scan with instant DXGI detection, speeding up startup and performance settings access.
 
-## Shader Validation Cache
+## Shader Validation Caching
 Speeds up level loading by validating each shader technique only once instead of every time its shader is loaded.  
 
 ## Reduced Texture Memory
-Reduces memory usage by keeping textures in video memory only.  
-By default, Direct3D also stores a copy of every texture in the game's memory, which is by far its largest allocation with high texture settings.
+Reduces memory usage by keeping textures in video memory only, instead of also storing a copy of them in the game's memory.  
+Disabled by default, set `ReduceTextureMemory = 1` in `EchoPatch.ini` to enable.
 
-> **Note**: This feature is experimental and disabled by default, it can be enabled by setting `ReduceTextureMemory` in the `[Fixes]` section of `EchoPatch.ini`.  
+> **Note**: This option is experimental.
 
 ## Input & Frame Drop Fixes
 - **FPS Drop Fix**: Prevents framerate drops by stopping the game from initializing all HID devices as controllers.  
@@ -103,6 +103,8 @@ Adds an **FPS Limit** setting to Options → Display.
     </tr>
   </table>
 </div>
+
+The framerate can also be capped to any value with `OverrideMaxFPS` in `EchoPatch.ini`, whether VSync is enabled or not.  
 
 ## Weapon Fixes
 Addresses several weapon-related issues:
@@ -188,6 +190,10 @@ Applies a Large Address Aware patch to allow up to 4 GB of memory (default 2 GB)
 The behavior of this option can be edited by setting `CheckLAAPatch` in the `[Fixes]` section of `EchoPatch.ini`.
 
 > **Note**: The patch is not offered when the game can already use 4 GB of memory, which is the case with Proton (Steam Deck/Linux).  
+
+> **Note**: The Steam version cannot start when Windows forces the randomization of its executable (Mandatory ASLR), as the Steam DRM does not support it.  
+> EchoPatch detects this problem and offers to patch the executable and restart the game.  
+> The other solution is to turn off **Force randomization for images (Mandatory ASLR)** for `FEAR.exe` in **Windows Security > App & browser control > Exploit protection settings > Program settings**.
 
 ## Persistent World State
 Keeps objects (bodies, blood stains, debris, bullet holes, shell casings, glass shards…) from despawning.
@@ -387,6 +393,12 @@ Enable with `EnableCustomMaxWeaponCapacity = 1`.
 
 > **Note:** Weapon capacity is tied to the save data. Lowering the capacity will not take effect on an existing save. Start a new save file to apply a reduced limit.
 
+## Door Bashing
+Lets melee attacks and explosions bash doors open, like in the expansions.  
+Enable with `DoorBashing = 1`.
+
+> **Note:** Only available for F.E.A.R., as Extraction Point and Perseus Mandate already have it.
+
 ## Disable PunkBuster Initialization
 Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
 This prevents the game from loading unused background components.
@@ -397,6 +409,22 @@ Extraction Point and Perseus Mandate use the same `plugins` folder, next to `FEA
 
 ## Configuration
 All features can be customized via the `EchoPatch.ini` file. Each setting includes detailed comments explaining its function and acceptable values. The patch uses sensible defaults that work for most users, but allows fine-tuning of every aspect.
+
+## EchoPatch Menu
+Adds an **EchoPatch** menu to Options to change several settings in-game, sorted into the **Graphics**, **Display**, **Mouse**, **Memory** and **Extra** categories.  
+Changes are saved to `EchoPatch.ini`. When a setting requires a restart, the game offers to restart once the menu is closed.  
+The menu can be disabled by setting `EchoPatchMenu = 0` in `EchoPatch.ini`.
+
+<div align="center">
+  <table>
+    <tr>
+      <td width="75%"><img style="width:100%" src="https://raw.githubusercontent.com/Wemino/EchoPatch/main/assets/EchoPatchMenu.png"></td>
+    </tr>
+    <tr>
+      <td align="center">EchoPatch Menu</td>
+    </tr>
+  </table>
+</div>
 
 ---
 
