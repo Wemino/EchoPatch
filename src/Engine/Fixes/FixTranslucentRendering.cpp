@@ -72,6 +72,7 @@ static std::vector<float> translucentKeys;
 static std::vector<float> glassGroupDistances;
 static std::vector<GlassPosition> glassPositions;
 static int spareLightList[3] = {};
+static float frameCopyKey = FLT_MAX;
 
 static std::vector<DecalSort> decalSorts;
 static std::vector<float> decalClusterKeys;
@@ -100,6 +101,21 @@ static bool IsLightOnlyMaterial(int material, int variant)
     TechniqueDesc desc{};
     auto getTechniqueDesc = reinterpret_cast<HRESULT(__stdcall*)(DWORD, DWORD, TechniqueDesc*)>(*(DWORD*)(*(DWORD*)effect + 0x14));
     return FAILED(getTechniqueDesc(effect, technique, &desc)) || desc.passes == 0;
+}
+
+static bool UsesFrameCopy(int material, int variant)
+{
+    if (!material) return false;
+
+    int techniqueMaterial = *(int*)(material + 4 + (TechniqueTranslucent * 3 + variant) * 4);
+    if (!techniqueMaterial) return false;
+
+    DWORD effect = *(DWORD*)(techniqueMaterial + 0xAC);
+    if (!effect) return false;
+
+    // ID3DXEffect::GetParameterByName
+    auto getParameterByName = reinterpret_cast<const char*(__stdcall*)(DWORD, const char*, const char*)>(*(DWORD*)(*(DWORD*)effect + 0x24));
+    return getParameterByName(effect, nullptr, "tCurFrameMap") || getParameterByName(effect, nullptr, "tLastFrameMap");
 }
 
 static bool HasLightTechnique(int material, int variant)
@@ -608,6 +624,9 @@ static int __fastcall ComputeSortKeys_Hook(int list, int, float* cameraPos, int 
         if (!std::isfinite(key))
             key = FLT_MAX;
 
+        if (frameCopyKey != FLT_MAX && *(int*)entry && UsesFrameCopy(**(int**)(entry + 4), variant))
+            key = std::min(key, frameCopyKey);
+
         // Only the objects between two groups of glass
         if (isSplit && (key <= translucentMin || key > translucentMax))
             *(int*)entry = 0;
@@ -668,6 +687,12 @@ static char __fastcall RenderSortedList_Hook(int list, int, int scene, int techn
         ComputeTranslucentKeys(list, cameraPos, variant);
     }
 
+    if (!glassGroupDistances.empty())
+    {
+        frameCopyKey = glassGroupDistances.back();
+        ComputeTranslucentKeys(list, cameraPos, variant);
+    }
+
     char result = 1;
     float max = FLT_MAX;
 
@@ -690,6 +715,7 @@ static char __fastcall RenderSortedList_Hook(int list, int, int scene, int techn
         max = min;
     }
 
+    frameCopyKey = FLT_MAX;
     glassPositions.clear();
     return result;
 }
