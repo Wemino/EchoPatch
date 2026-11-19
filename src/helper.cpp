@@ -643,6 +643,8 @@ namespace DirectSoundHelper
 	inline HMODULE hLocalDSound = nullptr;
 	inline decltype(ori_DirectSoundCreate8) cachedDSCreate8 = nullptr;
 
+	inline thread_local bool isCreatingLocalDSound = false;
+
 	inline HMODULE SafeLoadLibrary(const char* path)
 	{
 		__try 
@@ -1054,13 +1056,15 @@ namespace DirectSoundHelper
 		*ppv = nullptr;
 
 		// Only intercept DirectSound8 requests
-		if (IsEqualGUID(rclsid, CLSID_DirectSound8) && cachedDSCreate8 && pUnkOuter == nullptr && (riid == IID_IDirectSound8 || riid == IID_IDirectSound || riid == IID_IUnknown))
+		if (!isCreatingLocalDSound && IsEqualGUID(rclsid, CLSID_DirectSound8) && cachedDSCreate8 && pUnkOuter == nullptr && (riid == IID_IDirectSound8 || riid == IID_IDirectSound || riid == IID_IUnknown))
 		{
 			if (FixHWMixing)
 				AllowStereo3DSounds();
 
 			IDirectSound8* pRealDS = nullptr;
+			isCreatingLocalDSound = true;
 			HRESULT hr = SafeCallDSCreate(nullptr, &pRealDS);
+			isCreatingLocalDSound = false;
 
 			if (SUCCEEDED(hr) && pRealDS)
 			{
