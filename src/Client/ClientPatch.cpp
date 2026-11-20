@@ -441,6 +441,8 @@ static void ApplyHUDScalingClientPatch()
     DWORD addr_ScoresPadding = ScanModuleSignature(g_State.GameClient, "83 C1 10 8B C1 89 4C 34 ?? 8B 8D ?? ?? 00 00", "ScoresPadding");
     DWORD addr_HUDTimerInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 FF 50 20 8B 16 8B CE FF 52 14", "HUDTimerInit");
     DWORD addr_HUDCTFFlagInit = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 FF 50 20 8B 16 8B CE FF 52 18 8B 06 6A 00 8B CE C6 46 68 02", "HUDCTFFlagInit");
+    DWORD addr_HUDDialogueRender = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 06 FF 50 2C 8B 16 8B CE FF 52 54", "HUDDialogueRender");
+    DWORD addr_GUIStringRenderString = ScanModuleSignature(g_State.GameClient, "56 8B F1 8B 46 28 85 C0 74 ?? 8B 74 24 1C 8B 0D", "GUIStringRenderString");
 
     if (addr_HUDTerminate == 0 ||
         addr_HUDInit == 0 ||
@@ -455,7 +457,9 @@ static void ApplyHUDScalingClientPatch()
         addr_PausedWidth == 0 ||
         addr_ScoresPadding == 0 ||
         addr_HUDTimerInit == 0 ||
-        addr_HUDCTFFlagInit == 0) {
+        addr_HUDCTFFlagInit == 0 ||
+        addr_HUDDialogueRender == 0 ||
+        addr_GUIStringRenderString == 0) {
         return;
     }
 
@@ -473,6 +477,24 @@ static void ApplyHUDScalingClientPatch()
 	HUDWeaponListReset = reinterpret_cast<decltype(HUDWeaponListReset)>(addr_HUDWeaponListReset);
 	HUDTimerInit = reinterpret_cast<decltype(HUDTimerInit)>(addr_HUDTimerInit);
 	HUDCTFFlagInit = reinterpret_cast<decltype(HUDCTFFlagInit)>(addr_HUDCTFFlagInit);
+
+	// Measures the texts of the radio box
+	g_State.textureStringAddr = MemoryHelper::ReadMemory<int>(addr_GUIStringRenderString + 0x10);
+	int pTextureString = MemoryHelper::ReadMemory<int>(g_State.textureStringAddr);
+
+	if (pTextureString != 0)
+	{
+		int textureStringVtable = *(int*)pTextureString;
+
+		if (!TextureStringCreate)
+		{
+			TextureStringCreate = reinterpret_cast<decltype(TextureStringCreate)>(*(int*)(textureStringVtable + 0x10));
+			TextureStringGetStringExtents = reinterpret_cast<decltype(TextureStringGetStringExtents)>(*(int*)(textureStringVtable + 0x24));
+		}
+
+		TextureStringRelease = reinterpret_cast<decltype(TextureStringRelease)>(*(int*)(textureStringVtable + 0x3C));
+		HookHelper::ApplyHook((void*)addr_HUDDialogueRender, &HUDDialogueRender_Hook, (LPVOID*)&HUDDialogueRender);
+	}
 
 	ApplyHUDNavMarkerScalingClientPatch();
 }

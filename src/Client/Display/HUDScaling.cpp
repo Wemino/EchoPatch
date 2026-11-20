@@ -17,6 +17,19 @@ struct PendingDBScale
 
 static thread_local PendingDBScale pendingDBScale = {};
 
+static constexpr float DialogueFrameRight = 170.0f / 256.0f;
+
+struct DialogueTextFit
+{
+	std::wstring text;
+	uint32_t fontHeight = 0;
+	int maxWidth = 0;
+	uint32_t fittedHeight = 0;
+	float offsetY = 0.0f;
+};
+
+static DialogueTextFit dialogueTextFits[2];
+
 static int ScaleValue(int value, float scalingFactor)
 {
 	return static_cast<int>(std::lround(value * scalingFactor));
@@ -129,7 +142,6 @@ static int __fastcall DBGetRecord_Hook(int thisPtr, int, int Record, char* Attri
 			float scalingFactor = g_State.scalingFactor;
 			switch (it->second)
 			{
-				case 1: scalingFactor *= 0.95f; break;
 				case 2: scalingFactor = g_State.scalingFactorText; break;
 				case 3: scalingFactor = g_State.scalingFactorScores; break;
 			}
@@ -402,6 +414,136 @@ static int __fastcall GUIStringRender_Hook(int thisPtr, int)
 	int result = GUIStringRender(thisPtr);
 	*(BYTE*)(thisPtr + 0x54) = dropShadow;
 	return result;
+}
+
+static bool MeasureString(int textureString, const wchar_t* text, const BYTE* fontInfo, uint32_t fontHeight, int* extents)
+{
+	// CFontInfo, the height is after the typeface
+	BYTE font[0x28];
+	memcpy(font, fontInfo, sizeof(font));
+	*(uint32_t*)(font + 0x20) = fontHeight;
+
+	int hString = TextureStringCreate(textureString, text, (int)font);
+	if (!hString)
+		return false;
+
+	bool result = TextureStringGetStringExtents(textureString, hString, extents) == 0;
+	TextureStringRelease(textureString, hString);
+	return result;
+}
+
+static int GetStringWidth(int textureString, const wchar_t* text, const BYTE* fontInfo, uint32_t fontHeight)
+{
+	int extents[4];
+	return MeasureString(textureString, text, fontInfo, fontHeight, extents) ? extents[2] - extents[0] : -1;
+}
+
+static uint32_t FindFittingFontHeight(int textureString, const wchar_t* text, const BYTE* fontInfo, uint32_t fontHeight, int width, int maxWidth)
+{
+	uint32_t minHeight = std::max(fontHeight / 2, 1u);
+	if (fontHeight <= minHeight)
+		return fontHeight;
+
+	uint32_t height = std::clamp((uint32_t)(fontHeight * (float)maxWidth / width), minHeight, fontHeight - 1);
+	width = GetStringWidth(textureString, text, fontInfo, height);
+
+	while (width > maxWidth && height > minHeight)
+	{
+		width = GetStringWidth(textureString, text, fontInfo, --height);
+	}
+
+	while (width >= 0 && width <= maxWidth && height + 1 < fontHeight)
+	{
+		int nextWidth = GetStringWidth(textureString, text, fontInfo, height + 1);
+		if (nextWidth < 0 || nextWidth > maxWidth)
+			break;
+
+		height++;
+		width = nextWidth;
+	}
+
+	return height;
+}
+
+static float FitDialogueString(int textureString, int guiString, uint32_t fontHeight, float textRight, DialogueTextFit& fit)
+{
+	if (*(int*)(guiString + 0x2C) != 0 || *(uint32_t*)(guiString + 0x44) == 0)
+		return 0.0f;
+
+	const wchar_t* text = *(uint32_t*)(guiString + 0x48) < 8 ? (const wchar_t*)(guiString + 0x34) : *(const wchar_t**)(guiString + 0x34);
+	int maxWidth = (int)(textRight - *(float*)(guiString + 0x60));
+	if (maxWidth <= 0)
+		return 0.0f;
+
+	if (fit.text != text || fit.fontHeight != fontHeight || fit.maxWidth != maxWidth)
+	{
+		const BYTE* fontInfo = (const BYTE*)guiString;
+		int extents[4];
+		bool isMeasured = MeasureString(textureString, text, fontInfo, fontHeight, extents);
+
+		fit.text = text;
+		fit.fontHeight = fontHeight;
+		fit.maxWidth = maxWidth;
+		fit.fittedHeight = fontHeight;
+		fit.offsetY = 0.0f;
+
+		if (isMeasured && extents[2] - extents[0] > maxWidth)
+		{
+			int fittedExtents[4];
+			fit.fittedHeight = FindFittingFontHeight(textureString, text, fontInfo, fontHeight, extents[2] - extents[0], maxWidth);
+
+			if (MeasureString(textureString, text, fontInfo, fit.fittedHeight, fittedExtents))
+				fit.offsetY = floorf(((extents[3] - extents[1]) - (fittedExtents[3] - fittedExtents[1])) / 2.0f + 0.5f);
+		}
+	}
+
+	// Like CLTGUIString::SetFont, the texture is made again at the new height when it renders
+	if (*(uint32_t*)(guiString + 0x20) != fit.fittedHeight)
+	{
+		*(uint32_t*)(guiString + 0x20) = fit.fittedHeight;
+
+		int& hString = *(int*)(guiString + 0x28);
+		if (hString)
+		{
+			TextureStringRelease(textureString, hString);
+			hString = 0;
+		}
+	}
+
+	return fit.offsetY;
+}
+
+static void __fastcall HUDDialogueRender_Hook(int thisPtr, int)
+{
+	int textureString = MemoryHelper::ReadMemory<int>(g_State.textureStringAddr);
+	uint32_t fontHeight = *(uint32_t*)(thisPtr + 0x14C);
+
+	if (!HUDScaling || !textureString || fontHeight == 0)
+	{
+		HUDDialogueRender(thisPtr);
+		return;
+	}
+
+	// Top left and top right corners of the box
+	float boxLeft = *(float*)(thisPtr + 0xA0);
+	float boxRight = *(float*)(thisPtr + 0xB8);
+	float textRight = boxLeft + (boxRight - boxLeft) * DialogueFrameRight;
+
+	int text = thisPtr + 0x14;
+	int name = thisPtr + 0x214;
+	float textOffsetY = FitDialogueString(textureString, text, fontHeight, textRight, dialogueTextFits[0]);
+	float nameOffsetY = FitDialogueString(textureString, name, fontHeight, textRight, dialogueTextFits[1]);
+
+	// Only while it renders, the positions are set by the layout
+	float textY = *(float*)(text + 0x64);
+	float nameY = *(float*)(name + 0x64);
+	*(float*)(text + 0x64) += textOffsetY;
+	*(float*)(name + 0x64) += nameOffsetY;
+
+	HUDDialogueRender(thisPtr);
+
+	*(float*)(text + 0x64) = textY;
+	*(float*)(name + 0x64) = nameY;
 }
 
 // The nav markers sizes are in pixels, those of the teammates are scaled by the X and Y ratios

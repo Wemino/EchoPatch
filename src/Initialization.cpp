@@ -183,7 +183,7 @@ static void ReadConfig()
             { "HUDDamageDir", 0 },
             { "HUDDebug", 0 },
             { "HUDDecision", 0 },
-            { "HUDDialogue", 1 },
+            { "HUDDialogue", 0 },
             { "HUDDistance", 0 },
             { "HUDEndRoundMessage", 0 },
             { "HudEndRoundMessage", 0 },
