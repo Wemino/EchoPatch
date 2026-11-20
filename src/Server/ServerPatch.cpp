@@ -10,6 +10,7 @@ void ApplyServerPatch()
     ApplySavePersistentWorldStateServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyDoorBashingServerPatch();
+    ApplyUncapDismembermentServerPatch();
     ApplyHighFPSFixesServerPatch();
     ApplyFixWaterReflectionsServerPatch();
     ApplyControllerServerPatch();

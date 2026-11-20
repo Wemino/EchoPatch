@@ -281,6 +281,9 @@
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp">
       <Filter>Server\Extra</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Server\Extra\UncapDismemberment.cpp">
+      <Filter>Server\Extra</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp">
       <Filter>Server\Fixes</Filter>
     </ClInclude>

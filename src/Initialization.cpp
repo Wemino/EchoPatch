@@ -112,6 +112,8 @@ static void ReadConfig()
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
     DoorBashing = IniHelper::ReadInteger("Extra", "DoorBashing", 0) == 1;
+    UncapDismemberment = IniHelper::ReadInteger("Extra", "UncapDismemberment", 0) == 1;
+    GibFrequencyCap = IniHelper::ReadInteger("Extra", "GibFrequencyCap", 5);
     EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;
     LoadASIPlugins = IniHelper::ReadInteger("Extra", "LoadASIPlugins", 1) == 1;
     EchoPatchMenu = IniHelper::ReadInteger("Extra", "EchoPatchMenu", 1) == 1;
@@ -244,6 +246,9 @@ static void ReadConfig()
 
     // 10 slots max
     MaxWeaponCapacity = std::clamp(MaxWeaponCapacity, 0, 10);
+
+    // Same range as the menu slider
+    GibFrequencyCap = std::clamp(GibFrequencyCap, 0, 10);
 
     // Controller Config
     SetRumbleEnabled(RumbleEnabled);

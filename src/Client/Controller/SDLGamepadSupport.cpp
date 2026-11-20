@@ -1005,12 +1005,13 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		case HashHelper::StringHashes::IDS_SMALL_TEXT_SIZE:					return L"Small Text Size";
 		case HashHelper::StringHashes::IDS_SENSITIVITY_MULTIPLIER:			return L"Sensitivity Multiplier";
 		case HashHelper::StringHashes::IDS_WEAPON_CAPACITY:					return L"Weapon Capacity";
+		case HashHelper::StringHashes::IDS_GIB_FREQUENCY_CAP:				return L"Gib Frequency Cap";
 		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH:					return L"Change the settings of EchoPatch.";
 		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_GRAPHICS:			return L"Reflections, supersampling, model detail and persistent world.";
 		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_DISPLAY:			return L"Field of view, HUD scaling and cutscene letterbox.";
 		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_MOUSE:			return L"Mouse sensitivity multiplier.";
 		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_MEMORY:			return L"Memory usage of the game.";
-		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_EXTRA:			return (g_State.CurrentFEARGame == FEAR) ? L"Flashlight, weapon capacity, door bashing and accuracy." : L"Flashlight, weapon capacity and accuracy.";		case HashHelper::StringHashes::IDS_HELP_HIGH_RESOLUTION_REFLECTIONS:	return L"Sharper reflections and security camera screens.";
+		case HashHelper::StringHashes::IDS_HELP_ECHOPATCH_EXTRA:			return (g_State.CurrentFEARGame == FEAR) ? L"Flashlight, weapon capacity, door bashing, dismemberment and accuracy." : L"Flashlight, weapon capacity, dismemberment and accuracy.";		case HashHelper::StringHashes::IDS_HELP_HIGH_RESOLUTION_REFLECTIONS:	return L"Sharper reflections and security camera screens.";
 		case HashHelper::StringHashes::IDS_HELP_SUPERSAMPLING:				return L"Renders the 3D scene at a higher resolution. Turns off FSAA.";
 		case HashHelper::StringHashes::IDS_HELP_MAXIMUM_MODEL_DETAIL:		return L"Always uses the most detailed models.";
 		case HashHelper::StringHashes::IDS_HELP_PERSISTENT_WORLD:			return L"Blood stains, bullet holes, debris and shell casings no longer disappear. Requires a restart.";
@@ -1032,6 +1033,8 @@ static const wchar_t* __stdcall LoadGameString_Hook(int ptr, char* String)
 		case HashHelper::StringHashes::IDS_HELP_CUSTOM_WEAPON_CAPACITY:		return L"Lets Weapon Capacity change how many weapons can be carried. Requires a restart.";
 		case HashHelper::StringHashes::IDS_HELP_WEAPON_CAPACITY:			return L"How many weapons can be carried. Lowering it needs a new save from a new game. Requires a restart.";
 		case HashHelper::StringHashes::IDS_HELP_DOOR_BASHING:				return L"Melee attacks and explosions bash doors open, like in the expansions. Requires a restart.";
+		case HashHelper::StringHashes::IDS_HELP_UNCAP_DISMEMBERMENT:		return L"Removes the limits on how often bodies get dismembered and how many dismembered bodies a level can have. Requires a restart.";
+		case HashHelper::StringHashes::IDS_HELP_GIB_FREQUENCY_CAP:			return L"How many kills have to pass after a body gibs before another body can gib. 0 removes the limit, the game uses 5. Requires a restart.";
 		case HashHelper::StringHashes::IDS_HELP_ACCURACY_PENALTY:			return L"Off removes the spread from moving, turning and recoil, as if zoomed in and standing still. Requires a restart.";
 
 		case HashHelper::StringHashes::IDS_SELECT:							return L"Select";

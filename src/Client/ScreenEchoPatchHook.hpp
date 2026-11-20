@@ -85,6 +85,8 @@ namespace ScreenEchoPatchHook
         ENABLE_CUSTOM_MAX_WEAPON_CAPACITY,
         MAX_WEAPON_CAPACITY,
         DOOR_BASHING,
+        UNCAP_DISMEMBERMENT,
+        GIB_FREQUENCY_CAP,
         DISABLE_HIP_FIRE_ACCURACY_PENALTY,
         SETTING_COUNT
     };
@@ -183,6 +185,8 @@ namespace ScreenEchoPatchHook
         { CUSTOM_SCREEN_EXTRA,    "Extra",      "EnableCustomMaxWeaponCapacity", "IDS_HELP_CUSTOM_WEAPON_CAPACITY",      true,  L"Custom Weapon Capacity" },
         { CUSTOM_SCREEN_EXTRA,    "Extra",      "MaxWeaponCapacity",             "IDS_HELP_WEAPON_CAPACITY",             true,  nullptr, false, "IDS_WEAPON_CAPACITY",        1,   0,   10,  1,  &NumberText },
         { CUSTOM_SCREEN_EXTRA,    "Extra",      "DoorBashing",                   "IDS_HELP_DOOR_BASHING",                true,  L"Door Bashing" },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "UncapDismemberment",            "IDS_HELP_UNCAP_DISMEMBERMENT",         true,  L"Uncap Dismemberment" },
+        { CUSTOM_SCREEN_EXTRA,    "Extra",      "GibFrequencyCap",               "IDS_HELP_GIB_FREQUENCY_CAP",           true,  nullptr, false, "IDS_GIB_FREQUENCY_CAP",      1,   0,   10,  1,  &NumberText },
         { CUSTOM_SCREEN_EXTRA,    "Extra",      "DisableHipFireAccuracyPenalty", "IDS_HELP_ACCURACY_PENALTY",            true,  L"Accuracy Penalty", true },
     };
 
@@ -243,6 +247,9 @@ namespace ScreenEchoPatchHook
 
             case MAX_WEAPON_CAPACITY:
                 return ENABLE_CUSTOM_MAX_WEAPON_CAPACITY;
+
+            case GIB_FREQUENCY_CAP:
+                return UNCAP_DISMEMBERMENT;
         }
 
         return -1;
@@ -279,6 +286,8 @@ namespace ScreenEchoPatchHook
             case ENABLE_CUSTOM_MAX_WEAPON_CAPACITY: return EnableCustomMaxWeaponCapacity;
             case MAX_WEAPON_CAPACITY: return static_cast<float>(MaxWeaponCapacity);
             case DOOR_BASHING: return DoorBashing;
+            case UNCAP_DISMEMBERMENT: return UncapDismemberment;
+            case GIB_FREQUENCY_CAP: return static_cast<float>(GibFrequencyCap);
             case DISABLE_HIP_FIRE_ACCURACY_PENALTY: return DisableHipFireAccuracyPenalty;
         }
 
