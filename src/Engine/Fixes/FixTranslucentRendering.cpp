@@ -75,6 +75,8 @@ static int spareLightList[3] = {};
 static float frameCopyKey = FLT_MAX;
 
 static std::vector<DecalSort> decalSorts;
+static std::vector<float> engineSortKeys;
+static std::vector<int> frameCopyEntries;
 static std::vector<float> decalClusterKeys;
 static std::vector<MovedDecal> movedDecals;
 
@@ -559,6 +561,16 @@ static int __fastcall ComputeSortKeys_Hook(int list, int, float* cameraPos, int 
     if (technique != TechniqueTranslucent) return result;
 
     decalSorts.clear();
+    engineSortKeys.clear();
+    frameCopyEntries.clear();
+
+    for (int entry = *(int*)(list + 4); entry != *(int*)(list + 8); entry += entrySize)
+    {
+        engineSortKeys.push_back(*(float*)(entry + 0x18));
+
+        if (*(int*)entry && UsesFrameCopy(**(int**)(entry + 4), variant))
+            frameCopyEntries.push_back(entry);
+    }
 
     for (int entry = *(int*)(list + 4); entry != *(int*)(list + 8); entry += entrySize)
     {
@@ -576,7 +588,7 @@ static int __fastcall ComputeSortKeys_Hook(int list, int, float* cameraPos, int 
         if (*(uint8_t*)(object + 0x57) == 2)
         {
             float min[3], max[3];
-            if (GetObjectBounds(object, min, max))
+            if (!UsesFrameCopy(**(int**)(entry + 4), variant) && GetObjectBounds(object, min, max))
             {
                 *(float*)(entry + 0x18) = FarthestDistanceToBoundsSqr(cameraPos, min, max);
             }
@@ -614,6 +626,22 @@ static int __fastcall ComputeSortKeys_Hook(int list, int, float* cameraPos, int 
     }
 
     SortOverlappingDecals();
+
+    for (int frameCopyEntry : frameCopyEntries)
+    {
+        float engineKey = engineSortKeys[(frameCopyEntry - *(int*)(list + 4)) / entrySize];
+        float& key = *(float*)(frameCopyEntry + 0x18);
+
+        int index = 0;
+        for (int entry = *(int*)(list + 4); entry != *(int*)(list + 8); entry += entrySize, index++)
+        {
+            float entryKey = *(float*)(entry + 0x18);
+            if (engineSortKeys[index] > engineKey && entryKey <= key && std::find(frameCopyEntries.begin(), frameCopyEntries.end(), entry) == frameCopyEntries.end())
+            {
+                key = GetNearerKey(entryKey, 1);
+            }
+        }
+    }
 
     bool isSplit = translucentMin != -FLT_MAX || translucentMax != FLT_MAX;
 
