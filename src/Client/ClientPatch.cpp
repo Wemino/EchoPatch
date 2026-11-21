@@ -887,6 +887,7 @@ void ApplyClientPatch()
 	ApplyConsoleDebugToolsClientPatch();
 	ApplyClientFXHook();
 	ApplyDisableHipFireAccuracyPenalty();
+	ApplyDoorBashingClientPatch();
 	ApplyGameDatabaseHook();
 	ApplyClientPatchSet1();
 	ApplyClientPatchSet2();

@@ -95,6 +95,9 @@
     <ClInclude Include="..\src\Client\Extra\DisableHipFireAccuracyPenalty.cpp">
       <Filter>Client\Extra</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\Client\Extra\DoorBashing.cpp">
+      <Filter>Client\Extra</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\Client\Extra\EnableCustomMaxWeaponCapacity.cpp">
       <Filter>Client\Extra</Filter>
     </ClInclude>
@@ -283,6 +286,9 @@
     </ClInclude>
     <ClInclude Include="..\src\Server\Extra\UncapDismemberment.cpp">
       <Filter>Server\Extra</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\Server\Fixes\DoorFixes.cpp">
+      <Filter>Server\Fixes</Filter>
     </ClInclude>
     <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp">
       <Filter>Server\Fixes</Filter>

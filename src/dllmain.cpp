@@ -45,6 +45,7 @@
 #include "Server/Extra/UncapDismemberment.cpp"
 #include "Server/Fixes/HighFPSFixes.cpp"
 #include "Server/Fixes/FixWaterReflections.cpp"
+#include "Server/Fixes/DoorFixes.cpp"
 #include "Server/Controller/Controller.cpp"
 #include "Server/Console/DebugLines.cpp"
 #include "Server/ServerPatch.cpp"
@@ -71,6 +72,7 @@
 #include "Client/Console/DebugTools.cpp"
 #include "Client/Extra/EnableCustomMaxWeaponCapacity.cpp"
 #include "Client/Extra/DisableHipFireAccuracyPenalty.cpp"
+#include "Client/Extra/DoorBashing.cpp"
 #include "Client/ClientPatch.cpp"
 
 #include "Initialization.cpp"

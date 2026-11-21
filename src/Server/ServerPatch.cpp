@@ -10,9 +10,12 @@ void ApplyServerPatch()
     ApplySavePersistentWorldStateServerPatch();
     ApplySetWeaponCapacityServerPatch();
     ApplyDoorBashingServerPatch();
+    ApplyDoorBashingExtrasServerPatch();
+    ApplyDoorBashSparksServerPatch();
     ApplyUncapDismembermentServerPatch();
     ApplyHighFPSFixesServerPatch();
     ApplyFixWaterReflectionsServerPatch();
+    ApplyDoorFixesServerPatch();
     ApplyControllerServerPatch();
     ApplyConsoleDebugLinesServerPatch();
     HookHelper::EndBatch();

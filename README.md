@@ -115,6 +115,10 @@ Addresses several weapon-related issues:
 
 > **Note**: These issues were partially fixed in the Extraction Point and Perseus Mandate expansions.
 
+## Door Fixes
+- Double doors play their latch sound when they finish closing, instead of when they start.
+- The particle gun no longer blasts doors open in Extraction Point, as in Perseus Mandate.
+
 ## Controller Support
 
 Supports Xbox, PlayStation, and Nintendo Switch controllers via SDL3.
@@ -395,9 +399,16 @@ Enable with `EnableCustomMaxWeaponCapacity = 1`.
 
 ## Door Bashing
 Lets melee attacks and explosions bash doors open, like in the expansions.  
+Enemies kick doors open the same way, with the bounce and the door's impact sound, and Extraction Point's hint and loading screen tip show how.  
 Enable with `DoorBashing = 1`.
 
-> **Note:** Only available for F.E.A.R., as Extraction Point and Perseus Mandate already have it.
+For Extraction Point and Perseus Mandate, `ExpansionDoorBashFixes = 1` fixes various bugs and includes improvements from the backport of the expansions' door bashing to the base game:
+- No sparks or metal thump on bashed doors, only the door's own impact sound.
+- Enemies kick doors open with the bounce and the impact sound, away from the kicker.
+- Each kick plays one impact sound, even when the door swings into the kick again.
+- Both halves of a bashed double door swing the same way.
+
+> **Note:** `DoorBashing` is only available for F.E.A.R., as Extraction Point and Perseus Mandate already have door bashing.
 
 ## Uncap Dismemberment
 Removes the limits on dismemberment. By default, the next 7 kills after a dismemberment cannot dismember, and no body gets dismembered while 2 dismembered bodies are in the level.  

@@ -424,6 +424,7 @@ bool EnableCustomMaxWeaponCapacity = false;
 int MaxWeaponCapacity = 0;
 bool DisableHipFireAccuracyPenalty = false;
 bool DoorBashing = false;
+bool ExpansionDoorBashFixes = false;
 bool UncapDismemberment = false;
 int GibFrequencyCap = 0;
 bool EnableCrashHandler = false;

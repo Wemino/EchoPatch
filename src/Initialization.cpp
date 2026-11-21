@@ -112,6 +112,7 @@ static void ReadConfig()
     MaxWeaponCapacity = IniHelper::ReadInteger("Extra", "MaxWeaponCapacity", 3);
     DisableHipFireAccuracyPenalty = IniHelper::ReadInteger("Extra", "DisableHipFireAccuracyPenalty", 0) == 1;
     DoorBashing = IniHelper::ReadInteger("Extra", "DoorBashing", 0) == 1;
+    ExpansionDoorBashFixes = IniHelper::ReadInteger("Extra", "ExpansionDoorBashFixes", 0) == 1;
     UncapDismemberment = IniHelper::ReadInteger("Extra", "UncapDismemberment", 0) == 1;
     GibFrequencyCap = IniHelper::ReadInteger("Extra", "GibFrequencyCap", 5);
     EnableCrashHandler = IniHelper::ReadInteger("Extra", "EnableCrashHandler", 1) == 1;

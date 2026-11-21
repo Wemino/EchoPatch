@@ -143,6 +143,7 @@
     <ClInclude Include="..\src\Client\Display\AutoResolution.cpp" />
     <ClInclude Include="..\src\Client\Display\HUDScaling.cpp" />
     <ClInclude Include="..\src\Client\Extra\DisableHipFireAccuracyPenalty.cpp" />
+    <ClInclude Include="..\src\Client\Extra\DoorBashing.cpp" />
     <ClInclude Include="..\src\Client\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Client\Fixes\FixKeyboardInputLanguage.cpp" />
     <ClInclude Include="..\src\Client\Fixes\FixWaterReflections.cpp" />
@@ -208,6 +209,7 @@
     <ClInclude Include="..\src\Server\Extra\DoorBashing.cpp" />
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Server\Extra\UncapDismemberment.cpp" />
+    <ClInclude Include="..\src\Server\Fixes\DoorFixes.cpp" />
     <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp" />
