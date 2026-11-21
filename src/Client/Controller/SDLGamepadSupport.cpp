@@ -15,6 +15,7 @@ static int lastCursorX = 0;
 static int lastCursorY = 0;
 static int turretPrevDamageState = 0;
 static int slowMoStateOffset = 0;
+static int slowMoPlayerOffset = 0;
 static uint16_t healthBefore = 0;
 static uint16_t healthAfter = 0;
 static uint16_t healthReceived = 0;
@@ -26,6 +27,7 @@ static bool isAiming = false;
 static bool isDoingMeleeAttack = false;
 static bool isTakingDamage = false;
 static ULONGLONG fallDamageTime = 0;
+static ULONGLONG slowMoCommandTime = 0;
 
 // =======================
 // SDLGamepadSupport
@@ -736,11 +738,28 @@ void __fastcall CTurretFX_SetDamageState_Hook(DWORD* thisPtr, int)
 	turretPrevDamageState = newDamageState;
 }
 
+static bool __fastcall OnCommandOn_Hook(int thisPtr, int, int command)
+{
+	// COMMAND_ID_SLOWMO
+	if (command == 106)
+		slowMoCommandTime = GetTickCount64();
+
+	return ClientShellOnCommandOn(thisPtr, command);
+}
+
+// The server answers within a few frames, scripted slowmo and the one ended by a cutscene or a level change have no command
+static bool IsSlowMoToggledByPlayer()
+{
+	bool isToggled = slowMoCommandTime != 0 && GetTickCount64() - slowMoCommandTime < 3000;
+	slowMoCommandTime = 0;
+	return isToggled;
+}
+
 static void __fastcall EnterSlowMo_Hook(int thisPtr, int, int hSlowMoRecord, bool bTransition, double fSlowMoPeriod, bool bPlayer)
 {
 	EnterSlowMo(thisPtr, hSlowMoRecord, bTransition, fSlowMoPeriod, bPlayer);
 
-	if (RumbleEnabled && hSlowMoRecord)
+	if (RumbleEnabled && hSlowMoRecord && bPlayer && IsSlowMoToggledByPlayer())
 		SetGamepadRumble(40000, 10000, 350, 2);
 }
 
@@ -749,9 +768,11 @@ static void __fastcall ExitingSlowMo_Hook(int thisPtr, int)
 	// Entering or in slowmo
 	bool isInSlowMo = *(uint32_t*)(thisPtr + slowMoStateOffset) <= 1;
 
+	bool isPlayerSlowMo = *(bool*)(thisPtr + slowMoPlayerOffset);
+
 	ExitingSlowMo(thisPtr);
 
-	if (RumbleEnabled && isInSlowMo)
+	if (RumbleEnabled && isInSlowMo && isPlayerSlowMo && IsSlowMoToggledByPlayer())
 		SetGamepadRumble(12000, 20000, 200, 2);
 }
 

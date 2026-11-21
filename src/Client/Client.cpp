@@ -112,6 +112,7 @@ bool(__thiscall* SetQueuedConsoleVariable)(int, const char*, float, int) = nullp
 bool(__thiscall* IsCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOn)(int, int) = nullptr;
 bool(__thiscall* OnCommandOff)(int, int) = nullptr;
+bool(__thiscall* ClientShellOnCommandOn)(int, int) = nullptr;
 double(__thiscall* GetExtremalCommandValue)(int, int) = nullptr;
 double(__thiscall* GetZoomMag)(int) = nullptr;
 int(__thiscall* HUDActivateObjectSetObject)(int, void**, int, int, int, int) = nullptr;

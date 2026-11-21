@@ -324,8 +324,9 @@ static void ApplyControllerClientPatch()
 	DWORD addr_CTurretFX_SetDamageState = ScanModuleSignature(g_State.GameClient, "81 EC C8 00 00 00 53 56 57 8B F1 8B 46 4C 8B 0D", "CTurretFX_SetDamageState");
     DWORD addr_EnterSlowMo = ScanModuleSignature(g_State.GameClient, "55 8B EC 83 E4 F8 83 EC 0C 8B 45 08 53 56 33 DB 3B C3 57 8B F1 0F 84", "EnterSlowMo");
     DWORD addr_ExitingSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 10 56 8B F1 DD 86 ?? ?? 00 00 C7 86 ?? ?? 00 00 02 00 00 00", "ExitingSlowMo");
+    DWORD addr_UpdateSlowMo = ScanModuleSignature(g_State.GameClient, "83 EC 08 56 8B F1 8B 86 80 02 00 00 83 F8 01", "UpdateSlowMo");
 
-	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0 && addr_EnterSlowMo != 0 && addr_ExitingSlowMo != 0)
+	if (addr_CClientWeaponFire != 0 && addr_HandleMsgPlayerDamage != 0 && addr_UpdateHealth != 0 && addr_UpdateArmor != 0 && addr_CHUDMgr_StartFlicker != 0 && addr_CClientWeapon_WeaponPath_OnImpactCB != 0 && addr_HandleFallLand != 0 && addr_CTurretFX_SetDamageState != 0 && addr_EnterSlowMo != 0 && addr_ExitingSlowMo != 0 && addr_UpdateSlowMo != 0)
 	{
 		HookHelper::ApplyHook((void*)addr_CClientWeaponFire, &CClientWeaponFire_Hook, (LPVOID*)&CClientWeaponFire);
 		HookHelper::ApplyHook((void*)addr_HandleMsgPlayerDamage, &HandleMsgPlayerDamage_Hook, (LPVOID*)&HandleMsgPlayerDamage);
@@ -337,7 +338,10 @@ static void ApplyControllerClientPatch()
 		HookHelper::ApplyHook((void*)addr_CTurretFX_SetDamageState, &CTurretFX_SetDamageState_Hook, (LPVOID*)&CTurretFX_SetDamageState);
         HookHelper::ApplyHook((void*)addr_EnterSlowMo, &EnterSlowMo_Hook, (LPVOID*)&EnterSlowMo);
         HookHelper::ApplyHook((void*)addr_ExitingSlowMo, &ExitingSlowMo_Hook, (LPVOID*)&ExitingSlowMo);
+        HookHelper::ApplyHook((void*)addr_OnCommandOn, &OnCommandOn_Hook, (LPVOID*)&ClientShellOnCommandOn);
+
         slowMoStateOffset = MemoryHelper::ReadMemory<int>(addr_ExitingSlowMo + 0xE);
+        slowMoPlayerOffset = MemoryHelper::ReadMemory<int>(addr_UpdateSlowMo + 0x18);
 	}
 
 	// Button glyphs
