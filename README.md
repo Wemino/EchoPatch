@@ -399,6 +399,12 @@ Enable with `DoorBashing = 1`.
 
 > **Note:** Only available for F.E.A.R., as Extraction Point and Perseus Mandate already have it.
 
+## Uncap Dismemberment
+Removes the limits on dismemberment. By default, the next 7 kills after a dismemberment cannot dismember, and no body gets dismembered while 2 dismembered bodies are in the level.  
+The chance of severing a limb is unchanged.  
+Enable with `UncapDismemberment = 1`.  
+It also lets `GibFrequencyCap` (0–10, 5 by default like the game) change how many kills have to pass after a body gibs before another body can gib, `0` removes the limit.
+
 ## Disable PunkBuster Initialization
 Disables initialization of PunkBuster, the deprecated online anti-cheat service that shipped with the original game.  
 This prevents the game from loading unused background components.
