@@ -111,11 +111,13 @@ static bool __fastcall AWMCalcAngle_Hook(int thisPtr, int, float* pAngle, float 
 
 static void __fastcall SetBashActivatorPos(int pDoor, float* pActivatorPos, const float* pDoorPos, int nWaveform)
 {
-    float fLastDamage = *reinterpret_cast<float*>(pDoor + AWMDamageAggregateOffset + DestructibleLastDamageOffset);
+    int pBashedDoor = doorBashPending ? doorBashPending : pDoor;
+
+    float fLastDamage = *reinterpret_cast<float*>(pBashedDoor + AWMDamageAggregateOffset + DestructibleLastDamageOffset);
     if (static_cast<uint8_t>(nWaveform) != AWMWaveBounce || !(fLastDamage > 0.0f))
         return;
 
-    const float* pLastDamageDir = reinterpret_cast<const float*>(pDoor + AWMDamageAggregateOffset + DestructibleLastDamageDirOffset);
+    const float* pLastDamageDir = reinterpret_cast<const float*>(pBashedDoor + AWMDamageAggregateOffset + DestructibleLastDamageDirOffset);
     pActivatorPos[0] = pDoorPos[0] - pLastDamageDir[0];
     pActivatorPos[1] = pDoorPos[1] - pLastDamageDir[1];
     pActivatorPos[2] = pDoorPos[2] - pLastDamageDir[2];
