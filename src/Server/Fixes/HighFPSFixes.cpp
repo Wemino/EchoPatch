@@ -9,6 +9,7 @@ static DWORD pLTServerAddr = 0;
 static int serverGetFrameTimeOffset = 0;
 static int proximityFlippingOffset = 0;
 static int aiTargetPushSpeedOffset = 0;
+static float aiFacePosMinDistSqr = 0.0001f;
 
 struct AIRoll
 {
@@ -321,6 +322,7 @@ static void ApplyHighFPSFixesServerPatch()
 
     DWORD addr_CheckForSever = ScanModuleSignature(g_State.GameServer, "83 EC 18 8B 44 24 1C 89 4C 24 08", "CheckForSever");
     DWORD addr_AI_SetNextServerUpdate = ScanModuleSignature(g_State.GameServer, "8B 44 24 10 83 C4 08 89 86", "AI_SetNextServerUpdate");
+    DWORD addr_AIFacePos = ScanModuleSignature(g_State.GameServer, "D9 44 24 08 D8 4C 24 08 DE C1 D9 54 24 04 D8 1D", "AIFacePos");
     DWORD addr_ProximityGrenadeFlipping = ScanModuleSignature(g_State.GameServer, "8A 86 ?? 02 00 00 84 C0 0F 85 02 02 00 00 8A 86 ?? 02 00 00 84 C0 0F 85 F4 01 00 00", "ProximityGrenadeFlipping");
     DWORD addr_ProximityGrenadeUpdate = ScanModuleSignature(g_State.GameServer, "8A 86 ?? 02 00 00 84 C0 0F 85 02 02 00 00 8A 86 ?? 02 00 00 84 C0 0F 85 F4 01 00 00", "ProximityGrenadeUpdate", 4);
     DWORD addr_UpdateFireWeaponDuringDeath = ScanModuleSignature(g_State.GameServer, "81 EC 80 00 00 00 57 8B F9 8B 87 ?? ?? 00 00 83 F8 ?? 0F 84 71 02 00 00 83 F8 ?? 0F 84 68 02 00 00 8B 87", "UpdateFireWeaponDuringDeath");
@@ -333,6 +335,7 @@ static void ApplyHighFPSFixesServerPatch()
 
     if (addr_CheckForSever == 0 || 
         addr_AI_SetNextServerUpdate == 0 || 
+        addr_AIFacePos == 0 || 
         addr_ProximityGrenadeFlipping == 0 || 
         addr_ProximityGrenadeUpdate == 0 || 
         addr_UpdateFireWeaponDuringDeath == 0 || 
@@ -346,6 +349,9 @@ static void ApplyHighFPSFixesServerPatch()
 
     HookHelper::ApplyHookReplaceable((void*)addr_CheckForSever, &CheckForSever_Hook, (LPVOID*)&CheckForSever);
     HookHelper::ApplyHookReplaceable((void*)(addr_AI_SetNextServerUpdate - 0x15), &AI_SetNextServerUpdate_Hook, (LPVOID*)&AI_SetNextServerUpdate);
+
+    // AI face the position of their next step, a step at a high framerate is shorter than the 1 unit FacePos ignores
+    MemoryHelper::WriteMemory<DWORD>(addr_AIFacePos + 0x10, (DWORD)&aiFacePosMinDistSqr);
 
     proximityFlippingOffset = MemoryHelper::ReadMemory<int>(addr_ProximityGrenadeFlipping + 0x10);
     pLTServerAddr = MemoryHelper::ReadMemory<DWORD>(addr_FlickerUpdate + 0x10);
