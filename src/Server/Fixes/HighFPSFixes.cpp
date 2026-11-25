@@ -363,5 +363,5 @@ static void ApplyHighFPSFixesServerPatch()
     HookHelper::ApplyHookReplaceable((void*)addr_DamageStructDoDamage, &DamageStructDoDamage_Hook, (LPVOID*)&DamageStructDoDamage);
     HookHelper::ApplyHookReplaceable((void*)addr_TriggerObjectTouch, &TriggerObjectTouch_Hook, (LPVOID*)&TriggerObjectTouch);
     HookHelper::ApplyHookReplaceable((void*)addr_AITargetUpdatePush, &AITargetUpdatePush_Hook, (LPVOID*)&AITargetUpdatePush);
-    //MemoryHelper::WriteMemory<DWORD>(addr_AIFacePos + 0x10, (DWORD)&aiFacePosMinDistSqr);
+    MemoryHelper::WriteMemory<DWORD>(addr_AIFacePos + 0x10, (DWORD)&aiFacePosMinDistSqr);
 }
