@@ -9,6 +9,7 @@ static DWORD pLTServerAddr = 0;
 static int serverGetFrameTimeOffset = 0;
 static int proximityFlippingOffset = 0;
 static int aiTargetPushSpeedOffset = 0;
+static float aiFacePosMinDistSqr = 0.0001f;
 
 struct AIRoll
 {
@@ -330,6 +331,7 @@ static void ApplyHighFPSFixesServerPatch()
     DWORD addr_DamageStructDoDamage = ScanModuleSignature(g_State.GameServer, "53 8B 5C 24 0C 85 DB 57 8B F9 75 07 5F 32 C0 5B C2 08 00 8B 0D ?? ?? ?? ?? 8B 01 56 8D 54 24 14 52 33 F6", "DamageStructDoDamage");
     DWORD addr_TriggerObjectTouch = ScanModuleSignature(g_State.GameServer, "53 55 57 8B 7C 24 10 57 8B E9 E8 ?? ?? ?? ?? 84 C0 57 0F 95", "TriggerObjectTouch");
     DWORD addr_AITargetUpdatePush = ScanModuleSignature(g_State.GameServer, "D9 41 ?? 83 EC 0C D8 1D ?? ?? ?? ?? DF E0 F6 C4 41 0F 85 ?? ?? ?? ?? 8B 51 04 8D 82", "AITargetUpdatePush");
+    DWORD addr_AIFacePos = ScanModuleSignature(g_State.GameServer, "D9 44 24 08 D8 4C 24 08 DE C1 D9 54 24 04 D8 1D", "AIFacePos");
 
     if (addr_CheckForSever == 0 || 
         addr_AI_SetNextServerUpdate == 0 || 
@@ -341,7 +343,8 @@ static void ApplyHighFPSFixesServerPatch()
         addr_FlickerUpdate == 0 || 
         addr_DamageStructDoDamage == 0 || 
         addr_TriggerObjectTouch == 0 || 
-        addr_AITargetUpdatePush == 0)
+        addr_AITargetUpdatePush == 0 ||
+        addr_AIFacePos == 0)
         return;
 
     HookHelper::ApplyHookReplaceable((void*)addr_CheckForSever, &CheckForSever_Hook, (LPVOID*)&CheckForSever);
@@ -360,4 +363,5 @@ static void ApplyHighFPSFixesServerPatch()
     HookHelper::ApplyHookReplaceable((void*)addr_DamageStructDoDamage, &DamageStructDoDamage_Hook, (LPVOID*)&DamageStructDoDamage);
     HookHelper::ApplyHookReplaceable((void*)addr_TriggerObjectTouch, &TriggerObjectTouch_Hook, (LPVOID*)&TriggerObjectTouch);
     HookHelper::ApplyHookReplaceable((void*)addr_AITargetUpdatePush, &AITargetUpdatePush_Hook, (LPVOID*)&AITargetUpdatePush);
+    //MemoryHelper::WriteMemory<DWORD>(addr_AIFacePos + 0x10, (DWORD)&aiFacePosMinDistSqr);
 }
