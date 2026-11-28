@@ -5,10 +5,8 @@
 // ActiveWorldModel
 static constexpr int AWMDamageAggregateOffset = 0x20;
 static constexpr int AWMTypeOffset = 0x1AC;
-static constexpr int AWMRotationPtOffset = 0x288;
 static constexpr int AWMCurStateOffset = 0x309;
 static constexpr int AWMWaveformOffset = 0x30B;
-static constexpr uint8_t AWMTypeSliding = 1;
 static constexpr uint8_t AWMTypeRotating = 2;
 static constexpr uint8_t AWMStateOff = 3;
 static constexpr uint8_t AWMStatePowerOff = 4;

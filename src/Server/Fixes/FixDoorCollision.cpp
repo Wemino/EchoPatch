@@ -2,6 +2,11 @@
 
 #include "../../Globals.cpp"
 
+// ActiveWorldModel
+static constexpr int DoorCollisionRotationPtOffset = 0x288;
+static constexpr uint8_t DoorCollisionTypeSliding = 1;
+static constexpr uint8_t DoorCollisionTypeRotating = 2;
+
 static int doorCollisionTypeOffset = 0;
 static int doorCollisionActivatorOffset = 0;
 static int doorCollisionGetObjectPosOffset = 0;
@@ -9,9 +14,9 @@ static DWORD doorCollisionLTServerAddr = 0;
 
 bool(__thiscall* AWMTestObjectCollision)(int, int, const float*, const float*, int*) = nullptr;
 
-// ================
+// ==================
 // FixDoorCollision
-// ================
+// ==================
 
 static uintptr_t DoorCollisionLTServerMethod(int ltServer, int nOffset)
 {
@@ -25,7 +30,7 @@ static bool DoorCollisionGetObjectPos(int hObject, float* pPos)
     return reinterpret_cast<GetObjectPos_t>(DoorCollisionLTServerMethod(ltServer, doorCollisionGetObjectPosOffset))(ltServer, hObject, pPos) == 0;
 }
 
-// SetObjectPos follows GetObjectPos in ILTCSBase, it teleports the object
+// SetObjectPos follows GetObjectPos in ILTCSBase
 static void DoorCollisionSetObjectPos(int hObject, const float* pPos)
 {
     using SetObjectPos_t = int(__thiscall*)(int, int, const float*);
@@ -39,23 +44,18 @@ static float DoorCollisionDist(const float* a, const float* b)
     return sqrtf(x * x + y * y + z * z);
 }
 
-// Replaces the call to TestObjectCollision in ActiveWorldModel::CalculateNewPosRot, which tests every object (hTest is NULL) and passes no collision object
 static bool __fastcall CalcNewPosRotTestCollision_Hook(int thisPtr, int, int hTest, const float* pTestPos, const float* pLocalRot, int*)
 {
     uint8_t nType = *reinterpret_cast<uint8_t*>(thisPtr + doorCollisionTypeOffset);
 
-    // The step is tested with the local swing only, a door placed with a rotation is tested at the wrong orientation
-    // Use rOutRot instead, its reference is the argument at [esp+110h] of the caller, 0xD0 past rRotation
+    // The step is tested with the local swing only, rOutRot is the argument 0xD0 past it in the caller's frame
     const float* pTestRot = pLocalRot;
-    if (nType == AWMTypeSliding || nType == AWMTypeRotating)
-    {
+    if (nType == DoorCollisionTypeSliding || nType == DoorCollisionTypeRotating)
         pTestRot = *reinterpret_cast<const float* const*>(reinterpret_cast<uintptr_t>(pLocalRot) + 0xD0);
-    }
 
-    // A real movement step passes one of the door's own positions (m_vOnPos, m_vOffPos, m_vMoveToPos) as vFinalPos, at [esp+114h] of the caller
-    // SetPowerOn and GetTestPosRot also call CalculateNewPosRot, only to preview poses, and pass a temporary
+    // A real step moves to a position of the door itself, SetPowerOn and GetTestPosRot only preview with a temporary
     uintptr_t pFinalPos = *reinterpret_cast<const uintptr_t*>(reinterpret_cast<uintptr_t>(pLocalRot) + 0xD4);
-    if (nType != AWMTypeRotating || pFinalPos < static_cast<uintptr_t>(thisPtr) || pFinalPos >= static_cast<uintptr_t>(thisPtr) + 0x400)
+    if (nType != DoorCollisionTypeRotating || pFinalPos < static_cast<uintptr_t>(thisPtr) || pFinalPos >= static_cast<uintptr_t>(thisPtr) + 0x400)
         return AWMTestObjectCollision(thisPtr, hTest, pTestPos, pTestRot, nullptr);
 
     int hDoor = *reinterpret_cast<int*>(thisPtr + 8);
@@ -63,19 +63,15 @@ static bool __fastcall CalcNewPosRotTestCollision_Hook(int thisPtr, int, int hTe
     if (!DoorCollisionGetObjectPos(hDoor, vDoorPos))
         return AWMTestObjectCollision(thisPtr, hTest, pTestPos, pTestRot, nullptr);
 
-    // When a door pushes into a player, the engine can leave the door at the player's position, off its hinge
-    // Every later move of the door then fails and the player is stuck in it, so put it back on its path
-    // A rotating door always keeps the same distance to its rotation point
-    const float* vRotationPt = reinterpret_cast<const float*>(thisPtr + AWMRotationPtOffset);
+    // A door pushing into a player can be left off its path and then fails every move, a rotating door keeps the same distance to its rotation point
+    const float* vRotationPt = reinterpret_cast<const float*>(thisPtr + DoorCollisionRotationPtOffset);
     if (std::fabs(DoorCollisionDist(vDoorPos, vRotationPt) - DoorCollisionDist(pTestPos, vRotationPt)) > 1.0f)
     {
         DoorCollisionSetObjectPos(hDoor, pTestPos);
         return false;
     }
 
-    // A rotating door touching its player activator is blocked when the step brings it closer, a blocked door retries the same step
-    // At the start of a move that step is zero, so float rounding can keep the door shut until the player backs away
-    // A step that doesn't move the door can't push the player
+    // A blocked door retries a zero step, which float rounding can count as moving closer to its activator
     int hPlayer = 0;
     bool bBlocked = AWMTestObjectCollision(thisPtr, hTest, pTestPos, pTestRot, &hPlayer);
     if (bBlocked && hPlayer && hPlayer == *reinterpret_cast<int*>(thisPtr + doorCollisionActivatorOffset) && DoorCollisionDist(vDoorPos, pTestPos) < 0.01f)
