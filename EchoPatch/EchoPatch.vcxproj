@@ -208,6 +208,7 @@
     <ClInclude Include="..\src\Server\Extra\DoorBashing.cpp" />
     <ClInclude Include="..\src\Server\Extra\EnableCustomMaxWeaponCapacity.cpp" />
     <ClInclude Include="..\src\Server\Extra\UncapDismemberment.cpp" />
+    <ClInclude Include="..\src\Server\Fixes\FixDoorCollision.cpp" />
     <ClInclude Include="..\src\Server\Fixes\FixWaterReflections.cpp" />
     <ClInclude Include="..\src\Server\Fixes\HighFPSFixes.cpp" />
     <ClInclude Include="..\src\Server\Graphics\EnablePersistentWorldState.cpp" />

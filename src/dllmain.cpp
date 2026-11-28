@@ -45,6 +45,7 @@
 #include "Server/Extra/UncapDismemberment.cpp"
 #include "Server/Fixes/HighFPSFixes.cpp"
 #include "Server/Fixes/FixWaterReflections.cpp"
+#include "Server/Fixes/FixDoorCollision.cpp"
 #include "Server/Controller/Controller.cpp"
 #include "Server/Console/DebugLines.cpp"
 #include "Server/ServerPatch.cpp"

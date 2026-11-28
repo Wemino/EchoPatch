@@ -13,6 +13,7 @@ void ApplyServerPatch()
     ApplyUncapDismembermentServerPatch();
     ApplyHighFPSFixesServerPatch();
     ApplyFixWaterReflectionsServerPatch();
+    ApplyFixDoorCollisionServerPatch();
     ApplyControllerServerPatch();
     ApplyConsoleDebugLinesServerPatch();
     HookHelper::EndBatch();
