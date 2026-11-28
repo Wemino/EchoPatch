@@ -281,6 +281,7 @@ bool FixHWMixing = false;
 bool FixScriptedAnimationCrash = false;
 bool FixTranslucentRendering = false;
 bool FixWaterReflections = false;
+bool FixDoorCollision = false;
 bool KeepRendererOnFocusLoss = false;
 bool HardwareVertexProcessing = false;
 bool FixHardwareCursor = false;

@@ -31,6 +31,7 @@ static void ReadConfig()
     FixScriptedAnimationCrash = IniHelper::ReadInteger("Fixes", "FixScriptedAnimationCrash", 1) == 1;
     FixTranslucentRendering = IniHelper::ReadInteger("Fixes", "FixTranslucentRendering", 1) == 1;
     FixWaterReflections = IniHelper::ReadInteger("Fixes", "FixWaterReflections", 1) == 1;
+    FixDoorCollision = IniHelper::ReadInteger("Fixes", "FixDoorCollision", 1) == 1;
     KeepRendererOnFocusLoss = IniHelper::ReadInteger("Fixes", "KeepRendererOnFocusLoss", 1) == 1;
     HardwareVertexProcessing = IniHelper::ReadInteger("Fixes", "HardwareVertexProcessing", 1) == 1;
     FixHardwareCursor = IniHelper::ReadInteger("Fixes", "FixHardwareCursor", 1) == 1;
